@@ -168,52 +168,6 @@ def upgrade() -> None:
     op.create_index("idx_api_keys_prefix", "api_keys", ["prefix"], unique=False)
     op.create_index("idx_api_keys_user_id", "api_keys", ["user_id"], unique=False)
     op.create_table(
-        "backup_jobs",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("label", sa.Text(), server_default="", nullable=False),
-        sa.Column("status", sa.Text(), server_default="pending", nullable=False),
-        sa.Column("progress", sa.Double(), server_default=sa.text("0"), nullable=False),
-        sa.Column("destination_prefix", sa.Text(), server_default="", nullable=False),
-        sa.Column("object_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("byte_count", sa.BigInteger(), server_default=sa.text("0"), nullable=False),
-        sa.Column(
-            "manifest",
-            postgresql.JSONB(astext_type=sa.Text()),
-            server_default=sa.text("'{}'::jsonb"),
-            nullable=False,
-        ),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("created_by", sa.Uuid(), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.CheckConstraint(
-            "status IN ('pending', 'running', 'succeeded', 'failed')",
-            name="backup_jobs_status_check",
-        ),
-        sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("idx_backup_jobs_created_at", "backup_jobs", ["created_at"], unique=False)
-    op.create_index(
-        "idx_backup_jobs_created_at_id",
-        "backup_jobs",
-        [sa.literal_column("created_at DESC"), sa.literal_column("id DESC")],
-        unique=False,
-    )
-    op.create_index("idx_backup_jobs_status", "backup_jobs", ["status"], unique=False)
-    op.create_table(
         "collections",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.Text(), nullable=False),
@@ -505,7 +459,6 @@ def upgrade() -> None:
         sa.Column("tenant_id", sa.Text(), nullable=True),
         sa.Column("root_id", sa.Text(), nullable=False),
         sa.Column("root_name", sa.Text(), nullable=False),
-        sa.Column("root_mime_type", sa.Text(), server_default="", nullable=False),
         sa.Column("source_type", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), server_default="idle", nullable=False),
         sa.Column("schedule_enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
@@ -553,9 +506,6 @@ def upgrade() -> None:
     )
     op.create_index(
         "idx_connector_sources_next_sync", "connector_sources", ["next_sync_at"], unique=False
-    )
-    op.create_index(
-        "idx_connector_sources_tenant_id", "connector_sources", ["tenant_id"], unique=False
     )
     op.create_table(
         "connector_source_credentials",
@@ -840,6 +790,7 @@ def upgrade() -> None:
         sa.Column("content_hash", sa.Text(), nullable=True),
         sa.Column("web_url", sa.Text(), nullable=True),
         sa.Column("status", sa.Text(), server_default="active", nullable=False),
+        sa.Column("last_seen_job_id", sa.Uuid(), nullable=True),
         sa.Column(
             "metadata",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -870,6 +821,12 @@ def upgrade() -> None:
         "idx_connector_documents_source_remote",
         "connector_documents",
         ["source_id", "remote_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_connector_documents_source_last_seen",
+        "connector_documents",
+        ["source_id", "last_seen_job_id"],
         unique=False,
     )
     op.create_table(
@@ -1070,6 +1027,7 @@ def downgrade() -> None:
     op.drop_index("idx_connector_sync_jobs_status", table_name="connector_sync_jobs")
     op.drop_index("idx_connector_sync_jobs_source_created", table_name="connector_sync_jobs")
     op.drop_table("connector_sync_jobs")
+    op.drop_index("idx_connector_documents_source_last_seen", table_name="connector_documents")
     op.drop_index("idx_connector_documents_source_remote", table_name="connector_documents")
     op.drop_index("idx_connector_documents_document_id", table_name="connector_documents")
     op.drop_table("connector_documents")
@@ -1100,7 +1058,6 @@ def downgrade() -> None:
         table_name="connector_source_credentials",
     )
     op.drop_table("connector_source_credentials")
-    op.drop_index("idx_connector_sources_tenant_id", table_name="connector_sources")
     op.drop_index("idx_connector_sources_next_sync", table_name="connector_sources")
     op.drop_index("idx_connector_sources_collection_id", table_name="connector_sources")
     op.drop_table("connector_sources")
@@ -1133,10 +1090,6 @@ def downgrade() -> None:
     op.drop_index("idx_collections_name", table_name="collections")
     op.drop_index("idx_collections_created_at_id", table_name="collections")
     op.drop_table("collections")
-    op.drop_index("idx_backup_jobs_status", table_name="backup_jobs")
-    op.drop_index("idx_backup_jobs_created_at_id", table_name="backup_jobs")
-    op.drop_index("idx_backup_jobs_created_at", table_name="backup_jobs")
-    op.drop_table("backup_jobs")
     op.drop_index("idx_api_keys_user_id", table_name="api_keys")
     op.drop_index("idx_api_keys_prefix", table_name="api_keys")
     op.drop_index("idx_api_keys_expires_at", table_name="api_keys")

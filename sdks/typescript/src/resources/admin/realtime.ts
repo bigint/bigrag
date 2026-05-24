@@ -5,7 +5,6 @@ import type {
   AccessLogOverviewResponse,
   AdminRealtimeEvent,
   AuditLogListResponse,
-  BackupJobListResponse,
   BatchStatusResponse,
   CollectionStatsResponse,
   Document,
@@ -91,12 +90,6 @@ export class AdminRealtimeResource {
       source_id: options.sourceId,
       limit: options.limit,
     });
-  }
-
-  backups(
-    options: { limit?: number; offset?: number } = {},
-  ): AsyncGenerator<AdminRealtimeEvent<BackupJobListResponse>> {
-    return this._stream("admin.backups", options);
   }
 
   accessOverview(

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
-    db_pool_max: int = 10
+    db_pool_max: int = 20
     db_statement_timeout_seconds: int = 30
     db_disable_prepared_statements: bool = False
     migration_timeout_seconds: int = 60
@@ -84,20 +84,11 @@ class Settings(BaseSettings):
     storage_s3_access_key_id: str | None = None
     storage_s3_secret_access_key: str | None = None
     storage_s3_force_path_style: bool = False
-    backup_s3_bucket: str = ""
-    backup_s3_endpoint_url: str | None = None
-    backup_s3_region: str = "us-east-1"
-    backup_s3_prefix: str = ""
-    backup_s3_access_key_id: str | None = None
-    backup_s3_secret_access_key: str | None = None
-    backup_s3_force_path_style: bool = False
-
     max_upload_size_mb: int = 64
     max_batch_upload_size_mb: int = 128
     max_upload_session_files: int = 10000
     max_upload_session_size_mb: int = 102400
     upload_session_item_retention_hours: int = 168
-    ingestion_workers: int = 4
     ingestion_batch_size: int = 128
     max_vector_upsert_count: int = 1000
     max_vector_delete_count: int = 10000

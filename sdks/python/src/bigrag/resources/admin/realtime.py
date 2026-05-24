@@ -91,11 +91,6 @@ class AdminRealtimeResource:
             },
         )
 
-    def backups(
-        self, *, limit: int | None = None, offset: int | None = None
-    ) -> AsyncGenerator[AdminRealtimeEvent, None]:
-        return self._stream("admin.backups", {"limit": limit, "offset": offset})
-
     def access_overview(
         self, *, window_days: int | None = None
     ) -> AsyncGenerator[AdminRealtimeEvent, None]:

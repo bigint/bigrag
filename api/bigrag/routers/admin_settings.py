@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.session import get_session
+from bigrag.exceptions import ValidationError
 from bigrag.middleware.auth import require_admin_session
 from bigrag.models import StatusResponse
 from bigrag.models.instance_settings import (
@@ -66,7 +67,7 @@ async def update_instance_settings(
                 await apply_prepared_runtime_settings(request.app, prepared)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
-    except (RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError, ValidationError) as exc:
         raise HTTPException(
             status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
         ) from exc
@@ -96,7 +97,7 @@ async def test_instance_settings(
         prepared = await prepare_runtime_settings_update(request.app, body.values)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
-    except (RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError, ValidationError) as exc:
         raise HTTPException(
             status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
         ) from exc
@@ -124,7 +125,7 @@ async def reset_instance_settings(
         await apply_prepared_runtime_settings(request.app, prepared)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown setting: {exc.args[0]}") from exc
-    except (RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError, ValidationError) as exc:
         raise HTTPException(
             status_code=400, detail=safe_error_detail(exc, "Settings update was rejected.")
         ) from exc

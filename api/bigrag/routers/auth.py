@@ -17,7 +17,6 @@ from bigrag.middleware.auth import (
     invalidate_auth_principals,
     invalidate_session_principal,
     require_session,
-    session_expiry,
 )
 from bigrag.models import StatusResponse
 from bigrag.models.auth import (
@@ -29,87 +28,24 @@ from bigrag.models.auth import (
     UserResponse,
     WhoamiResponse,
 )
+from bigrag.routers.auth_session import (
+    clear_session_cookie,
+    issue_session,
+    lock_setup,
+    set_session_cookie,
+)
 from bigrag.services import audit
 from bigrag.services.auth import (
     DUMMY_PASSWORD_HASH,
-    generate_session_token,
     hash_password,
     hash_session_token,
     needs_rehash,
     verify_password,
 )
-from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
-
-SETUP_LOCK_KEY = 734119001
-
-
-async def _session_cookie_options() -> dict:
-    return await get_values(
-        [
-            "session_cookie_secure",
-            "session_cookie_samesite",
-            "session_cookie_domain",
-        ]
-    )
-
-
-async def _lock_setup(session: AsyncSession) -> None:
-    await session.execute(
-        sa.text("SELECT pg_advisory_xact_lock(:key)").bindparams(key=SETUP_LOCK_KEY)
-    )
-
-
-def _resolve_cookie_security(cookie: dict) -> tuple[bool, str]:
-    samesite = cookie["session_cookie_samesite"] or "lax"
-    secure = bool(cookie["session_cookie_secure"])
-    if samesite.lower() == "none":
-        secure = True
-    return secure, samesite
-
-
-async def _set_session_cookie(response: Response, token: str) -> None:
-    cookie = await _session_cookie_options()
-    secure, samesite = _resolve_cookie_security(cookie)
-    response.set_cookie(
-        key=_config.settings.session_cookie_name,
-        value=token,
-        max_age=_config.settings.session_expiry_hours * 3600,
-        httponly=True,
-        secure=secure,
-        samesite=samesite,
-        domain=cookie["session_cookie_domain"],
-        path="/",
-    )
-
-
-async def _clear_session_cookie(response: Response) -> None:
-    cookie = await _session_cookie_options()
-    secure, samesite = _resolve_cookie_security(cookie)
-    response.delete_cookie(
-        key=_config.settings.session_cookie_name,
-        httponly=True,
-        secure=secure,
-        samesite=samesite,
-        domain=cookie["session_cookie_domain"],
-        path="/",
-    )
-
-
-async def _issue_session(session: AsyncSession, user_id: uuid.UUID) -> str:
-    token = generate_session_token()
-    session.add(
-        UserSession(
-            id=uuid7(),
-            user_id=user_id,
-            token_hash=hash_session_token(token),
-            expires_at=session_expiry(),
-        )
-    )
-    return token
 
 
 @router.get("/setup-status", response_model=SetupStatusResponse)
@@ -127,7 +63,7 @@ async def setup(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
-    await _lock_setup(session)
+    await lock_setup(session)
     existing = await session.scalar(sa.select(sa.func.count()).select_from(User))
     if existing > 0:
         raise HTTPException(status_code=409, detail="Setup has already been completed")
@@ -142,11 +78,11 @@ async def setup(
     )
     session.add(user)
     await session.flush()
-    token = await _issue_session(session, user.id)
+    token = await issue_session(session, user.id)
     await session.commit()
     await session.refresh(user)
 
-    await _set_session_cookie(response, token)
+    await set_session_cookie(response, token)
     logger.info("first admin created", email=body.email)
     audit.record(
         request,
@@ -188,10 +124,10 @@ async def login(
         user.password_hash = await asyncio.to_thread(hash_password, body.password)
 
     user.last_login_at = sa.func.now()
-    token = await _issue_session(session, user.id)
+    token = await issue_session(session, user.id)
     await session.commit()
     await session.refresh(user)
-    await _set_session_cookie(response, token)
+    await set_session_cookie(response, token)
     audit.record(
         request,
         user={"id": str(user.id), "email": user.email},
@@ -220,12 +156,12 @@ async def logout(
             .where(UserSession.token_hash == token_hash)
         )
         if actor_user is None or str(actor_user.id) != auth_user["id"]:
-            await _clear_session_cookie(response)
+            await clear_session_cookie(response)
             raise HTTPException(status_code=403, detail="Session mismatch")
         await session.execute(sa.delete(UserSession).where(UserSession.token_hash == token_hash))
         await session.commit()
         await invalidate_session_principal(token_hash)
-    await _clear_session_cookie(response)
+    await clear_session_cookie(response)
     if actor_user is not None:
         audit.record(
             request,
@@ -252,7 +188,7 @@ async def logout_all(
     )
     await session.commit()
     await invalidate_auth_principals()
-    await _clear_session_cookie(response)
+    await clear_session_cookie(response)
     audit.record(
         request,
         user=user,

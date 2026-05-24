@@ -12,6 +12,11 @@
     "indentWidth": 2,
     "lineWidth": 100
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
@@ -27,7 +32,8 @@
         "useKeyWithClickEvents": "error"
       },
       "complexity": {
-        "noForEach": "error"
+        "noForEach": "error",
+        "noImportantStyles": "off"
       },
       "correctness": {
         "noNestedComponentDefinitions": "error"
@@ -44,12 +50,22 @@
   },
   "files": {
     "includes": [
+      "*.json",
+      "*.jsonc",
+      "*.mjs",
+      "scripts/**/*.mjs",
+      "sdks/**/*.json",
       "sdks/**/*.ts",
+      "app/**/*.css",
+      "app/**/*.json",
+      "app/**/*.ts",
+      "app/**/*.tsx",
+      "app/**/*.mjs",
+      "website/**/*.css",
+      "website/**/*.json",
       "website/**/*.ts",
       "website/**/*.tsx",
       "website/**/*.mjs",
-      "app/src/**/*.ts",
-      "app/src/**/*.tsx",
       "!app/src/routeTree.gen.ts",
       "!**/.venv",
       "!**/.source",

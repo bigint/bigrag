@@ -8,6 +8,7 @@ import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import Collection, Document, DocumentElement, EmbeddingPreset
+from bigrag.services.document_elements.types import ENRICHABLE_KINDS
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.runtime_settings import get_value, get_values
 from bigrag.services.url_security import (
@@ -16,7 +17,6 @@ from bigrag.services.url_security import (
     pinned_async_client,
 )
 
-ENRICHABLE_KINDS = {"image", "table", "equation"}
 MAX_ELEMENTS_PER_RUN = 25
 MAX_SUMMARY_CHARS = 4000
 MODEL_TIMEOUT_SECONDS = 60

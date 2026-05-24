@@ -5,7 +5,7 @@ import type {
   McpServer,
   EmbeddingPreset as SdkEmbeddingPreset,
   Webhook,
-} from "@bigrag/client";
+} from "@bigrag/client/browser";
 import type { Paginated } from "@/types/pagination";
 
 export type { AccessLogEntry, ApiKey, McpServer, Webhook };

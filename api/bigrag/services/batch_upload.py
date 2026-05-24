@@ -13,6 +13,7 @@ from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.services import collection_cache
 from bigrag.services.documents import recount_collection_documents
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.staged_files import delete_staged_file_path
@@ -77,7 +78,8 @@ async def enqueue_batch_documents(
                 collection=collection_name,
             )
             doc.status = "failed"
-            doc.error_message = f"enqueue failed: {exc.__class__.__name__}: {exc}"
+            safe_error = sanitize_message_text(str(exc)) or exc.__class__.__name__
+            doc.error_message = f"enqueue failed: {safe_error}"
             if await delete_staged_file_path(doc.file_path):
                 doc.file_path = ""
             failed = True

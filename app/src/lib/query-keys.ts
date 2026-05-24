@@ -54,7 +54,6 @@ export const queryKeys = {
     session: () => ["auth", "session"] as const,
   },
   apiKeys: () => ["api-keys"] as const,
-  backups: () => ["backups"] as const,
   access: {
     logs: (filters: Record<string, unknown>) => ["access", "logs", filters] as const,
     overview: ({ windowDays }: WindowDaysParams) => ["access", "overview", { windowDays }] as const,

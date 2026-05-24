@@ -23,22 +23,6 @@ export type SettingsStatusSummary = {
 };
 
 const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> = {
-  backups: {
-    commonKeys: [
-      "backup_s3_bucket",
-      "backup_s3_endpoint_url",
-      "backup_s3_region",
-      "backup_s3_prefix",
-      "backup_s3_access_key_id",
-      "backup_s3_secret_access_key",
-    ],
-    description: "Readable full-instance exports to S3, R2, or MinIO.",
-    emptyState: "Backup destination settings are not available from this API.",
-    eyebrow: "Disaster recovery",
-    group: "backups",
-    recommendedAction: "Configure the destination, save it, then start a readable export.",
-    title: "Backup destination",
-  },
   chat: {
     commonKeys: ["chat_provider", "chat_model", "chat_base_url", "chat_temperature"],
     description: "Default provider and behavior for playground chat answers.",
@@ -54,7 +38,6 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
       "max_batch_upload_size_mb",
       "conversion_pdf_ocr_enabled",
       "conversion_timeout",
-      "ingestion_workers",
       "ingestion_batch_size",
     ],
     description: "Upload, conversion, OCR, and worker limits for document intake.",
@@ -168,10 +151,7 @@ export const settingsStatusSummary = (
 
 export const settingsRecommendedAction = (
   layout: SettingsGroupLayout,
-  summary: SettingsStatusSummary,
+  _summary: SettingsStatusSummary,
 ): string => {
-  if (summary.missingSecrets > 0 && layout.group === "backups") {
-    return "Add the missing credentials, then save the connection.";
-  }
   return layout.recommendedAction;
 };

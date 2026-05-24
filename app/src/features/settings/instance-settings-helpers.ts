@@ -5,11 +5,6 @@ export type DraftValue = boolean | string;
 const examplePlaceholders: Record<string, string> = {
   allowed_chat_base_urls: "https://api.openai.com/v1",
   allowed_embedding_base_urls: "https://api.openai.com/v1",
-  backup_s3_access_key_id: "Access key ID",
-  backup_s3_bucket: "bigrag-backups",
-  backup_s3_endpoint_url: "https://account-id.r2.cloudflarestorage.com",
-  backup_s3_prefix: "backups/",
-  backup_s3_secret_access_key: "Secret access key",
   chat_base_url: "https://api.openai.com/v1",
   embedding_api_key: "Paste API key",
   embedding_base_url: "https://api.openai.com/v1",

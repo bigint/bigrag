@@ -9,6 +9,7 @@ ELEMENT_REF_TEXT_LIMIT = 1200
 CONTEXT_RADIUS = 600
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 VALID_KINDS = {"text", "heading", "table", "image", "equation", "unknown"}
+ENRICHABLE_KINDS = {"image", "table", "equation"}
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 MATH_BLOCK_RE = re.compile(r"^\s*(\$\$|\\\[|\\begin\{equation\})", re.DOTALL)
 

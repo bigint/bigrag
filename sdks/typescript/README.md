@@ -62,7 +62,7 @@ while (current.status === "pending" || current.status === "processing") {
 - `client.vectors` for raw vector upsert and delete.
 - `client.webhooks` for webhook management and delivery replay.
 - `client.auth` for setup, login, identity, password, and preferences.
-- `client.admin` for users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime helpers, connectors, embedding presets, and MCP server keys.
+- `client.admin` for users, API keys, access logs, audit logs, runtime settings, vector storage overview, admin realtime helpers, connectors, embedding presets, and MCP server keys.
 - `client.realtime` for explicit WebSocket connect, subscribe, and unsubscribe control.
 - `client.connectors.s3` for S3-compatible bucket-prefix sources and sync jobs.
 - `client.evaluations` for golden-set retrieval evaluations.

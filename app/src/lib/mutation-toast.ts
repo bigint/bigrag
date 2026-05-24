@@ -1,4 +1,4 @@
-import { APIError } from "@bigrag/client";
+import { APIError } from "@bigrag/client/browser";
 import { toast } from "sonner";
 
 export const errorToast =

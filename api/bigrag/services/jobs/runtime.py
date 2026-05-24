@@ -14,7 +14,6 @@ from bigrag.services import crypto, redis_cache, runtime_settings
 from bigrag.services.conversion import get_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.jobs.broker import (
-    BACKUPS_QUEUE,
     CONNECTORS_QUEUE,
     INGESTION_QUEUE,
     MAINTENANCE_QUEUE,
@@ -37,7 +36,6 @@ _HEARTBEAT_SECONDS = 30
 _HEARTBEAT_TTL_SECONDS = 120
 _SKIP_MIGRATIONS_ENV = "BIGRAG_WORKER_RUNTIME_SKIP_MIGRATIONS"
 _RUNTIME_SETTING_KEYS = (
-    "ingestion_workers",
     "turbopuffer_api_key",
     "turbopuffer_base_url",
     "turbopuffer_namespace_prefix",
@@ -47,7 +45,6 @@ _DEFAULT_QUEUES = {
     INGESTION_QUEUE,
     CONNECTORS_QUEUE,
     WEBHOOKS_QUEUE,
-    BACKUPS_QUEUE,
     MAINTENANCE_QUEUE,
 }
 
@@ -81,7 +78,6 @@ async def ensure_worker_runtime() -> None:
         _storage = await init_storage_from_runtime(upload_dir=settings.upload_dir)
         await redis_cache.connect(settings.redis_url)
         await event_bus.connect(settings.redis_url)
-        ingestion_queue._num_workers = runtime["ingestion_workers"]
         await ingestion_queue.connect(settings.redis_url)
         ingestion_queue.bind_vector_store(vector_store)
         await ingestion_queue.start()
@@ -94,7 +90,6 @@ async def ensure_worker_runtime() -> None:
 
 async def _sync_runtime_settings() -> None:
     runtime = await runtime_settings.get_values(list(_RUNTIME_SETTING_KEYS))
-    ingestion_queue._num_workers = runtime["ingestion_workers"]
     await _sync_vector_store(runtime)
 
 

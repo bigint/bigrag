@@ -60,7 +60,6 @@ TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token
 | `admin.collections.stats` | `collection` | `GET /v1/collections/{name}/stats` | stays open |
 | `admin.connectors.sources` | `provider`, `collection` | `GET /v1/connectors/{provider}/sources` | stays open |
 | `admin.connectors.sync_jobs` | `provider`, `collection`, `source_id`, `limit` | `GET /v1/connectors/{provider}/sync-jobs` | stays open |
-| `admin.backups` | `limit`, `offset` | `GET /v1/admin/backups` | stays open |
 | `admin.access.overview` | `window_days` | `GET /v1/admin/access/overview` | stays open |
 | `admin.access.logs` | access-log filters, `limit`, `offset` | `GET /v1/admin/access/logs` | stays open |
 | `admin.audit` | audit filters, `limit`, `offset` | `GET /v1/admin/audit` | stays open |

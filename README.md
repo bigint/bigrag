@@ -230,7 +230,7 @@ Full interactive docs at `/docs` (Swagger UI) when running.
 npm install @bigrag/client
 ```
 
-Published npm releases use CalVer, for example `@bigrag/client@2026.5.22`.
+Published npm releases use CalVer, for example `@bigrag/client@2026.5.23`.
 
 ```typescript
 import { BigRAG } from "@bigrag/client";
@@ -376,7 +376,6 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_UPLOAD_DIR` | Local ingestion staging directory | `./data/uploads` |
-| `BIGRAG_INGESTION_WORKERS` | Ingestion concurrency target | `4` |
 | `BIGRAG_MAX_UPLOAD_SIZE_MB` | Max single-file upload size | `64` |
 | `BIGRAG_MAX_BATCH_UPLOAD_SIZE_MB` | Max total batch-upload size | `128` |
 | `BIGRAG_INGESTION_BATCH_SIZE` | Vectors per embedding batch | `128` |

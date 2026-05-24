@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from bigrag.resources.admin.access import AdminAccessResource
 from bigrag.resources.admin.api_keys import AdminApiKeysResource
 from bigrag.resources.admin.audit import AdminAuditResource
-from bigrag.resources.admin.backups import AdminBackupsResource
 from bigrag.resources.admin.embedding_presets import AdminEmbeddingPresetsResource
 from bigrag.resources.admin.mcp_servers import AdminMcpServersResource
 from bigrag.resources.admin.realtime import AdminRealtimeResource
@@ -22,7 +21,6 @@ class AdminResource:
     api_keys: AdminApiKeysResource
     access: AdminAccessResource
     audit: AdminAuditResource
-    backups: AdminBackupsResource
     embedding_presets: AdminEmbeddingPresetsResource
     mcp_servers: AdminMcpServersResource
     realtime: AdminRealtimeResource
@@ -34,7 +32,6 @@ class AdminResource:
         self.api_keys = AdminApiKeysResource(client)
         self.access = AdminAccessResource(client)
         self.audit = AdminAuditResource(client)
-        self.backups = AdminBackupsResource(client)
         self.embedding_presets = AdminEmbeddingPresetsResource(client)
         self.mcp_servers = AdminMcpServersResource(client)
         self.realtime = AdminRealtimeResource(client)
@@ -46,7 +43,6 @@ __all__ = [
     "AdminAccessResource",
     "AdminApiKeysResource",
     "AdminAuditResource",
-    "AdminBackupsResource",
     "AdminEmbeddingPresetsResource",
     "AdminMcpServersResource",
     "AdminRealtimeResource",

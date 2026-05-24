@@ -5,6 +5,7 @@ from fastapi import Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bigrag.db.engine import session_factory
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -35,7 +36,6 @@ from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.staged_files import StagedFileCleanupError, delete_staged_file_path
 from bigrag.services.vector_store import vector_store
-from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.documents")
 
@@ -47,8 +47,8 @@ async def upload_document(
     file: UploadFile = File(...),
     metadata: str = Form(default="{}"),
     user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
     logger.info("document upload", collection=collection_name, filename=file.filename)
@@ -73,36 +73,11 @@ async def upload_document(
             collection, metadata, prepare_document_metadata, parse_form_metadata, user
         )
 
-        existing = await session.scalar(content_hash_match(collection, content_hash, meta))
-        if existing is not None:
-            logger.info(
-                "upload: dedup hit — returning existing doc",
-                content_hash=content_hash[:12],
-                doc_id=str(existing.id),
-            )
-            return document_response(
-                existing,
-                deduped=True,
-                progress=await document_progress(existing, collection_name),
-            )
-
-        try:
-            doc = await persist_document(
-                session=session,
-                collection_name=collection_name,
-                collection=collection,
-                filename=file.filename or "document",
-                source=tmp_path,
-                file_size=file_size,
-                metadata=meta,
-                content_hash=content_hash,
-                raise_on_enqueue_failure=True,
-            )
-        except IntegrityError:
+        async with session_factory()() as session:
             existing = await session.scalar(content_hash_match(collection, content_hash, meta))
             if existing is not None:
                 logger.info(
-                    "upload: integrity dedup hit — returning existing doc",
+                    "upload: dedup hit — returning existing doc",
                     content_hash=content_hash[:12],
                     doc_id=str(existing.id),
                 )
@@ -111,7 +86,33 @@ async def upload_document(
                     deduped=True,
                     progress=await document_progress(existing, collection_name),
                 )
-            raise
+
+            try:
+                doc = await persist_document(
+                    session=session,
+                    collection_name=collection_name,
+                    collection=collection,
+                    filename=file.filename or "document",
+                    source=tmp_path,
+                    file_size=file_size,
+                    metadata=meta,
+                    content_hash=content_hash,
+                    raise_on_enqueue_failure=True,
+                )
+            except IntegrityError:
+                existing = await session.scalar(content_hash_match(collection, content_hash, meta))
+                if existing is not None:
+                    logger.info(
+                        "upload: integrity dedup hit — returning existing doc",
+                        content_hash=content_hash[:12],
+                        doc_id=str(existing.id),
+                    )
+                    return document_response(
+                        existing,
+                        deduped=True,
+                        progress=await document_progress(existing, collection_name),
+                    )
+                raise
     finally:
         try:
             tmp_path.unlink()
@@ -189,15 +190,6 @@ async def delete_document(
     await collection_cache.invalidate(collection_name)
     await invalidate_collection_query_cache(collection_name)
 
-    await enqueue_webhook_event(
-        "document.deleted",
-        collection=collection_name,
-        data={
-            "document_id": document_id,
-            "collection": collection_name,
-            "filename": deleted_filename,
-        },
-    )
     audit.record(
         request,
         user=user,

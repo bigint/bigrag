@@ -7,9 +7,6 @@ export default defineConfig({
     tanstackRouter({
       autoCodeSplitting: true,
       enableRouteGeneration: false,
-      quoteStyle: "double",
-      routeTreeFileHeader: ["// @ts-nocheck"],
-      semicolons: true,
       target: "react",
     }),
     react(),

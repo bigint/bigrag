@@ -19,15 +19,6 @@ def principal_id(scope: Scope) -> str:
         if token.startswith(API_KEY_PREFIX):
             return f"key:{hash_api_key(token)}"
 
-    query_string = scope.get("query_string", b"")
-    if query_string:
-        from urllib.parse import parse_qs
-
-        params = parse_qs(query_string.decode("latin-1"))
-        token_vals = params.get("token") or []
-        if token_vals and token_vals[0].startswith(API_KEY_PREFIX):
-            return f"key:{hash_api_key(token_vals[0])}"
-
     cookie_header = headers.get("cookie")
     if cookie_header:
         jar = SimpleCookie()

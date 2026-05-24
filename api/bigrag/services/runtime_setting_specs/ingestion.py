@@ -62,16 +62,6 @@ INGESTION_SPECS: tuple[SettingSpec, ...] = (
         max=86400,
     ),
     SettingSpec(
-        key="ingestion_workers",
-        group="ingestion",
-        label="Ingestion workers",
-        kind="int",
-        default=4,
-        description="Target worker concurrency for this API role.",
-        min=1,
-        max=256,
-    ),
-    SettingSpec(
         key="ingestion_batch_size",
         group="ingestion",
         label="Ingestion batch size",

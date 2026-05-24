@@ -1,0 +1,20 @@
+---
+title: Testing
+description: Current verification workflow for bigRAG changes.
+---
+
+bigRAG no longer carries package-level unit, integration, end-to-end, or coverage suites. Do not add those runners back to feature work unless the project deliberately reintroduces them.
+
+Use the smallest verification set that matches the changed surface:
+
+| Surface | Verification |
+|---------|--------------|
+| Backend API | `cd api && uv run ruff check . && uv run ruff format --check .` |
+| Python SDK | `uv run --project api ruff check sdks/python/src && uv run --project api ruff format --check sdks/python/src` |
+| TypeScript SDK | `pnpm --filter @bigrag/client typecheck && pnpm --filter @bigrag/client build` |
+| Admin UI | `pnpm --filter @bigrag/app typecheck && pnpm --filter @bigrag/app build` |
+| Docs site | `pnpm --filter @bigrag/docs typecheck && pnpm --filter @bigrag/docs build` |
+| TS, JS, JSON, CSS | `pnpm exec biome check .` |
+| Generated diffs | `git diff --check` |
+
+Use runtime smoke checks when behavior changes require a live API, worker, browser, queue, vector store, or deploy template.

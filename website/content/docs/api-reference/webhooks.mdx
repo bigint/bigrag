@@ -18,7 +18,7 @@ Session-only admin endpoints. API-key bearer tokens are rejected.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `url` | string | yes | Delivery URL. HTTPS is required unless `allow_local_webhooks` is enabled and the URL is loopback HTTP |
-| `events` | string[] | yes | Event types to subscribe to. Supported families are `document.*`, `collection.*`, `connector.sync.*`, and `backup.*` data-operation events |
+| `events` | string[] | yes | Event types to subscribe to. Supported families are `collection.*` and `connector.sync.*` data-operation events |
 | `collections` | string[] | no | Filter by collection names (`null` = all) |
 
 **Response** `201`: Webhook object with `secret` field (shown once only). The secret is Fernet-encrypted at rest — see [Encryption at rest](/docs/deployment/encryption).
@@ -29,11 +29,11 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
-    "events": ["document.ready", "document.failed", "connector.sync.failed"]
+    "events": ["collection.truncated", "connector.sync.failed"]
   }'
 ```
 
-Supported event types: `document.processing`, `document.ready`, `document.failed`, `document.deleted`, `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`, `backup.started`, `backup.succeeded`, `backup.failed`.
+Supported event types: `collection.created`, `collection.updated`, `collection.deleted`, `collection.truncated`, `connector.sync.started`, `connector.sync.completed`, `connector.sync.failed`.
 
 </Accordion>
 
@@ -113,21 +113,7 @@ Re-sends the original stored delivery payload to the webhook URL and records the
 
 ## Payload format
 
-Document processing events use a flat payload for compatibility:
-
-```json
-{
-  "event": "document.ready",
-  "timestamp": "2026-04-02T12:34:56Z",
-  "collection": "docs",
-  "document_id": "abc-123",
-  "status": "ready",
-  "chunk_count": 42,
-  "error_message": null
-}
-```
-
-New data-operation events use a common envelope:
+Webhook events use a common envelope:
 
 ```json
 {
@@ -162,7 +148,7 @@ Each delivery includes these headers:
 ```
 X-BigRAG-Signature: sha256=<hex digest>
 X-BigRAG-Timestamp: <unix timestamp>
-X-BigRAG-Event: document.ready
+X-BigRAG-Event: connector.sync.completed
 X-BigRAG-Delivery: <delivery-uuid>
 ```
 

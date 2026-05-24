@@ -1,6 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, Save, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,8 @@ import {
   validatePasswordFormValues,
   validateProfileFormValues,
 } from "@/features/settings/account-form-state";
+import { AccountActiveSessionsSection } from "@/features/settings/tabs/account-active-sessions-section";
+import { AccountProfileSection } from "@/features/settings/tabs/account-profile-section";
 import {
   useChangePassword,
   useLogout,
@@ -24,14 +25,6 @@ import {
   useUpdateCurrentUserProfile,
 } from "@/hooks/use-auth";
 import { errorText, firstString, submitWith } from "@/lib/form";
-
-const initials = (name: string, email: string) => {
-  const source = name?.trim() || email || "?";
-  const parts = source.split(/\s+/).filter(Boolean);
-  const [first, second] = parts;
-  if (first && second) return `${first[0]}${second[0]}`.toUpperCase();
-  return source.slice(0, 2).toUpperCase();
-};
 
 export const AccountTab = () => {
   const navigate = useNavigate();
@@ -62,7 +55,6 @@ export const AccountTab = () => {
   const values = useStore(form.store, (state) => state.values);
 
   const user = session?.user;
-  const displayName = user?.display_name || user?.email?.split("@")[0] || "—";
   const userDisplayName = user?.display_name ?? "";
   const userEmail = user?.email ?? "";
   const userId = user?.id;
@@ -101,9 +93,6 @@ export const AccountTab = () => {
     }
   };
 
-  const displayNameError = profileError?.startsWith("Display name") ? profileError : null;
-  const emailError = profileError && !displayNameError ? profileError : null;
-
   const confirmSignOutEverywhere = async () => {
     try {
       await logoutAll.mutateAsync();
@@ -116,59 +105,15 @@ export const AccountTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rounded-md border border-border bg-card p-4">
-        <div className="flex flex-wrap items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            {user ? initials(user.display_name, user.email) : "—"}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-base font-semibold tracking-normal">{displayName}</h3>
-              {user?.role && (
-                <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {user.role}
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">Edit your operator profile.</p>
-          </div>
-        </div>
-        <form className="mt-5 flex flex-col gap-4" noValidate onSubmit={submitProfile}>
-          {profileError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {profileError}
-            </div>
-          )}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              autoComplete="name"
-              error={displayNameError}
-              label="Display name"
-              maxLength={120}
-              onChange={(e) => setProfileField("displayName", e.target.value)}
-              placeholder="Display name"
-              value={profileValues.displayName}
-            />
-            <Input
-              autoComplete="email"
-              description="Used for sign in and audit attribution."
-              error={emailError}
-              label="Email"
-              onChange={(e) => setProfileField("email", e.target.value)}
-              placeholder="admin@example.com"
-              required
-              type="email"
-              value={profileValues.email}
-            />
-          </div>
-          <div className="flex justify-end pt-1">
-            <Button type="submit" disabled={!user || !profileChanged || updateProfile.isPending}>
-              <Save className="size-3.5" />
-              {updateProfile.isPending ? "Saving…" : "Save profile"}
-            </Button>
-          </div>
-        </form>
-      </section>
+      <AccountProfileSection
+        changed={profileChanged}
+        error={profileError}
+        onFieldChange={setProfileField}
+        onSubmit={submitProfile}
+        saving={updateProfile.isPending}
+        user={user ?? undefined}
+        values={profileValues}
+      />
 
       <section className="rounded-md border border-border bg-card p-4">
         <div>
@@ -277,30 +222,10 @@ export const AccountTab = () => {
           </div>
         </form>
 
-        <div className="mt-5 border-border border-t pt-4">
-          <h3 className="flex items-center gap-2 text-base font-semibold tracking-normal">
-            <ShieldAlert className="size-3.5 text-warning" />
-            Active sessions
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Sign out of every browser or device where this account is logged in.
-          </p>
-          <div className="mt-4 flex flex-col gap-3 rounded-md border border-border bg-muted/25 p-3">
-            <p className="text-sm text-muted-foreground">
-              This revokes all refresh tokens immediately. You'll need to log in again on every
-              device, including this one.
-            </p>
-            <Button
-              className="shrink-0"
-              variant="outline"
-              disabled={logoutAll.isPending}
-              onClick={() => setSignOutAllOpen(true)}
-            >
-              <LogOut className="size-3.5" />
-              {logoutAll.isPending ? "Signing out…" : "Sign out everywhere"}
-            </Button>
-          </div>
-        </div>
+        <AccountActiveSessionsSection
+          onSignOutEverywhere={() => setSignOutAllOpen(true)}
+          pending={logoutAll.isPending}
+        />
       </section>
       <ConfirmDialog
         open={signOutAllOpen}

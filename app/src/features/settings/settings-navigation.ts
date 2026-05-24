@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import { Activity, Archive, Database, Lock, UserRound } from "lucide-react";
+import { Activity, Database, Lock, UserRound } from "lucide-react";
 import type { InstanceSettingGroup } from "@/types/bigrag";
 
-export type SettingsTab = "account" | "health" | "security" | "data" | "vector_store" | "backups";
+export type SettingsTab = "account" | "health" | "security" | "data" | "vector_store";
 
 type SettingsNavItem = {
   readonly value: SettingsTab;
@@ -55,12 +55,6 @@ const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
         icon: Database,
         label: "Vector storage",
         value: "vector_store",
-      },
-      {
-        description: "Readable backup destination, export controls, and backup history.",
-        icon: Archive,
-        label: "Backups",
-        value: "backups",
       },
     ],
     label: "Operate",

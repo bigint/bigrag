@@ -17,6 +17,7 @@ from bigrag.routers.webhooks.serializers import _delivery_response, _webhook_to_
 from bigrag.services import audit
 from bigrag.services.pagination import paginate
 from bigrag.services.webhook import webhook_dispatcher
+from bigrag.services.webhook.events import VALID_EVENTS
 
 
 @router.get("/{webhook_id}/deliveries", response_model=WebhookDeliveryListResponse)
@@ -110,6 +111,8 @@ async def replay_delivery(
     )
     if delivery is None:
         raise HTTPException(status_code=404, detail="Delivery not found")
+    if delivery.event not in VALID_EVENTS:
+        raise HTTPException(status_code=400, detail="Webhook delivery event is no longer supported")
 
     from datetime import UTC, datetime
 

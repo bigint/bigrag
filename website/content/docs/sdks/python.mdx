@@ -72,7 +72,7 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, backups, vector storage overview, admin realtime helpers, embedding presets, and MCP server keys |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, vector storage overview, admin realtime helpers, embedding presets, and MCP server keys |
 | `client.realtime` | Explicit WebSocket connect, subscribe, and unsubscribe control |
 | `client.connectors.s3` | S3-compatible bucket prefixes, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
@@ -303,7 +303,7 @@ result = await client.vectors.delete("docs", ["v1", "v2"])
 # Create
 webhook = await client.webhooks.create({
     "url": "https://example.com/webhook",
-    "events": ["document.ready", "document.failed", "connector.sync.failed"],
+    "events": ["collection.truncated", "connector.sync.failed"],
 })
 print(webhook["secret"])
 
@@ -320,7 +320,7 @@ result = await client.webhooks.test("webhook-id")
 deliveries = await client.webhooks.list_deliveries("webhook-id", limit=10)
 ```
 
-Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
+Webhook events cover collection and connector sync data-operation changes. Examples: `collection.truncated` and `connector.sync.failed`.
 
 <Callout type="warn">
   Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth. API-key clients receive `403`.
@@ -366,14 +366,6 @@ await client.admin.settings.reset({"keys": ["trusted_proxies"]})
 await client.admin.settings.purge_embedding_cache()
 
 overview = await client.admin.vector_storage.overview()
-
-backups = await client.admin.backups.list(limit=20)
-backup = await client.admin.backups.create({"label": "nightly export"})
-backup = await client.admin.backups.get(backup["id"])
-
-async for event in client.admin.realtime.backups(limit=20):
-    if event["type"] == "snapshot":
-        print(event["payload"]["jobs"])
 
 async for event in client.admin.realtime.platform_readiness():
     if event["type"] == "snapshot":

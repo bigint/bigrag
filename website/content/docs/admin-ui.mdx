@@ -10,6 +10,7 @@ The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG.
 Key UI behaviors:
 - Supports light, dark, and system themes; selection is stored in the browser and applies before the React app loads.
 - Operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling with existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
+- Runtime settings save failures surface the backend validation detail returned by the settings API, including provider probe failures.
 - Collection creation keeps customer/tenant filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable customer separation only when one collection holds data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
 
 ## Running the Admin UI
@@ -47,7 +48,7 @@ For cross-site production deployments, enable secure session cookies and set `Sa
 | `/audit` | Filterable immutable admin audit trail with actor, action, resource, result, IP, redacted metadata detail, and timestamp details. |
 | `/webhooks` | Register, test, and delete webhooks. Delivery history and replay are available through the API. The page warns when data-operation deliveries are blocked by an offline worker. |
 | `/connectors` | Review S3/R2 source state across collections. |
-| `/settings` | Operator-console settings workspace for account, platform health, security, data flow, vector storage, and backups. |
+| `/settings` | Operator-console settings workspace for account, platform health, security, data flow, and vector storage. |
 | `/evals` | Run golden-set retrieval evaluations. |
 
 Unknown admin routes render the built-in 404 screen with links back to overview and collections. Unexpected route render failures use the admin 500 screen with a retry action, overview fallback, and a readable error-details panel showing the boundary error message, cause, and digest when available.
@@ -60,11 +61,9 @@ The `/models` page owns reusable embedding presets and runtime model settings. `
 
 The `/connectors` page lists configured S3/R2 sources across collections. Collection connector pages show source rows inline and open source creation in a modal; they own per-source credentials, schedule changes, manual sync, source deletion with confirmation, and sync-job progress through `/v1/connectors/s3/*`. Cloudflare R2 endpoint URLs set the connector signing region to `auto`.
 
-The Settings Backups tab renders backup destination settings directly above export controls backed by `GET /v1/admin/backups`, the `admin.backups` realtime topic, and `POST /v1/admin/backups`. Backup starts are disabled when the worker heartbeat is offline or no bucket is configured.
-
 The Settings Vector storage tab exposes the saved Turbopuffer API key state, public-region dropdown, namespace prefix, and optional base URL through the same instance settings API.
 
-Settings accepts tab values via query param: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, `/settings?tab=vector_store`, and `/settings?tab=backups`. Legacy `/data-storage` and `/backups` URLs redirect to their Settings tabs.
+Settings accepts tab values via query param: `/settings?tab=account`, `/settings?tab=health`, `/settings?tab=security`, `/settings?tab=data`, and `/settings?tab=vector_store`.
 
 | Group | Section | Reads from | Writes to |
 |-------|---------|-----------|-----------|
@@ -72,9 +71,7 @@ Settings accepts tab values via query param: `/settings?tab=account`, `/settings
 | **Operate** | Health | `GET /health/ready`, `admin.platform.readiness` realtime topic | — |
 | **Operate** | Security | `GET /v1/admin/settings` | `PUT /v1/admin/settings`, `POST /v1/admin/settings/embedding-cache/purge` |
 | **Operate** | Data | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
-| **Operate** | Storage | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
 | **Operate** | Vector storage | `GET /v1/admin/settings` | `PUT /v1/admin/settings` |
-| **Operate** | Backups | `GET /v1/admin/settings`, `GET /v1/admin/backups`, `admin.backups` realtime topic | `PUT /v1/admin/settings`, `POST /v1/admin/backups` |
 
 ## Realtime updates
 
@@ -84,7 +81,7 @@ The collection documents page keeps pagination on REST fetches for initial load,
 
 Expensive overview surfaces keep short-lived backend caches behind the readiness and access-overview loaders so several open admin sessions do not rerun the same aggregate or dependency checks on every interval tick.
 
-**Worker-offline UX:** The same platform stats stream drives the offline indicator. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, backups, S3 source sync, or manual S3 resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
+**Worker-offline UX:** The same platform stats stream drives the offline indicator. When `workers.online` is `false`, the admin UI shows `bigrag-worker is offline`, includes the last heartbeat age when available, and disables actions that would enqueue uploads, S3 source sync, or manual S3 resync. Missing worker stats are treated as unknown, so actions remain available until an offline heartbeat is confirmed.
 
 **Large upload progress:** After a large local upload starts, the collection documents page subscribes to `admin.collections.upload_session` with the upload session ID. The snapshot returns received, queued, ingesting, completed, failed, and canceled counts. The panel renders the active summary plus a small item window that prioritizes active and failed files before older completed rows, so 10,000-file uploads do not require a 10,000-ID status stream. If the browser cannot keep the WebSocket healthy, the panel falls back to two-second polling. If a linked document is deleted while the upload session remains visible, the item is treated as canceled rather than active queued work. Terminal sessions are removed automatically once no active or failed work remains.
 

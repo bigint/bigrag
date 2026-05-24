@@ -3,12 +3,7 @@
 @source "../**/*.tsx";
 
 @theme {
-  --font-sans:
-    "Outfit Variable",
-    Outfit,
-    ui-sans-serif,
-    system-ui,
-    sans-serif;
+  --font-sans: "Outfit Variable", Outfit, ui-sans-serif, system-ui, sans-serif;
   --font-weight-medium: 500;
   --font-weight-semibold: 540;
   --font-weight-bold: 640;
@@ -92,12 +87,7 @@ body {
     radial-gradient(circle at 1px 1px, var(--color-body-pattern) 1px, transparent 0) 0 0 / 32px 32px,
     var(--color-background);
   color: var(--color-foreground);
-  font-family:
-    "Outfit Variable",
-    Outfit,
-    ui-sans-serif,
-    system-ui,
-    sans-serif;
+  font-family: "Outfit Variable", Outfit, ui-sans-serif, system-ui, sans-serif;
   font-feature-settings:
     "rlig" 1,
     "calt" 1;
@@ -125,7 +115,9 @@ label[for] {
   cursor: pointer;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   animation: none !important;
   scroll-behavior: auto !important;
   transition: none !important;

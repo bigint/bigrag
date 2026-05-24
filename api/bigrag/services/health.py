@@ -8,6 +8,7 @@ from bigrag import __version__
 from bigrag.db.engine import session_factory
 from bigrag.logging import get_logger
 from bigrag.services import redis_cache
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.services.health")
@@ -32,7 +33,8 @@ _MISCONFIGURED_TOKENS = (
 
 
 def categorize_dependency_error(exc: Exception) -> str:
-    text = f"{exc.__class__.__name__}: {exc}".lower()
+    error_text = sanitize_message_text(str(exc)) or exc.__class__.__name__
+    text = f"{exc.__class__.__name__}: {error_text}".lower()
     if any(t in text for t in _AUTH_TOKENS):
         return "auth_failed"
     if any(t in text for t in _RATE_TOKENS):

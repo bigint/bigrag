@@ -9,6 +9,7 @@ from bigrag.services.credential_check import (
     CredentialCheckError,
     verify_provider_credentials,
 )
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.vector_store import vector_store
 from bigrag.services.vector_store.dimensions import VectorStoreDimensionMismatchError
 
@@ -65,7 +66,8 @@ async def create_vector_store_collection(
             tenant_field=body.tenant_field,
         )
     except VectorStoreDimensionMismatchError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        detail = safe_error_detail(e, "Vector dimension mismatch.")
+        raise HTTPException(status_code=409, detail=detail) from e
     except RuntimeError as e:
         message = str(e)
         if "API key is not configured" in message or "client is not connected" in message:

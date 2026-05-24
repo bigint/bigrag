@@ -1,4 +1,4 @@
-import type { CollectionStatsResponse, Collection as SdkCollection } from "@bigrag/client";
+import type { CollectionStatsResponse, Collection as SdkCollection } from "@bigrag/client/browser";
 
 export type Collection = Omit<SdkCollection, "default_search_mode"> & {
   embedding_preset_id: string | null;

@@ -17,7 +17,6 @@ SettingGroup = Literal[
     "chat",
     "webhooks",
     "retention",
-    "backups",
 ]
 
 

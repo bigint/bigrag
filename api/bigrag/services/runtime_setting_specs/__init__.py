@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from bigrag.services.runtime_setting_specs._spec import SettingSource, SettingSpec
-from bigrag.services.runtime_setting_specs.backups import BACKUPS_SPECS
 from bigrag.services.runtime_setting_specs.chat import CHAT_SPECS
 from bigrag.services.runtime_setting_specs.ingestion import INGESTION_SPECS
 from bigrag.services.runtime_setting_specs.queue import QUEUE_SPECS
@@ -15,7 +14,6 @@ SETTING_SPECS: tuple[SettingSpec, ...] = (
     *SECURITY_SPECS,
     *INGESTION_SPECS,
     *QUEUE_SPECS,
-    *BACKUPS_SPECS,
     *VECTOR_STORE_SPECS,
     *SEARCH_SPECS,
     *CHAT_SPECS,

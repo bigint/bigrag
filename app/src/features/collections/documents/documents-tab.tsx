@@ -1,23 +1,32 @@
-import { CircleAlert, FolderOpen, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { DeleteDocumentDialogs } from "@/features/collections/documents/delete-document-dialogs";
+import { DocumentUploadDropzone } from "@/features/collections/documents/document-upload-dropzone";
 import { DocumentsEmptyState } from "@/features/collections/documents/documents-empty-state";
+import {
+  acceptedDescription,
+  type DocumentsTabFilters,
+  defaultDocumentsTabFilters,
+  documentsPageSize,
+  getErrorStatus,
+  shouldDismissUploadSession,
+} from "@/features/collections/documents/documents-tab-model";
 import { DocumentsTable } from "@/features/collections/documents/documents-table";
 import { DocumentsToolbar } from "@/features/collections/documents/documents-toolbar";
 import { UploadSessionPanel } from "@/features/collections/documents/upload-session-panel";
+import {
+  UploadSessionErrorCard,
+  UploadSessionLoadingCard,
+} from "@/features/collections/documents/upload-session-status-cards";
 import { useDocumentUpload } from "@/features/collections/documents/use-document-upload";
 import { useDocumentsTabState } from "@/features/collections/documents/use-documents-tab-state";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
-import { workerOfflineActionMessage } from "@/features/workers/worker-status";
 import { WorkerOfflineBanner } from "@/features/workers/worker-status-banner";
 import { useCollection } from "@/hooks/use-collections";
 import {
   type DocumentListFilters,
-  type DocumentListOrder,
-  type DocumentListSort,
   useBatchDeleteDocuments,
   useCancelUploadSession,
   useDeleteDocument,
@@ -25,32 +34,7 @@ import {
   useUploadSession,
 } from "@/hooks/use-documents";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { cn } from "@/lib/cn";
 import { acceptAttribute, getAllowedFileTypes } from "@/lib/file-types";
-import type { UploadSession } from "@/types/bigrag";
-
-const pageSize = 25;
-
-const shouldDismissUploadSession = (session: UploadSession) =>
-  (session.status === "complete" || session.status === "failed" || session.status === "canceled") &&
-  session.active_files === 0 &&
-  session.failed_files === 0;
-
-const getErrorStatus = (error: unknown) => {
-  if (!error || typeof error !== "object") return undefined;
-  const { response, status } = error as { response?: unknown; status?: unknown };
-  if (typeof status === "number") return status;
-  if (!response || typeof response !== "object") return undefined;
-  const { status: responseStatus } = response as { status?: unknown };
-  return typeof responseStatus === "number" ? responseStatus : undefined;
-};
-
-type DocumentsTabFilters = {
-  order: DocumentListOrder;
-  q: string;
-  sort: DocumentListSort;
-  status: string;
-};
 
 type DocumentsTabProps = {
   filters?: DocumentsTabFilters;
@@ -59,19 +43,14 @@ type DocumentsTabProps = {
 };
 
 export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabProps) => {
-  const activeFilters = filters ?? {
-    order: "desc",
-    q: "",
-    sort: "created_at",
-    status: "",
-  };
+  const activeFilters = filters ?? defaultDocumentsTabFilters;
   const activeSessionId = useUploadSessionStore((state) => state.activeSessionIds[name] ?? null);
   const clearActiveSessionId = useUploadSessionStore((state) => state.clearActiveSessionId);
   const setActiveSessionId = useUploadSessionStore((state) => state.setActiveSessionId);
 
   const { data: collection } = useCollection(name);
   const documentFilters: DocumentListFilters = {
-    limit: pageSize,
+    limit: documentsPageSize,
     order: activeFilters.order,
     q: activeFilters.q,
     sort: activeFilters.sort,
@@ -147,10 +126,6 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
     onFiltersChange?.(next);
   };
 
-  const acceptedDescription = allowed.length
-    ? `Only ${allowed.map((t) => `.${t}`).join(", ")} allowed in this collection.`
-    : "PDF, DOCX, PPTX, MD, HTML, TXT, images — ingested automatically.";
-
   const loadedLabel =
     total == null
       ? `${documents.length.toLocaleString()} loaded document${documents.length === 1 ? "" : "s"}`
@@ -159,77 +134,19 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
   return (
     <div className="flex flex-col gap-4">
       <WorkerOfflineBanner availability={workerAvailability} />
-      <fieldset
-        aria-label="Document upload"
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
+      <DocumentUploadDropzone
+        accept={accept}
+        acceptedDescription={acceptedDescription(allowed)}
+        dragging={dragging}
+        fileInput={fileInput}
+        folderInput={folderInput}
         onDrop={onDrop}
-        className={cn(
-          "flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed px-6 py-8 text-sm",
-          "border-border bg-card hover:border-primary hover:bg-accent/50",
-          dragging && !workerOffline && "border-primary bg-accent",
-          upload.isPending && "pointer-events-none opacity-60",
-          workerOffline && "bg-muted/45 hover:border-border hover:bg-muted/45",
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <Upload className="size-5 text-muted-foreground" />
-          <div className="flex flex-col items-start gap-0.5">
-            <span className="font-medium">
-              {upload.isPending
-                ? "Uploading…"
-                : workerOffline
-                  ? "Worker offline"
-                  : "Drop files here"}
-            </span>
-            <span className="text-xs text-muted-foreground">{acceptedDescription}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button
-            disabled={upload.isPending || workerOffline}
-            onClick={() => fileInput.current?.click()}
-            size="sm"
-            title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
-          >
-            <Upload className="size-4" />
-            Files
-          </Button>
-          <Button
-            disabled={upload.isPending || workerOffline}
-            onClick={() => folderInput.current?.click()}
-            size="sm"
-            title={workerOffline ? workerOfflineActionMessage(workerAvailability) : undefined}
-            variant="secondary"
-          >
-            <FolderOpen className="size-4" />
-            Folder
-          </Button>
-        </div>
-        <input
-          ref={fileInput}
-          id="doc-upload"
-          type="file"
-          multiple
-          className="sr-only"
-          accept={accept}
-          disabled={workerOffline}
-          onChange={(e) => e.target.files && onFiles(e.target.files)}
-        />
-        <input
-          ref={folderInput}
-          type="file"
-          multiple
-          className="sr-only"
-          accept={accept}
-          disabled={workerOffline}
-          onChange={(e) => e.target.files && onFiles(e.target.files)}
-          {...{ webkitdirectory: "", directory: "" }}
-        />
-      </fieldset>
+        onFiles={onFiles}
+        setDragging={setDragging}
+        uploadPending={upload.isPending}
+        workerAvailability={workerAvailability}
+        workerOffline={workerOffline}
+      />
 
       {activeSessionId && uploadSession.data && !dismissCompletedUploadSession && (
         <UploadSessionPanel
@@ -242,35 +159,19 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
       )}
 
       {activeSessionId && uploadSession.isError && getErrorStatus(uploadSession.error) !== 404 && (
-        <Card className="overflow-hidden rounded-xl border-destructive/25">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <CircleAlert className="size-4 text-destructive" />
-              <span className="text-sm text-muted-foreground">
-                {uploadSession.error instanceof Error
-                  ? uploadSession.error.message
-                  : "Upload session unavailable"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={() => uploadSession.refetch()}>
-                Retry
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => clearActiveSessionId(name)}>
-                Dismiss
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <UploadSessionErrorCard
+          message={
+            uploadSession.error instanceof Error
+              ? uploadSession.error.message
+              : "Upload session unavailable"
+          }
+          onDismiss={() => clearActiveSessionId(name)}
+          onRetry={() => uploadSession.refetch()}
+        />
       )}
 
       {activeSessionId && !uploadSession.data && uploadSession.isPending && (
-        <Card className="overflow-hidden rounded-xl">
-          <CardContent className="flex items-center gap-3 p-4">
-            <Spinner size="sm" />
-            <span className="text-sm text-muted-foreground">Loading upload session…</span>
-          </CardContent>
-        </Card>
+        <UploadSessionLoadingCard />
       )}
 
       <DocumentsToolbar

@@ -4,7 +4,7 @@ import type {
   UploadSession as SdkUploadSession,
   UploadSessionFileResponse as SdkUploadSessionFileResponse,
   UploadSessionItem as SdkUploadSessionItem,
-} from "@bigrag/client";
+} from "@bigrag/client/browser";
 
 export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
 

@@ -25,7 +25,6 @@ InstanceSettingGroup = Literal[
     "chat",
     "webhooks",
     "retention",
-    "backups",
 ]
 
 
@@ -72,32 +71,6 @@ class InstanceSettingsTestResponse(TypedDict):
     status: Literal["ok"]
     checked: list[str]
     message: str
-
-
-class BackupCreateBody(TypedDict, total=False):
-    label: str
-
-
-class BackupJob(TypedDict):
-    id: str
-    label: str
-    status: str
-    progress: int
-    destination_prefix: str
-    object_count: int
-    byte_count: int
-    manifest: dict[str, Any]
-    error_message: str | None
-    created_by: str | None
-    started_at: str | None
-    completed_at: str | None
-    created_at: str
-    updated_at: str
-
-
-class BackupJobListResponse(TypedDict):
-    jobs: list[BackupJob]
-    total: int
 
 
 AdminRealtimeEvent = RealtimeMessage

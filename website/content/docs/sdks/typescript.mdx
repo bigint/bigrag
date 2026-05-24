@@ -14,7 +14,15 @@ npm install @bigrag/client
 ```
 
 Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes. Browser realtime uses native `WebSocket`; Node realtime uses the SDK's `ws` dependency.
-Published npm releases use CalVer (`YYYY.M.D`), for example `@bigrag/client@2026.5.22`.
+Published npm releases use CalVer (`YYYY.M.D`), for example `@bigrag/client@2026.5.23`.
+
+Browser applications that only need SDK error classes and shared response types can import the browser-safe subpath:
+
+```typescript
+import { APIError, type Document } from "@bigrag/client/browser";
+```
+
+The main `@bigrag/client` entry includes Node file-path upload support. Use the `/browser` subpath for admin UI code or other browser bundles that should not load Node upload helpers.
 
 ## Quick Start
 
@@ -224,7 +232,7 @@ client.webhooks.test(id)
 client.webhooks.replayDelivery(id, deliveryId)
 ```
 
-Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
+Webhook events cover collection and connector sync data-operation changes. Examples: `collection.truncated` and `connector.sync.failed`.
 
 <Callout type="warn">
   Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth. API-key clients receive `403`.
@@ -271,10 +279,6 @@ client.admin.settings.purgeEmbeddingCache()
 
 client.admin.vectorStorage.overview()
 
-client.admin.backups.list({ limit?, offset? })
-client.admin.backups.get(backupId)
-client.admin.backups.create({ label? })
-
 client.admin.embeddingPresets.list({ limit?, offset? })
 client.admin.embeddingPresets.create({ name, provider, model, api_key, base_url?, dimension })
 client.admin.embeddingPresets.update(presetId, { name?, provider?, model?, api_key?, base_url?, dimension? })
@@ -294,12 +298,6 @@ client.admin.mcpServers.delete(serverId)
 <Accordion title="Admin realtime WebSocket helpers">
 
 ```typescript
-for await (const event of client.admin.realtime.backups({ limit: 20 })) {
-  if (event.type === "snapshot") {
-    console.log(event.payload.jobs)
-  }
-}
-
 for await (const event of client.admin.realtime.platformReadiness()) {
   if (event.type === "snapshot") {
     console.log(event.payload)

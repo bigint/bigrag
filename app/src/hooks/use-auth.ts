@@ -1,4 +1,4 @@
-import { APIError, type User as CurrentUser, type SessionResponse } from "@bigrag/client";
+import { APIError, type User as CurrentUser, type SessionResponse } from "@bigrag/client/browser";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { closeAllRealtimeStreams } from "@/hooks/use-realtime-snapshot-query";

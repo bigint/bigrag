@@ -10,7 +10,6 @@ from dramatiq.asyncio import async_to_sync, get_event_loop_thread
 from bigrag.logging import current_worker_label, get_logger
 from bigrag.services.ingestion_job import IngestionJob
 from bigrag.services.jobs.broker import (
-    BACKUPS_QUEUE,
     CONNECTORS_QUEUE,
     INGESTION_QUEUE,
     MAINTENANCE_QUEUE,
@@ -65,10 +64,6 @@ def enqueue_s3_sync(job_id: str, *, delay_seconds: int = 0) -> None:
         args=(job_id,),
         delay=max(0, int(delay_seconds)) * 1000 if delay_seconds else None,
     )
-
-
-def enqueue_backup_job(job_id: str) -> None:
-    run_backup.send(job_id)
 
 
 def seed_periodic_jobs(enabled_queues: set[str] | None = None) -> None:
@@ -126,7 +121,10 @@ async def _process_multimodal_enrichment(document_id: str, attempt: int = 0) -> 
 
     try:
         enriched = await enrich_document_elements(document_id)
-        logger.info(f"multimodal enrichment complete | {enriched} elements")
+        if enriched:
+            logger.info("multimodal enrichment complete", doc=document_id, elements=enriched)
+        else:
+            logger.debug("multimodal enrichment skipped", doc=document_id)
     except Exception as exc:
         if attempt < 3:
             delay = min(2 ** (attempt + 1), 30)
@@ -209,18 +207,6 @@ async def _process_webhook_outbox(delivery_id: str | None = None) -> int | None:
         if await _claim_schedule_once(WEBHOOK_OUTBOX_KEY, delay_seconds):
             return delay_seconds
     return None
-
-
-@dramatiq.actor(queue_name=BACKUPS_QUEUE, max_retries=0, broker=broker)
-def run_backup(job_id: str) -> None:
-    _run(_run_backup, job_id)
-
-
-async def _run_backup(job_id: str) -> None:
-    await ensure_worker_runtime()
-    from bigrag.services.backup import run_backup_job
-
-    await run_backup_job(job_id)
 
 
 @dramatiq.actor(queue_name=MAINTENANCE_QUEUE, max_retries=0, broker=broker)
