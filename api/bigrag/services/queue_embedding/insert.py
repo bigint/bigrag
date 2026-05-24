@@ -32,7 +32,6 @@ async def chunk_and_embed(
         job,
         prefix,
         embedding_model=plan.embedding_model,
-        cooldown_key=plan.cooldown_key,
         batches=plan.batches,
         total_batches=plan.total_batches,
     )

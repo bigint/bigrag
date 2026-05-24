@@ -8,7 +8,6 @@ from bigrag.services.embedding_rate_limit import (
     MAX_RATE_LIMIT_RETRIES,
     is_rate_limit_error,
     rate_limit_delay,
-    record_rate_limit_cooldown,
 )
 from bigrag.services.ingestion_job import IngestionJob
 from bigrag.services.queue_embedding.embed import PERMANENT_ERRORS, embed_with_cache
@@ -24,7 +23,6 @@ async def embed_all_batches(
     prefix: str,
     *,
     embedding_model,
-    cooldown_key: str,
     batches: list[tuple[int, int, int, list]],
     total_batches: int,
 ) -> list[tuple[int, int, int, list, list[list[float]], float]]:
@@ -77,7 +75,6 @@ async def embed_all_batches(
                         raise
                     fallback_delay = BATCH_BACKOFF_BASE ** min(rate_limit_attempt, 5)
                     delay = rate_limit_delay(exc, float(fallback_delay))
-                    await record_rate_limit_cooldown(cooldown_key, delay)
                     logger.warning(
                         "batch rate limited",
                         prefix=prefix,

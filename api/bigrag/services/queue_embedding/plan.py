@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 from bigrag.logging import get_logger
 from bigrag.services.document_elements import ParsedDocument
-from bigrag.services.embedding_rate_limit import rate_limit_cooldown_key
 from bigrag.services.ingestion_job import IngestionJob
 
 logger = get_logger("bigrag.queue")
@@ -16,7 +15,6 @@ logger = get_logger("bigrag.queue")
 class EmbedPlan:
     collection: object
     embedding_model: object
-    cooldown_key: str
     text: str
     elements: list
     include_elements: bool
@@ -59,12 +57,6 @@ async def build_plan(
         provider=job.embedding_provider,
         model=job.embedding_model,
         elapsed=round(elapsed, 2),
-    )
-    cooldown_key = rate_limit_cooldown_key(
-        embedding_model,
-        job.embedding_provider,
-        job.embedding_model,
-        job.embedding_dimension,
     )
     emit(
         job.document_id,
@@ -132,7 +124,6 @@ async def build_plan(
     return EmbedPlan(
         collection=collection,
         embedding_model=embedding_model,
-        cooldown_key=cooldown_key,
         text=text,
         elements=elements,
         include_elements=include_elements,
