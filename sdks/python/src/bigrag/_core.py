@@ -140,7 +140,7 @@ class BigRAGCore:
                 last_error = Exception(response.text)
                 continue
 
-            if response.status_code == 429 and attempt < self.max_retries:
+            if response.status_code == 429 and attempt < self.max_retries and safe_to_retry:
                 last_error = Exception("Rate limited")
                 retry_after_header = response.headers.get("Retry-After")
                 if retry_after_header:

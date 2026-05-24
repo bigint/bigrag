@@ -44,7 +44,7 @@ export interface RequestClient {
 }
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const SAFE_METHODS = new Set(["GET", "PUT", "DELETE"]);
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
 function combineSignals(signals: (AbortSignal | undefined)[]): AbortSignal | undefined {
   const filtered = signals.filter((s): s is AbortSignal => s !== undefined);
@@ -129,7 +129,7 @@ export class BigRAGCore implements RequestClient {
         continue;
       }
 
-      if (response.status === 429 && attempt < this.maxRetries) {
+      if (response.status === 429 && attempt < this.maxRetries && safeToRetry) {
         const retryAfterHeader = response.headers.get("Retry-After");
         const retryAfterMs = retryAfterHeader ? Math.max(0, Number(retryAfterHeader)) * 1000 : 0;
         await response.text().catch(() => undefined);
