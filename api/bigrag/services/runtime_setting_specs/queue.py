@@ -26,4 +26,14 @@ QUEUE_SPECS: tuple[SettingSpec, ...] = (
         min=1,
         max=100,
     ),
+    SettingSpec(
+        key="connector_download_concurrency",
+        group="queue",
+        label="Connector download concurrency",
+        kind="int",
+        default=4,
+        description="Concurrent file downloads per connector sync page.",
+        min=1,
+        max=64,
+    ),
 )

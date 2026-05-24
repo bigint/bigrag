@@ -24,7 +24,7 @@ from bigrag.services.queue import QueueFullError
 
 logger = get_logger("bigrag.connectors")
 
-DOWNLOAD_BATCH_SIZE = 4
+DEFAULT_DOWNLOAD_CONCURRENCY = 4
 
 
 async def sync_page(
@@ -36,12 +36,14 @@ async def sync_page(
     remotes: list[RemoteConnectorFile],
     manifests: dict[str, ConnectorDocument],
     counters: ConnectorSyncCounters,
+    download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY,
 ) -> None:
     async def _download(remote: RemoteConnectorFile):
         return await adapter.download(session, source=source, remote=remote)
 
-    for batch_start in range(0, len(remotes), DOWNLOAD_BATCH_SIZE):
-        batch = remotes[batch_start : batch_start + DOWNLOAD_BATCH_SIZE]
+    batch_size = max(1, download_concurrency)
+    for batch_start in range(0, len(remotes), batch_size):
+        batch = remotes[batch_start : batch_start + batch_size]
         batch_manifests = {
             remote.id: manifests.get(remote.id)
             for remote in batch

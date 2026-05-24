@@ -190,6 +190,9 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 message="Scanning remote objects",
             )
 
+            from bigrag.services.runtime_settings import get_value
+
+            download_concurrency = await get_value("connector_download_concurrency")
             job_uuid = job.id
             async for page in adapter.iter_files(session, source=source):
                 counters.found += len(page)
@@ -203,6 +206,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     remotes=page,
                     manifests=page_manifests,
                     counters=counters,
+                    download_concurrency=download_concurrency,
                 )
                 await session.execute(
                     sa.update(ConnectorDocument)
