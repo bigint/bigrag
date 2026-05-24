@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
-    db_pool_max: int = 10
+    db_pool_max: int = 20
     db_statement_timeout_seconds: int = 30
     db_disable_prepared_statements: bool = False
     migration_timeout_seconds: int = 60
