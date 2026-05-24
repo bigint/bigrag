@@ -29,6 +29,7 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.retrieval")
 
 MAX_TOP_K = 200
+_MULTI_SEARCH_CONCURRENCY = 8
 
 
 async def retrieve(
@@ -232,23 +233,26 @@ async def retrieve_multi(
     if top_k > MAX_TOP_K:
         raise ValidationError(f"top_k {top_k} exceeds maximum {MAX_TOP_K}")
 
+    semaphore = asyncio.Semaphore(_MULTI_SEARCH_CONCURRENCY)
+
     async def search_one(col_name: str) -> list[dict]:
-        col_reranking = (reranking_configs or {}).get(col_name)
-        outcome = await retrieve(
-            collection_name=col_name,
-            query=query,
-            embedding_model=embedding_models[col_name],
-            top_k=top_k,
-            filters=filters,
-            min_score=min_score,
-            search_mode=search_mode,
-            reranking_config=col_reranking,
-            rerank_override=rerank_override,
-            skip_cache=skip_cache,
-        )
-        for r in outcome.results:
-            r["collection"] = col_name
-        return outcome.results
+        async with semaphore:
+            col_reranking = (reranking_configs or {}).get(col_name)
+            outcome = await retrieve(
+                collection_name=col_name,
+                query=query,
+                embedding_model=embedding_models[col_name],
+                top_k=top_k,
+                filters=filters,
+                min_score=min_score,
+                search_mode=search_mode,
+                reranking_config=col_reranking,
+                rerank_override=rerank_override,
+                skip_cache=skip_cache,
+            )
+            for r in outcome.results:
+                r["collection"] = col_name
+            return outcome.results
 
     all_results = await asyncio.wait_for(
         asyncio.gather(*[search_one(c) for c in collection_names]),
