@@ -28,6 +28,7 @@ from bigrag.services.pagination import apply_cursor, build_response_cursor, deco
 from bigrag.services.runtime_settings import get_value
 from bigrag.services.url_security import validate_webhook_url
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
+from bigrag.services.webhook.dispatcher import invalidate_webhooks_cache
 
 logger = get_logger("bigrag.routers.webhooks")
 
@@ -127,6 +128,7 @@ async def create_webhook(
     session.add(wh)
     await session.commit()
     await session.refresh(wh)
+    invalidate_webhooks_cache()
 
     logger.info("webhook created", id=str(wh.id), url=body.url, events=body.events)
     audit.record(
@@ -213,6 +215,7 @@ async def update_webhook(
 
     await session.commit()
     await session.refresh(wh)
+    invalidate_webhooks_cache()
 
     logger.info("webhook updated", id=webhook_id)
     audit.record(
@@ -240,6 +243,7 @@ async def delete_webhook(
     deleted_url = wh.url
     await session.delete(wh)
     await session.commit()
+    invalidate_webhooks_cache()
     logger.info("webhook deleted", id=webhook_id)
     audit.record(
         request,

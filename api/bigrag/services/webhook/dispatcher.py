@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 
 from bigrag.logging import get_logger
@@ -14,6 +15,15 @@ from bigrag.services.webhook.payload import (
 )
 
 logger = get_logger("bigrag.webhook")
+
+_WEBHOOKS_CACHE_TTL = 5.0
+_DELIVERY_CHUNK = 500
+_webhooks_cache: tuple[float, list[dict]] | None = None
+
+
+def invalidate_webhooks_cache() -> None:
+    global _webhooks_cache
+    _webhooks_cache = None
 
 
 class WebhookDispatcher:
@@ -91,6 +101,12 @@ class WebhookDispatcher:
         return len(matching_webhooks) * len(payloads)
 
     async def _get_webhooks(self) -> list[dict]:
+        global _webhooks_cache
+        now = time.monotonic()
+        cached = _webhooks_cache
+        if cached is not None and cached[0] > now:
+            return cached[1]
+
         import sqlalchemy as sa
 
         from bigrag.db.engine import session_factory
@@ -112,6 +128,7 @@ class WebhookDispatcher:
             }
             for w in rows
         ]
+        _webhooks_cache = (now + _WEBHOOKS_CACHE_TTL, webhooks)
         return webhooks
 
     async def _get_collection_for_document(self, document_id: str) -> str | None:
@@ -134,9 +151,7 @@ class WebhookDispatcher:
     async def _enqueue_deliveries_for_payloads(
         self, webhooks: list[dict], event: str, payloads: list[str]
     ) -> None:
-        if not webhooks:
-            return
-        if not payloads:
+        if not webhooks or not payloads:
             return
         import orjson
 
@@ -145,31 +160,36 @@ class WebhookDispatcher:
         from bigrag.ids import uuid7
         from bigrag.services.jobs.actors import enqueue_webhook_outbox
 
-        delivery_ids = []
+        parsed_payloads = [dict(orjson.loads(payload)) for payload in payloads]
 
-        async with session_factory()() as session:
-            for payload in payloads:
-                payload_data = orjson.loads(payload)
-                for webhook in webhooks:
-                    webhook_id = webhook["id"]
-                    wh_id_uuid = (
-                        uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
-                    )
-                    delivery_id = uuid7()
-                    delivery_ids.append(str(delivery_id))
+        async def _flush(rows: list[tuple]) -> None:
+            if not rows:
+                return
+            async with session_factory()() as session:
+                for delivery_id, wh_uuid, payload_data in rows:
                     session.add(
                         WebhookDelivery(
                             id=delivery_id,
-                            webhook_id=wh_id_uuid,
+                            webhook_id=wh_uuid,
                             event=event,
                             payload=dict(payload_data),
                             status="pending",
                         )
                     )
-            await session.commit()
+                await session.commit()
+            for delivery_id, _wh_uuid, _payload_data in rows:
+                enqueue_webhook_outbox(delivery_id=str(delivery_id))
 
-        for delivery_id in delivery_ids:
-            enqueue_webhook_outbox(delivery_id=delivery_id)
+        rows: list[tuple] = []
+        for payload_data in parsed_payloads:
+            for webhook in webhooks:
+                webhook_id = webhook["id"]
+                wh_uuid = uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
+                rows.append((uuid7(), wh_uuid, payload_data))
+                if len(rows) >= _DELIVERY_CHUNK:
+                    await _flush(rows)
+                    rows = []
+        await _flush(rows)
 
     async def process_due_deliveries(
         self,
