@@ -101,6 +101,7 @@ Deployment-managed security keys use the same endpoint when you intentionally au
 Other notable settings groups:
 
 - **Ingestion caps:** `max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`
+- **Queue:** `queue_max_depth`, `connector_download_concurrency` (default `10`), `connector_max_delete_percent`
 - **Turbopuffer:** `turbopuffer_api_key`, `turbopuffer_base_url`, `turbopuffer_region`, `turbopuffer_namespace_prefix` (the admin UI renders `turbopuffer_region` as a public-region dropdown while the API accepts the stored string value)
 
 Turbopuffer connection changes are validated before they are saved and apply to the running API. Custom `turbopuffer_base_url` values must be normalized HTTPS roots that pass outbound URL safety checks. UI-visible settings can be changed from the admin UI; registry keys not rendered in the UI remain available through this API and the SDK admin settings resources.
