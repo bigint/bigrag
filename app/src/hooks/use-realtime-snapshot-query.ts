@@ -410,6 +410,8 @@ export const closeAllRealtimeStreams = () => {
   closeSocket();
 };
 
+const jitterInterval = (ms: number) => Math.round(ms * (0.85 + Math.random() * 0.3));
+
 export const useRealtimeSnapshotQuery = <T>({
   closeWhen,
   enabled = true,
@@ -453,7 +455,7 @@ export const useRealtimeSnapshotQuery = <T>({
     queryKey,
     refetchInterval: (q) => {
       if (q.state.data != null && closeWhenRef.current?.(q.state.data as T)) return false;
-      return realtimeUnavailable ? pollIntervalMs : false;
+      return realtimeUnavailable ? jitterInterval(pollIntervalMs) : false;
     },
     retry: false,
   });
