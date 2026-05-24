@@ -4,9 +4,11 @@ from pydantic import BaseModel, Field
 
 from bigrag.models.multimodal import MultimodalElementRef
 
+MAX_QUERY_CHARS = 16_000
+
 
 class QueryRequest(BaseModel):
-    query: str
+    query: str = Field(max_length=MAX_QUERY_CHARS)
     top_k: int | None = Field(default=None, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None
@@ -73,7 +75,7 @@ class QueryResponse(BaseModel):
 
 
 class MultiQueryRequest(BaseModel):
-    query: str
+    query: str = Field(max_length=MAX_QUERY_CHARS)
     collections: list[str] = Field(min_length=1, max_length=20)
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
@@ -105,7 +107,7 @@ class MultiQueryResponse(BaseModel):
 
 class BatchQueryItem(BaseModel):
     collection: str
-    query: str
+    query: str = Field(max_length=MAX_QUERY_CHARS)
     top_k: int = Field(default=10, ge=1, le=1000)
     filters: dict | None = None
     min_score: float | None = None
