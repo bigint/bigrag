@@ -2,14 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from bigrag.services.embedding.base import EmbeddingModel, get_semaphore, logger, truncate_to_tokens
-from bigrag.services.embedding_rate_limit import (
-    is_rate_limit_error,
-    rate_limit_cooldown_key,
-    rate_limit_delay,
-    record_rate_limit_cooldown,
-    wait_for_rate_limit_cooldown,
-)
+from bigrag.services.embedding.base import EmbeddingModel, logger, truncate_to_tokens
+from bigrag.services.embedding_gate import embedding_gate
 
 
 class CohereEmbedding(EmbeddingModel):
@@ -35,7 +29,6 @@ class CohereEmbedding(EmbeddingModel):
 
         self._model_name = model_name
         self._dimension = dimension
-        self._semaphore_key = "cohere"
         self._cache_identity = f"cohere:{model_name}:{dimension}"
         self._client = cohere.AsyncClient(api_key=api_key)
         logger.info("initialized cohere embedding", model=model_name, dimension=dimension)
@@ -66,25 +59,16 @@ class CohereEmbedding(EmbeddingModel):
         return await self._embed_single(texts, cohere_input_type)
 
     async def _embed_single(self, texts: list[str], cohere_input_type: str) -> list[list[float]]:
-        cooldown_key = rate_limit_cooldown_key(
-            self._cache_identity, self.provider, self._model_name, self._dimension
-        )
-        async with await get_semaphore(self._semaphore_key):
-            await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
-            try:
-                response = await asyncio.wait_for(
-                    self._client.embed(
-                        texts=texts,
-                        model=self._model_name,
-                        input_type=cohere_input_type,
-                        embedding_types=["float"],
-                    ),
-                    timeout=60,
-                )
-            except Exception as exc:
-                if is_rate_limit_error(exc):
-                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
-                raise
+        async with embedding_gate(self._cache_identity, self.provider, self._model_name):
+            response = await asyncio.wait_for(
+                self._client.embed(
+                    texts=texts,
+                    model=self._model_name,
+                    input_type=cohere_input_type,
+                    embedding_types=["float"],
+                ),
+                timeout=60,
+            )
         vectors = [list(e) for e in response.embeddings.float_]
         for vector in vectors:
             if len(vector) != self._dimension:

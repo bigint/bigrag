@@ -3,14 +3,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 
-from bigrag.services.embedding.base import EmbeddingModel, get_semaphore, logger, truncate_to_tokens
-from bigrag.services.embedding_rate_limit import (
-    is_rate_limit_error,
-    rate_limit_cooldown_key,
-    rate_limit_delay,
-    record_rate_limit_cooldown,
-    wait_for_rate_limit_cooldown,
-)
+from bigrag.services.embedding.base import EmbeddingModel, logger, truncate_to_tokens
+from bigrag.services.embedding_gate import embedding_gate
 from bigrag.services.url_security import (
     pinned_async_client,
     resolve_and_pin_sync,
@@ -43,7 +37,6 @@ class OpenAIEmbedding(EmbeddingModel):
         self._model_name = model_name
         self._dimension = dimension
         self._base_url = validate_embedding_base_url_sync(base_url)
-        self._semaphore_key = f"openai:{self._base_url or 'default'}"
         base_tag = hashlib.sha256((self._base_url or "").encode()).hexdigest()[:12]
         self._cache_identity = f"openai:{model_name}:{dimension}:{base_tag}"
         from bigrag.services.runtime_settings import sync_value
@@ -91,23 +84,14 @@ class OpenAIEmbedding(EmbeddingModel):
         return await self._embed_single(texts)
 
     async def _embed_single(self, texts: list[str]) -> list[list[float]]:
-        cooldown_key = rate_limit_cooldown_key(
-            self._cache_identity, self.provider, self._model_name, self._dimension
-        )
         kwargs: dict = {"input": texts, "model": self._model_name}
         if self._supports_dimensions(self._model_name):
             kwargs["dimensions"] = self._dimension
-        async with await get_semaphore(self._semaphore_key):
-            await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
-            try:
-                response = await asyncio.wait_for(
-                    self._client.embeddings.create(**kwargs),
-                    timeout=60,
-                )
-            except Exception as exc:
-                if is_rate_limit_error(exc):
-                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
-                raise
+        async with embedding_gate(self._cache_identity, self.provider, self._model_name):
+            response = await asyncio.wait_for(
+                self._client.embeddings.create(**kwargs),
+                timeout=60,
+            )
         vectors = [item.embedding for item in response.data]
         for vector in vectors:
             if len(vector) != self._dimension:
