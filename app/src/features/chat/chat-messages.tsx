@@ -23,7 +23,9 @@ import {
   memo,
   type ReactNode,
   type RefObject,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -234,20 +236,23 @@ const AssistantMessage = memo(
 
     useHighlightTimerCleanup(highlightTimer);
 
-    const jumpToSource = (n: number) => {
-      const sources = message.meta?.sources;
-      if (!sources || n < 1 || n > sources.length) return;
-      if (detailsRef.current && !detailsRef.current.open) {
-        detailsRef.current.open = true;
-      }
-      const target = sourceRefs.current.get(n);
-      if (target) {
-        target.scrollIntoView({ behavior: "instant", block: "nearest" });
-      }
-      setHighlight(n);
-      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
-      highlightTimer.current = window.setTimeout(() => setHighlight(null), 1500);
-    };
+    const jumpToSource = useCallback(
+      (n: number) => {
+        const sources = message.meta?.sources;
+        if (!sources || n < 1 || n > sources.length) return;
+        if (detailsRef.current && !detailsRef.current.open) {
+          detailsRef.current.open = true;
+        }
+        const target = sourceRefs.current.get(n);
+        if (target) {
+          target.scrollIntoView({ behavior: "instant", block: "nearest" });
+        }
+        setHighlight(n);
+        if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+        highlightTimer.current = window.setTimeout(() => setHighlight(null), 1500);
+      },
+      [message.meta?.sources],
+    );
 
     const sourceCount = message.meta?.sources.length ?? 0;
     const hasError = message.status === "error" && Boolean(message.errorMessage);
@@ -649,22 +654,25 @@ export const ChatMessages = ({
   );
 };
 
-const MarkdownContent = ({
-  chunkCount,
-  content,
-  onCite,
-}: {
-  chunkCount: number;
-  content: string;
-  onCite: (n: number) => void;
-}) => (
-  <ReactMarkdown
-    components={markdownComponents(chunkCount, onCite)}
-    remarkPlugins={MARKDOWN_PLUGINS}
-  >
-    {content}
-  </ReactMarkdown>
+const MarkdownContent = memo(
+  ({
+    chunkCount,
+    content,
+    onCite,
+  }: {
+    chunkCount: number;
+    content: string;
+    onCite: (n: number) => void;
+  }) => {
+    const components = useMemo(() => markdownComponents(chunkCount, onCite), [chunkCount, onCite]);
+    return (
+      <ReactMarkdown components={components} remarkPlugins={MARKDOWN_PLUGINS}>
+        {content}
+      </ReactMarkdown>
+    );
+  },
 );
+MarkdownContent.displayName = "MarkdownContent";
 
 const useHighlightTimerCleanup = (highlightTimer: MutableRefObject<number | null>) => {
   useEffect(
