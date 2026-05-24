@@ -300,7 +300,7 @@ Full-workspace keys expose 8 tools — `list_collections`, `get_collection`, `ge
 
 ## Configuration
 
-Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configure them in `bigrag.toml`. Backend logging defaults to `debug` / `text` for local development — use `BIGRAG_LOG_LEVEL=info` and `BIGRAG_LOG_FORMAT=json` for production log collection. Turbopuffer is configured from the admin UI and stored in Postgres alongside the other instance settings.
+Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configure them in `bigrag.toml`. Backend logging defaults to `info` / `text` — use `BIGRAG_LOG_FORMAT=json` for production log collection. Turbopuffer is configured from the admin UI and stored in Postgres alongside the other instance settings.
 
 #### Server
 
@@ -310,7 +310,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 | `BIGRAG_HOST` | Bind address | `127.0.0.1` |
 | `BIGRAG_WORKERS` | API worker processes | `1` |
 | `BIGRAG_ENV` | `dev` or `prod` (prod enables startup safety checks) | `dev` |
-| `BIGRAG_LOG_LEVEL` | Backend log level: `debug`, `info`, `warning`, or `error` | `debug` |
+| `BIGRAG_LOG_LEVEL` | Backend log level: `debug`, `info`, `warning`, or `error` | `info` |
 | `BIGRAG_LOG_FORMAT` | Backend log renderer: `text` or `json` | `text` |
 | `BIGRAG_CORS_ORIGINS` | JSON array of allowed browser origins | `[]` |
 | `BIGRAG_TRUSTED_PROXIES` | JSON array of trusted proxy CIDRs used to honor `X-Forwarded-For` for audit and access logs | `[]` |
@@ -321,7 +321,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `50` |
+| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `10` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 
@@ -331,7 +331,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 |----------|-------------|---------|
 | `BIGRAG_SESSION_EXPIRY_HOURS` | Session cookie lifetime | `168` |
 | `BIGRAG_SESSION_COOKIE_NAME` | Session cookie name | `bigrag_session` |
-| `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `false` |
+| `BIGRAG_SESSION_COOKIE_SECURE` | HTTPS-only session cookies | `true` |
 | `BIGRAG_SESSION_COOKIE_SAMESITE` | Session cookie SameSite policy | `lax` |
 | `BIGRAG_SESSION_COOKIE_DOMAIN` | Optional session cookie domain | — |
 | `BIGRAG_AUTH_PRINCIPAL_CACHE_TTL` | Principal cache TTL in seconds | `60` |

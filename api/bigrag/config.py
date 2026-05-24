@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     embedding_cache_mode: Literal["encrypted", "disabled"] = "encrypted"
     embedding_cache_retention_days: int = 30
     conversion_timeout: int = 300
+    conversion_pdf_ocr_enabled: bool = True
     conversion_device: str = "cpu"
     conversion_pool_workers: int = max(1, (os.cpu_count() or 2) // 2)
     webhook_delivery_timeout: int = 10
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 1536
     embedding_base_url: str | None = None
     embedding_api_key: str | None = None
+    embedding_concurrency: int = 8
     allowed_embedding_base_urls: list[str] = []
     allow_private_embedding_base_urls: bool = False
     allow_local_webhooks: bool = False
