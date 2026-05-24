@@ -63,10 +63,6 @@ async def _user_from_session(request: Request, session: AsyncSession) -> dict | 
         return None
 
     token_hash = hash_session_token(cookie)
-    cached = await _cache_get(_session_cache_key(token_hash))
-    if isinstance(cached, dict):
-        return cached
-
     row = (
         await session.execute(
             select(User, UserSession.expires_at)
@@ -98,16 +94,6 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
 
     key_hashes = api_key_hashes_for_lookup(token)
     now = datetime.now(UTC)
-    for key_hash in key_hashes:
-        cached = await _cache_get(_api_key_cache_key(key_hash))
-        if isinstance(cached, dict):
-            await _touch_api_key_last_used(
-                session,
-                cached.get("api_key_id"),
-                last_used_at=_parse_iso(cached.get("last_used_at")),
-            )
-            return cached
-
     row = (
         await session.execute(
             select(ApiKey, User)
@@ -121,7 +107,7 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
         return None
 
     api_key, user = row
-    await _touch_api_key_last_used(session, str(api_key.id), last_used_at=api_key.last_used_at)
+    await _touch_api_key_last_used(str(api_key.id), last_used_at=api_key.last_used_at)
 
     permissions = api_key.permissions or {}
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
@@ -149,7 +135,6 @@ def _parse_iso(value: object) -> datetime | None:
 
 
 async def _touch_api_key_last_used(
-    session: AsyncSession,
     api_key_id: str | None,
     *,
     last_used_at: datetime | None = None,
@@ -178,8 +163,9 @@ async def _touch_api_key_last_used(
         target_id = uuid.UUID(api_key_id)
     except ValueError:
         return
-    await session.execute(update(ApiKey).where(ApiKey.id == target_id).values(last_used_at=now))
-    await session.commit()
+    async with session_factory()() as session:
+        await session.execute(update(ApiKey).where(ApiKey.id == target_id).values(last_used_at=now))
+        await session.commit()
 
 
 async def invalidate_session_principal(token_hash: str) -> None:
@@ -207,16 +193,40 @@ async def invalidate_auth_principals() -> None:
         logger.debug("auth principal cache invalidation timed out")
 
 
+async def _principal_from_cache(request: Request) -> dict | None:
+    cookie = request.cookies.get(_config.settings.session_cookie_name)
+    if cookie:
+        cached = await _cache_get(_session_cache_key(hash_session_token(cookie)))
+        if isinstance(cached, dict):
+            return cached
+
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        if token.startswith(API_KEY_PREFIX):
+            for key_hash in api_key_hashes_for_lookup(token):
+                cached = await _cache_get(_api_key_cache_key(key_hash))
+                if isinstance(cached, dict):
+                    await _touch_api_key_last_used(
+                        cached.get("api_key_id"),
+                        last_used_at=_parse_iso(cached.get("last_used_at")),
+                    )
+                    return cached
+    return None
+
+
 async def get_current_user(
     request: Request,
 ) -> dict:
     from bigrag.services.collection_scope import enforce_collection_scope
     from bigrag.services.scopes import has_scope, required_scope
 
-    async with session_factory()() as session:
-        principal = await _user_from_session(request, session)
-        if principal is None:
-            principal = await _user_from_api_key(request, session)
+    principal = await _principal_from_cache(request)
+    if principal is None:
+        async with session_factory()() as session:
+            principal = await _user_from_session(request, session)
+            if principal is None:
+                principal = await _user_from_api_key(request, session)
     if principal is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     request.state.user = principal
