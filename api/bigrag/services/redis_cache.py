@@ -10,13 +10,14 @@ logger = get_logger("bigrag.redis_cache")
 
 PREFIX = "bigrag:cache:"
 ENCRYPTED_PREFIX = b"bigrag-fernet:"
+MAX_CONNECTIONS = 200
 
 _redis: aioredis.Redis | None = None
 
 
 async def connect(redis_url: str) -> None:
     global _redis
-    _redis = aioredis.from_url(redis_url, decode_responses=False)
+    _redis = aioredis.from_url(redis_url, decode_responses=False, max_connections=MAX_CONNECTIONS)
     logger.info("redis cache connected")
 
 

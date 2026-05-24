@@ -19,6 +19,8 @@ from bigrag.services.event_bus.types import (
 
 logger = get_logger("bigrag.event_bus")
 
+MAX_CONNECTIONS = 50
+
 
 class EventBus:
     def __init__(self) -> None:
@@ -44,7 +46,9 @@ class EventBus:
         task.add_done_callback(self._pending.discard)
 
     async def connect(self, redis_url: str) -> None:
-        self._redis = aioredis.from_url(redis_url, decode_responses=False)
+        self._redis = aioredis.from_url(
+            redis_url, decode_responses=False, max_connections=MAX_CONNECTIONS
+        )
         self._pubsub = self._redis.pubsub()
         await self._pubsub.psubscribe(f"{CHANNEL_PREFIX}*")
         self._listener = asyncio.create_task(self._listen())
