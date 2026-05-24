@@ -1,3 +1,5 @@
+import type { Paginated } from "@/types/pagination";
+
 export type EmbeddingPreset = {
   id: string;
   name: string;
@@ -161,8 +163,4 @@ export type AccessLogOverview = {
   recent: AccessLogEntry[];
 };
 
-export type AccessLogListResponse = {
-  entries: AccessLogEntry[];
-  total: number | null;
-  next_cursor: string | null;
-};
+export type AccessLogListResponse = Paginated<"entries", AccessLogEntry>;

@@ -6,12 +6,9 @@ import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { Collection, CollectionStats } from "@/types/bigrag";
+import type { Paginated } from "@/types/pagination";
 
-type ListResponse = {
-  collections: Collection[];
-  total: number | null;
-  next_cursor: string | null;
-};
+type ListResponse = Paginated<"collections", Collection>;
 
 const invalidateCollectionData = (queryClient: QueryClient, name: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });

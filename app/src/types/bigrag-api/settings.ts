@@ -1,3 +1,5 @@
+import type { Paginated } from "@/types/pagination";
+
 type InstanceSettingKind =
   | "bool"
   | "int"
@@ -63,8 +65,4 @@ export type BackupJob = {
   updated_at: string;
 };
 
-export type BackupJobListResponse = {
-  jobs: BackupJob[];
-  total: number | null;
-  next_cursor: string | null;
-};
+export type BackupJobListResponse = Paginated<"jobs", BackupJob>;

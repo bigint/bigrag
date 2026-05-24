@@ -16,12 +16,9 @@ import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { Chunk, Document, UploadSession, UploadSessionFileResponse } from "@/types/bigrag";
+import type { Paginated } from "@/types/pagination";
 
-type DocListResponse = {
-  documents: Document[];
-  total: number | null;
-  next_cursor: string | null;
-};
+type DocListResponse = Paginated<"documents", Document>;
 export type DocumentListSort =
   | "created_at"
   | "updated_at"

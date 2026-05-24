@@ -10,6 +10,7 @@ import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import type { Paginated } from "@/types/pagination";
 
 type AuditEntry = {
   id: string;
@@ -25,11 +26,7 @@ type AuditEntry = {
   created_at: string;
 };
 
-type AuditList = {
-  entries: AuditEntry[];
-  total: number | null;
-  next_cursor: string | null;
-};
+type AuditList = Paginated<"entries", AuditEntry>;
 
 const PAGE_SIZE = 25;
 
