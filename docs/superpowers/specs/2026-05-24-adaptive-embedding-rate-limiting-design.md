@@ -128,7 +128,7 @@ success, so it takes ~`limit` successes to add one slot):
 ```lua
 redis.call('ZREM', KEYS[1], ARGV[3])
 local limit = tonumber(redis.call('GET', KEYS[2])) or tonumber(ARGV[4])
-limit = math.min(limit + 1.0/limit, tonumber(ARGV[5]))     -- cap at MAX
+limit = math.min(limit + 1.0/limit, tonumber(ARGV[5]))     -- cap at ceiling
 redis.call('SET', KEYS[2], limit)
 ```
 
@@ -149,17 +149,29 @@ end
 The existing `record_rate_limit_cooldown` is still called on `429` so all workers
 also pause for the provider's `Retry-After`.
 
-### Constants (safety bounds, not provider limits)
+### Bounds — reuse the existing `embedding_concurrency` setting
 
-These bound the *learning*, not the provider quota — AIMD settles below the true
-limit regardless.
+We do **not** add new limit constants. The existing `embedding_concurrency`
+runtime setting (`config.py:65`, default 8, `runtime_setting_specs/search.py:6`)
+becomes the adaptive **ceiling**, with one important semantic change:
 
-- `MIN_LIMIT = 1`
-- `MAX_LIMIT = 64` (growth ceiling; prevents runaway under a generous quota)
-- `INITIAL_LIMIT = 8` (matches today's default so day-one behavior is familiar)
-- `DECREASE_GUARD_MS = 1000` (one halving per burst)
-- `ACQUIRE_RETRY_MS = 25–100` jittered
-- lease = `EMBEDDING_TIMEOUT_SECONDS` (60s)
+> **It is now global across all workers, not per-process.** Today each of the 5
+> worker processes independently allows 8 concurrent calls (~40 effective). After
+> this change, `embedding_concurrency` caps total concurrent calls *across the
+> whole fleet* via the shared Redis limiter. Operators should expect to raise
+> this value from 8 to preserve aggregate throughput.
+
+- **Ceiling = `sync_value("embedding_concurrency")`**, clamped to `>= 1`. Used as
+  both the initial seed and the recovery cap. AIMD only ever moves the live limit
+  *below* this and recovers back up to it.
+- `MIN_LIMIT = 1` (constant floor).
+- `DECREASE_GUARD_MS = 1000` (collapse a burst of concurrent 429s to one halving).
+- `ACQUIRE_RETRY_MS = 25–100` jittered (poll interval when at capacity).
+- lease = `EMBEDDING_TIMEOUT_SECONDS` (60s) — the self-healing permit TTL.
+
+So steady state with no 429s sits at the ceiling; a 429 halves the live limit
+(floored at 1) and it recovers additively toward the ceiling. The ceiling is a
+user knob, not a hardcoded provider limit.
 
 ### Local fallback (no Redis)
 

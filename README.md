@@ -357,7 +357,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BIGRAG_CHAT_PROVIDER` | Chat provider | `openai` |
-| `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4o-mini` |
+| `BIGRAG_CHAT_MODEL` | Default chat model | `gpt-4.1` |
 | `BIGRAG_CHAT_BASE_URL` | Base URL for OpenAI-compatible chat endpoints | — |
 | `BIGRAG_CHAT_TEMPERATURE` | Default chat temperature | `0.2` |
 | `BIGRAG_CHAT_MAX_CONTEXT_CHARS` | Max retrieved-context characters per chat call | `120000` |
