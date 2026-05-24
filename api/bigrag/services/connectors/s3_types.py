@@ -68,6 +68,18 @@ def s3_metadata(
     }
 
 
+def s3_source_config_public(source: ConnectorSource) -> dict[str, Any]:
+    config = dict((source.meta or {}).get("s3") or {})
+    return {
+        "bucket": config.get("bucket") or "",
+        "prefix": config.get("prefix") or "",
+        "region": config.get("region") or "us-east-1",
+        "endpoint_url": config.get("endpoint_url"),
+        "force_path_style": bool(config.get("force_path_style")),
+        "has_credentials": bool(config.get("has_credentials")),
+    }
+
+
 def source_s3_config(source: ConnectorSource) -> dict[str, Any]:
     config = dict((source.meta or {}).get("s3") or {})
     bucket = str(config.get("bucket") or "").strip()

@@ -48,6 +48,7 @@ async def run_due_syncs(
     *,
     provider: str,
     start_sync_job: Callable[[str], None],
+    queued_message: str,
     limit: int = 10,
 ) -> int:
     from bigrag.services.maintenance import is_active
@@ -79,6 +80,7 @@ async def run_due_syncs(
                 source=source,
                 trigger="scheduled",
                 user_id=None,
+                queued_message=queued_message,
                 commit=False,
             )
             await session.flush()

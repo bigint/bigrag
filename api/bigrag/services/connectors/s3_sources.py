@@ -13,6 +13,7 @@ from bigrag.services.connectors.s3_types import (
     s3_metadata,
     s3_root_id,
     s3_root_name,
+    s3_source_config_public,
     source_s3_config,
 )
 from bigrag.services.connectors.sources import (
@@ -25,6 +26,8 @@ from bigrag.services.connectors.sources import (
     update_source,
 )
 
+S3_QUEUED_MESSAGE = "S3 sync queued"
+
 
 async def list_s3_sources(
     session,
@@ -35,6 +38,7 @@ async def list_s3_sources(
         session,
         provider=S3_PROVIDER,
         collection_name=collection_name,
+        shape_config=s3_source_config_public,
     )
 
 
@@ -84,6 +88,7 @@ async def create_s3_source(
         schedule_enabled=schedule_enabled,
         sync_interval_hours=sync_interval_hours,
         start_sync_job=start_s3_sync_job,
+        queued_message=S3_QUEUED_MESSAGE,
         credential_values={
             "access_key_id": access_key_id,
             "secret_access_key": secret_access_key,
@@ -197,6 +202,7 @@ async def trigger_s3_sync(
         trigger=trigger,
         not_found_message="S3 source not found",
         start_sync_job=start_s3_sync_job,
+        queued_message=S3_QUEUED_MESSAGE,
     )
 
 
@@ -221,7 +227,7 @@ async def source_by_id_for_s3(session, *, source_id: str) -> ConnectorSource:
 
 
 def s3_source_public(source: ConnectorSource) -> dict[str, Any]:
-    return source_public(S3_PROVIDER, source)
+    return source_public(S3_PROVIDER, source, shape_config=s3_source_config_public)
 
 
 def s3_sync_job_public(job: ConnectorSyncJob) -> dict[str, Any]:
