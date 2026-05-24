@@ -175,6 +175,7 @@ class CreateApiKeyResponse(ApiKey):
 class UpdateApiKeyBody(TypedDict, total=False):
     name: str
     active: bool
+    expires_at: str | None
     scopes: list[str] | None
     collection: str | None
 
