@@ -13,7 +13,7 @@ from bigrag.services.vector_store.attributes import decode_attributes, encode_at
 from bigrag.services.vector_store.base import (
     _backend_name,
     _build_payload,
-    _chunk_rows_from_payloads,
+    _chunk_rows,
     _point_id,
     _row_from_payload,
 )
@@ -260,28 +260,21 @@ class TurbopufferVectorStore:
         document_id: str,
         limit: int = 10000,
         offset: int = 0,
-    ) -> tuple[list[dict], int]:
-        rows: list[dict] = []
-        last_id: str | None = None
-        while True:
-            doc_filter = ["document_id", "Eq", document_id]
-            filters = (
-                doc_filter if last_id is None else ["And", [doc_filter, ["id", "Gt", last_id]]]
-            )
-            page = await self._query_rows(
-                collection,
-                {
-                    "rank_by": ["id", "asc"],
-                    "filters": filters,
-                    "limit": {"total": _EXPORT_PAGE_SIZE},
-                    "exclude_attributes": ["vector"],
-                },
-            )
-            rows.extend(page)
-            if len(page) < _EXPORT_PAGE_SIZE:
-                break
-            last_id = str(page[-1].get("id", ""))
-        return _chunk_rows_from_payloads([_row_payload(row) for row in rows], limit, offset)
+    ) -> list[dict]:
+        doc_filter = ["document_id", "Eq", document_id]
+        filters = (
+            doc_filter if offset <= 0 else ["And", [doc_filter, ["chunk_index", "Gte", offset]]]
+        )
+        rows = await self._query_rows(
+            collection,
+            {
+                "rank_by": ["chunk_index", "asc"],
+                "filters": filters,
+                "limit": {"total": limit},
+                "exclude_attributes": ["vector"],
+            },
+        )
+        return _chunk_rows([_row_payload(row) for row in rows])
 
     async def _query_rows(self, collection: str, payload: dict) -> list[dict]:
         try:

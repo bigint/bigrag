@@ -55,10 +55,10 @@ async def get_document_chunks_global(
     )
     collection = await get_collection_or_404(collection_name)
     _check_document_tenant(user, doc, collection)
-    chunks, total = await vector_store.get_chunks(
+    chunks = await vector_store.get_chunks(
         collection_name,
         document_id,
         limit=limit,
         offset=offset,
     )
-    return {"chunks": chunks, "total": total}
+    return {"chunks": chunks, "total": doc.chunk_count}

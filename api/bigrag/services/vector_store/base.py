@@ -52,7 +52,7 @@ class VectorStoreBackend(Protocol):
         document_id: str,
         limit: int = 10000,
         offset: int = 0,
-    ) -> tuple[list[dict], int]: ...
+    ) -> list[dict]: ...
 
     async def delete_by_document(self, collection: str, document_id: str) -> None: ...
 
@@ -134,14 +134,7 @@ def _row_from_payload(point_id: str, score: float, payload: dict) -> dict:
     }
 
 
-def _chunk_rows_from_payloads(
-    payloads: list[dict],
-    limit: int,
-    offset: int,
-) -> tuple[list[dict], int]:
-    all_chunks = sorted(payloads, key=lambda payload: payload.get("chunk_index", 0))
-    total = len(all_chunks)
-    page = all_chunks[offset : offset + limit]
+def _chunk_rows(payloads: list[dict]) -> list[dict]:
     return [
         {
             "id": payload.get("id", ""),
@@ -152,5 +145,5 @@ def _chunk_rows_from_payloads(
                 k: v for k, v in payload.items() if k not in _FIXED_PAYLOAD_FIELDS and v is not None
             },
         }
-        for payload in page
-    ], total
+        for payload in payloads
+    ]

@@ -360,15 +360,15 @@ async def get_document_chunks(
 ) -> dict[str, object]:
     enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
-    exists = await session.scalar(
-        sa.select(Document.id)
+    total = await session.scalar(
+        sa.select(Document.chunk_count)
         .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
-    if exists is None:
+    if total is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    chunks, total = await vector_store.get_chunks(
+    chunks = await vector_store.get_chunks(
         collection_name,
         document_id,
         limit=limit,

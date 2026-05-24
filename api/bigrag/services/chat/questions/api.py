@@ -186,7 +186,7 @@ async def _sample_chunks(
     for document in documents:
         max_offset = max(0, int(document.chunk_count or 0) - CHUNK_LIMIT)
         offset = random.randint(0, max_offset) if max_offset else 0
-        chunks, _total = await vector_store.get_chunks(
+        chunks = await vector_store.get_chunks(
             collection_name,
             str(document.id),
             limit=CHUNK_LIMIT,

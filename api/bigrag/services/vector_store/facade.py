@@ -166,7 +166,7 @@ class VectorStore:
         document_id: str,
         limit: int = 10000,
         offset: int = 0,
-    ) -> tuple[list[dict], int]:
+    ) -> list[dict]:
         async with self._backend() as backend:
             return await backend.get_chunks(collection, document_id, limit, offset)
 
