@@ -13,6 +13,7 @@ from bigrag.exceptions import (
     ValidationError,
 )
 from bigrag.logging import get_logger
+from bigrag.services.queue_state import QueueFullError
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -54,6 +55,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         return ORJSONResponse(
             status_code=500,
             content={"detail": exc.public_message, "code": exc.code},
+        )
+
+    @app.exception_handler(QueueFullError)
+    async def queue_full_handler(_request: Request, exc: QueueFullError) -> ORJSONResponse:
+        return ORJSONResponse(
+            status_code=503,
+            content={"detail": str(exc), "code": "queue_full"},
+            headers={"Retry-After": "30"},
         )
 
     @app.exception_handler(Exception)
