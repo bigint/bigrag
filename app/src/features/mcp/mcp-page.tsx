@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/code-block";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CopyButton } from "@/components/ui/copy-button";
 import { type Column, DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -90,17 +90,6 @@ const buildSnippets = (serverName: string, keyValue: string) => ({
   jsonSnippet: buildClaudeDesktopJson(serverName, bigragApiUrl, keyValue),
   shellSnippet: buildShellSnippet(bigragApiUrl, keyValue),
 });
-
-const CodeBlock = ({ code, label }: { code: string; label: string }) => (
-  <div className="relative">
-    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-4 font-mono text-xs leading-relaxed">
-      <code>{code}</code>
-    </pre>
-    <div className="absolute top-2 right-2">
-      <CopyButton code={code} label={label} />
-    </div>
-  </div>
-);
 
 const ToolsExposed = ({ isScoped }: { isScoped: boolean }) => (
   <section>
