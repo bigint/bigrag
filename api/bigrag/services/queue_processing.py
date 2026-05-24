@@ -84,7 +84,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                 session,
                 document_id=doc_uuid,
                 elements=parsed.elements,
-                enrichment_enabled=job.multimodal_enrichment_enabled,
+                enrichment_enabled=job.should_enrich_multimodal,
             )
             await session.commit()
 

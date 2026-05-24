@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from typing import Any
 
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import DocumentElement
+from bigrag.db.models import Collection, Document, DocumentElement, EmbeddingPreset
 from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.runtime_settings import get_values
+from bigrag.services.runtime_settings import get_value, get_values
 from bigrag.services.url_security import (
     UnsafeOutboundUrlError,
     pin_chat_base_url,
@@ -21,6 +20,7 @@ ENRICHABLE_KINDS = {"image", "table", "equation"}
 MAX_ELEMENTS_PER_RUN = 25
 MAX_SUMMARY_CHARS = 4000
 MODEL_TIMEOUT_SECONDS = 60
+OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
 async def enrich_document_elements(document_id: str | uuid.UUID) -> int:
@@ -30,18 +30,13 @@ async def enrich_document_elements(document_id: str | uuid.UUID) -> int:
         await mark_document_enrichment_failed(document_id, "openai package is required")
         raise RuntimeError("openai package is required") from exc
 
-    api_key = os.environ.get("BIGRAG_CHAT_API_KEY")
+    api_key = await _collection_openai_key(uuid.UUID(str(document_id)))
     if not api_key:
-        await mark_document_enrichment_failed(
-            document_id,
-            "Configure BIGRAG_CHAT_API_KEY to enable multimodal enrichment.",
-        )
         return 0
 
-    runtime = await get_values(["chat_model", "chat_base_url", "chat_temperature"])
-    base_url = runtime["chat_base_url"] or "https://api.openai.com/v1"
+    runtime = await get_values(["chat_model", "chat_temperature"])
     try:
-        pinned = await pin_chat_base_url(base_url)
+        pinned = await pin_chat_base_url(OPENAI_BASE_URL)
     except UnsafeOutboundUrlError as exc:
         await mark_document_enrichment_failed(
             document_id,
@@ -50,8 +45,8 @@ async def enrich_document_elements(document_id: str | uuid.UUID) -> int:
         raise RuntimeError(str(exc)) from exc
 
     client = openai.AsyncOpenAI(
-        api_key=api_key.strip(),
-        base_url=base_url,
+        api_key=api_key,
+        base_url=OPENAI_BASE_URL,
         timeout=MODEL_TIMEOUT_SECONDS,
         http_client=pinned_async_client(pinned, timeout=MODEL_TIMEOUT_SECONDS),
     )
@@ -64,6 +59,26 @@ async def enrich_document_elements(document_id: str | uuid.UUID) -> int:
         )
     finally:
         await client.close()
+
+
+async def _collection_openai_key(document_id: uuid.UUID) -> str | None:
+    async with session_factory()() as session:
+        collection = await session.scalar(
+            sa.select(Collection)
+            .join(Document, Document.collection_id == Collection.id)
+            .where(Document.id == document_id)
+        )
+        if collection is None or collection.embedding_provider != "openai":
+            return None
+        preset_key = None
+        if collection.embedding_preset_id:
+            preset = await session.get(EmbeddingPreset, collection.embedding_preset_id)
+            preset_key = preset.api_key if preset else None
+        direct_key = collection.embedding_api_key
+    for candidate in (preset_key, direct_key, await get_value("embedding_api_key")):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
 
 
 async def mark_document_enrichment_failed(document_id: str | uuid.UUID, message: str) -> None:

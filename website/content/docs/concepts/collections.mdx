@@ -121,7 +121,7 @@ You can override reranking per query by passing `"rerank": true` or `"rerank": f
 
 Set `multimodal_enabled: true` to preserve document structure alongside chunk vectors. Ingestion stores first-class element records for headings, tables, equations, images, page numbers, bounding boxes, captions, and nearby context. It does not retain binary image/table assets after temporary staging cleanup. Query and chat responses remain backward compatible; multimodal provenance appears in `multimodal_elements` when a retrieved chunk overlaps stored elements.
 
-Set `multimodal_enrichment_enabled: true` to queue asynchronous VLM summaries for image, table, and equation elements using the configured OpenAI-compatible chat provider. Core document readiness is still based on parse/chunk/embed completion; enrichment can finish later or fail independently.
+Set `multimodal_enrichment_enabled: true` to queue asynchronous LLM summaries for image, table, and equation elements. Enrichment reuses the collection's own embedding key and runs only for collections on the `openai` provider; collections using `openai_compatible`, Cohere, or Voyage are not enriched. Core document readiness is still based on parse/chunk/embed completion; enrichment can finish later or fail independently.
 
 ## Updating a Collection
 

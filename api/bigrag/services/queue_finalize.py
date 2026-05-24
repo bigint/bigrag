@@ -34,7 +34,7 @@ async def finalize_success(
     from bigrag.services.retrieval import invalidate_collection_query_cache
 
     await invalidate_collection_query_cache(job.collection_name)
-    if job.multimodal_enrichment_enabled and element_count > 0:
+    if job.should_enrich_multimodal and element_count > 0:
         from bigrag.services.jobs.actors import enqueue_multimodal_enrichment
 
         enqueue_multimodal_enrichment(job.document_id)
