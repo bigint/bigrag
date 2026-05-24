@@ -44,6 +44,7 @@ async def cleanup_old_data_once() -> None:
             "webhook_delivery_retention_days",
             "upload_session_item_retention_hours",
             "embedding_cache_retention_days",
+            "embedding_cache_max_rows",
         ]
     )
     ql = await _delete_in_chunks(
@@ -71,5 +72,9 @@ async def cleanup_old_data_once() -> None:
         int(retention["embedding_cache_retention_days"])
     )
     logger.info("embedding_cache cleanup", deleted=purged_embeddings)
+    capped_embeddings = await embedding_cache.purge_to_row_limit(
+        int(retention["embedding_cache_max_rows"])
+    )
+    logger.info("embedding_cache cap", deleted=capped_embeddings)
     cleaned_staged_files = await cleanup_terminal_staged_files()
     logger.info("staged_files cleanup", deleted=cleaned_staged_files)

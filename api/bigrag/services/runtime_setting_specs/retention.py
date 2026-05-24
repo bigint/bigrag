@@ -53,4 +53,17 @@ RETENTION_SPECS: tuple[SettingSpec, ...] = (
         min=0,
         max=3650,
     ),
+    SettingSpec(
+        key="embedding_cache_max_rows",
+        group="retention",
+        label="Embedding cache max rows",
+        kind="int",
+        default=0,
+        description=(
+            "Maximum embedding-cache rows to keep (0 = unlimited); "
+            "least-recently-used rows are evicted."
+        ),
+        min=0,
+        max=1000000000,
+    ),
 )

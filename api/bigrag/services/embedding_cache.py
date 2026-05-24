@@ -162,6 +162,28 @@ async def purge_all() -> int:
         return int(result.rowcount or 0)
 
 
+async def purge_to_row_limit(max_rows: int) -> int:
+    if max_rows <= 0:
+        return 0
+    async with session_factory()() as session:
+        total = await session.scalar(sa.select(sa.func.count()).select_from(EmbeddingCache)) or 0
+        if total <= max_rows:
+            return 0
+        cutoff = await session.scalar(
+            sa.select(EmbeddingCache.last_hit_at)
+            .order_by(EmbeddingCache.last_hit_at.desc())
+            .offset(max_rows - 1)
+            .limit(1)
+        )
+        if cutoff is None:
+            return 0
+        result = await session.execute(
+            sa.delete(EmbeddingCache).where(EmbeddingCache.last_hit_at < cutoff)
+        )
+        await session.commit()
+        return int(result.rowcount or 0)
+
+
 async def purge_stale(retention_days: int) -> int:
     if retention_days <= 0:
         return await purge_all()
