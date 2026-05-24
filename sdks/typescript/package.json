@@ -21,9 +21,10 @@
     "ws": "^8.18.3"
   },
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "pnpm run clean && tsc",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "tsc"
+    "prepublishOnly": "pnpm run build"
   },
   "devDependencies": {
     "@types/node": "^25.9.0",

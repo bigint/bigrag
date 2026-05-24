@@ -38,7 +38,6 @@ const SETTINGS_GROUP_LAYOUTS: Record<InstanceSettingGroup, SettingsGroupLayout> 
       "max_batch_upload_size_mb",
       "conversion_pdf_ocr_enabled",
       "conversion_timeout",
-      "ingestion_workers",
       "ingestion_batch_size",
     ],
     description: "Upload, conversion, OCR, and worker limits for document intake.",

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.session import get_session
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import DocumentListResponse
+from bigrag.routers import enforce_collection_pin
 from bigrag.routers.documents._router import router
 from bigrag.services.documents import list_documents_payload
 
@@ -21,9 +22,10 @@ async def list_documents(
     offset: int = Query(default=0, ge=0, le=10000),
     cursor: str | None = Query(default=None),
     include_total: bool = Query(default=False),
-    _: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     return await list_documents_payload(
         session,
         collection_name=collection_name,

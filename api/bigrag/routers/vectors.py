@@ -11,7 +11,7 @@ from bigrag.models.query import (
     VectorUpsertRequest,
     VectorUpsertResponse,
 )
-from bigrag.routers import get_collection_or_404
+from bigrag.routers import enforce_collection_pin, get_collection_or_404
 from bigrag.services import access_log
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -35,6 +35,7 @@ async def upsert_vectors(
     request: Request,
     principal: dict = Depends(get_current_user),
 ):
+    enforce_collection_pin(principal, collection_name)
     access_log.set_context(
         request,
         action="vectors.upsert",
@@ -121,8 +122,9 @@ async def delete_vectors(
     collection_name: str,
     body: VectorDeleteRequest,
     request: Request,
-    _: dict = Depends(get_current_user),
+    principal: dict = Depends(get_current_user),
 ):
+    enforce_collection_pin(principal, collection_name)
     access_log.set_context(
         request,
         action="vectors.delete",

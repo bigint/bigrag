@@ -89,7 +89,6 @@ class Settings(BaseSettings):
     max_upload_session_files: int = 10000
     max_upload_session_size_mb: int = 102400
     upload_session_item_retention_hours: int = 168
-    ingestion_workers: int = 4
     ingestion_batch_size: int = 128
     max_vector_upsert_count: int = 1000
     max_vector_delete_count: int = 10000

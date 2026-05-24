@@ -8,30 +8,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import UploadSession, UploadSessionItem
 from bigrag.services.upload_sessions import (
     TERMINAL_SESSION_STATUSES,
-    deleted_document_item,
     effective_item_status,
-    get_upload_session,
     get_upload_session_for_update,
     item_response,
-    session_counts,
     session_rows,
-    session_status_value,
     upload_session_response,
 )
 
 __all__ = [
     "TERMINAL_SESSION_STATUSES",
-    "deleted_document_item",
     "effective_item_status",
     "existing_item",
     "fail_item",
-    "get_upload_session",
     "get_upload_session_for_update",
     "item_response",
     "reserve_item",
-    "session_counts",
     "session_rows",
-    "session_status_value",
     "upload_session_response",
 ]
 

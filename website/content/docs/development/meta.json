@@ -1,4 +1,4 @@
 {
   "title": "Development",
-  "pages": ["dependencies", "releases"]
+  "pages": ["dependencies", "testing", "releases"]
 }

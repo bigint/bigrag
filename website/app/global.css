@@ -33,7 +33,9 @@ html > body[data-scroll-locked] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     scroll-behavior: auto !important;
     transition: none !important;

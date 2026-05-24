@@ -459,7 +459,6 @@ def upgrade() -> None:
         sa.Column("tenant_id", sa.Text(), nullable=True),
         sa.Column("root_id", sa.Text(), nullable=False),
         sa.Column("root_name", sa.Text(), nullable=False),
-        sa.Column("root_mime_type", sa.Text(), server_default="", nullable=False),
         sa.Column("source_type", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), server_default="idle", nullable=False),
         sa.Column("schedule_enabled", sa.Boolean(), server_default=sa.text("true"), nullable=False),
@@ -507,9 +506,6 @@ def upgrade() -> None:
     )
     op.create_index(
         "idx_connector_sources_next_sync", "connector_sources", ["next_sync_at"], unique=False
-    )
-    op.create_index(
-        "idx_connector_sources_tenant_id", "connector_sources", ["tenant_id"], unique=False
     )
     op.create_table(
         "connector_source_credentials",
@@ -794,6 +790,7 @@ def upgrade() -> None:
         sa.Column("content_hash", sa.Text(), nullable=True),
         sa.Column("web_url", sa.Text(), nullable=True),
         sa.Column("status", sa.Text(), server_default="active", nullable=False),
+        sa.Column("last_seen_job_id", sa.Uuid(), nullable=True),
         sa.Column(
             "metadata",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -824,6 +821,12 @@ def upgrade() -> None:
         "idx_connector_documents_source_remote",
         "connector_documents",
         ["source_id", "remote_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_connector_documents_source_last_seen",
+        "connector_documents",
+        ["source_id", "last_seen_job_id"],
         unique=False,
     )
     op.create_table(
@@ -1024,6 +1027,7 @@ def downgrade() -> None:
     op.drop_index("idx_connector_sync_jobs_status", table_name="connector_sync_jobs")
     op.drop_index("idx_connector_sync_jobs_source_created", table_name="connector_sync_jobs")
     op.drop_table("connector_sync_jobs")
+    op.drop_index("idx_connector_documents_source_last_seen", table_name="connector_documents")
     op.drop_index("idx_connector_documents_source_remote", table_name="connector_documents")
     op.drop_index("idx_connector_documents_document_id", table_name="connector_documents")
     op.drop_table("connector_documents")
@@ -1054,7 +1058,6 @@ def downgrade() -> None:
         table_name="connector_source_credentials",
     )
     op.drop_table("connector_source_credentials")
-    op.drop_index("idx_connector_sources_tenant_id", table_name="connector_sources")
     op.drop_index("idx_connector_sources_next_sync", table_name="connector_sources")
     op.drop_index("idx_connector_sources_collection_id", table_name="connector_sources")
     op.drop_table("connector_sources")

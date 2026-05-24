@@ -22,7 +22,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-The SDK is fully typed, ships `py.typed`, and uses CalVer releases like `2026.5.22`.
+The SDK is fully typed, ships `py.typed`, and uses CalVer releases like `2026.5.23`.
 
 ## Namespaces
 

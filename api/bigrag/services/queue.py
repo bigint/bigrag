@@ -29,8 +29,7 @@ _lease_key = queue_state.lease_key
 
 
 class IngestionQueue:
-    def __init__(self, num_workers: int = 4) -> None:
-        self._num_workers = num_workers
+    def __init__(self) -> None:
         self._redis: aioredis.Redis | None = None
         self._vector_store = None
 
@@ -45,7 +44,7 @@ class IngestionQueue:
         self._redis = aioredis.from_url(
             redis_url,
             decode_responses=False,
-            max_connections=max(self._num_workers + 4, 260),
+            max_connections=260,
         )
         await self._redis.ping()
         logger.info("queue connected to redis", redis_url=redis_url)
@@ -58,11 +57,6 @@ class IngestionQueue:
         if recovered:
             logger.info("queue recovered stuck jobs", recovered=recovered)
         logger.info("queue ready for dramatiq workers")
-
-    async def resize_workers(self, num_workers: int) -> None:
-        target = max(1, int(num_workers))
-        self._num_workers = target
-        logger.info("queue worker setting updated", target=target)
 
     async def stop(self) -> None:
         if self._redis:

@@ -18,6 +18,7 @@ from bigrag.models.query import (
     QueryTimings,
 )
 from bigrag.routers import (
+    enforce_collection_pin,
     ensure_embedding_or_400,
     get_collection_or_404,
     get_reranking_config,
@@ -47,6 +48,7 @@ async def query_collection(
     request: Request,
     principal: dict = Depends(get_current_user),
 ):
+    enforce_collection_pin(principal, collection_name)
     access_log.set_context(
         request,
         action="query.run",
@@ -183,6 +185,7 @@ async def multi_collection_query(
     )
     multi_filters = body.filters
     for col_name, collection in zip(body.collections, resolved_collections, strict=True):
+        enforce_collection_pin(principal, col_name)
         multi_filters = enforce_tenant_filters(collection, multi_filters, principal)
         embedding_models[col_name] = resolve_embedding_model(
             collection,

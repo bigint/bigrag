@@ -23,10 +23,7 @@ from bigrag.models.document import (
     DocumentListResponse,
 )
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
-from bigrag.routers._documents import (
-    document_response,
-    parse_form_metadata,
-)
+from bigrag.routers._documents import parse_form_metadata
 from bigrag.routers.documents import router
 from bigrag.routers.documents_uploads import (
     metadata_or_400,
@@ -44,6 +41,7 @@ from bigrag.services.document_deletion import (
 from bigrag.services.document_progress import document_progress_map, publish_queued_progress
 from bigrag.services.documents import (
     UploadBudget,
+    document_response,
     prepare_document_metadata,
 )
 from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -111,6 +109,7 @@ async def batch_upload_documents(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
 

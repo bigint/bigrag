@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from bigrag.db.engine import session_factory
 from bigrag.db.models import MaintenanceLock
 
-MAINTENANCE_LOCK_NAME = "maintenance"
 _LOCK_STATE_CACHE_KEY = "maintenance:lock_state"
 _LOCK_STATE_CACHE_TTL = 5
 
@@ -46,65 +43,6 @@ async def active_lock_state() -> dict | None:
     state = {"reason": lock.reason} if lock is not None else None
     await redis_cache.set(_LOCK_STATE_CACHE_KEY, {"lock": state}, _LOCK_STATE_CACHE_TTL)
     return state
-
-
-async def _invalidate_lock_state_cache() -> None:
-    from bigrag.services import redis_cache
-
-    await redis_cache.delete(_LOCK_STATE_CACHE_KEY)
-
-
-async def acquire_maintenance_lock(
-    owner_id: uuid.UUID,
-    *,
-    reason: str,
-    ttl_hours: int = 12,
-    metadata: dict | None = None,
-) -> bool:
-    now = _now()
-    expires_at = now + timedelta(hours=ttl_hours)
-    stmt = pg_insert(MaintenanceLock).values(
-        name=MAINTENANCE_LOCK_NAME,
-        owner_id=owner_id,
-        reason=reason,
-        expires_at=expires_at,
-        meta=metadata or {},
-    )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[MaintenanceLock.name],
-        set_={
-            "owner_id": stmt.excluded.owner_id,
-            "reason": stmt.excluded.reason,
-            "expires_at": stmt.excluded.expires_at,
-            "metadata": stmt.excluded["metadata"],
-        },
-        where=MaintenanceLock.expires_at <= now,
-    ).returning(MaintenanceLock.owner_id)
-    async with session_factory()() as session:
-        other = await session.scalar(
-            sa.select(MaintenanceLock)
-            .where(MaintenanceLock.name != MAINTENANCE_LOCK_NAME)
-            .where(MaintenanceLock.expires_at > now)
-            .limit(1)
-        )
-        if other is not None:
-            return False
-        result = await session.execute(stmt)
-        row = result.first()
-        await session.commit()
-        await _invalidate_lock_state_cache()
-        return row is not None and row[0] == owner_id
-
-
-async def release_maintenance_lock(owner_id: uuid.UUID) -> None:
-    async with session_factory()() as session:
-        await session.execute(
-            sa.delete(MaintenanceLock)
-            .where(MaintenanceLock.name == MAINTENANCE_LOCK_NAME)
-            .where(MaintenanceLock.owner_id == owner_id)
-        )
-        await session.commit()
-    await _invalidate_lock_state_cache()
 
 
 async def ensure_writes_allowed() -> None:

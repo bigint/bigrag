@@ -64,7 +64,6 @@ services:
       BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
       BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
       BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
-      BIGRAG_WORKER_HEALTHCHECK_KEY: "${BIGRAG_WORKER_HEALTHCHECK_KEY:-bigrag:dramatiq:worker:heartbeat}"
       BIGRAG_UPLOAD_DIR: /data/uploads
     depends_on:
       postgres:
@@ -94,6 +93,7 @@ services:
       BIGRAG_SESSION_COOKIE_DOMAIN: "${BIGRAG_SESSION_COOKIE_DOMAIN:-}"
       BIGRAG_CORS_ORIGINS: '${BIGRAG_CORS_ORIGINS:-["http://localhost:3000"]}'
       BIGRAG_TRUSTED_PROXIES: '${BIGRAG_TRUSTED_PROXIES:-[]}'
+      BIGRAG_WORKER_HEALTHCHECK_KEY: "${BIGRAG_WORKER_HEALTHCHECK_KEY:-bigrag:dramatiq:worker:heartbeat}"
     depends_on:
       bigrag-api:
         condition: service_healthy

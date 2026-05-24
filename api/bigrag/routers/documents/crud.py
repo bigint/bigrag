@@ -48,6 +48,7 @@ async def upload_document(
     metadata: str = Form(default="{}"),
     user: dict = Depends(get_current_user),
 ):
+    enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
     logger.info("document upload", collection=collection_name, filename=file.filename)

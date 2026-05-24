@@ -23,7 +23,7 @@ Bootstrap config is the small set of values the API needs before it can connect 
 | `BIGRAG_WORKERS` | Uvicorn process count. | `1` |
 | `BIGRAG_DATABASE_URL` | Postgres connection URL. | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_DB_POOL_MIN` | Minimum Postgres pool size. | `5` |
-| `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `50` |
+| `BIGRAG_DB_POOL_MAX` | Maximum Postgres pool size. | `20` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration timeout. Set `0` to disable the timeout. | `60` |
 | `BIGRAG_REDIS_URL` | Redis connection URL. | `redis://localhost:6379/0` |
 | `BIGRAG_MASTER_KEY` | Fernet key for encrypted provider secrets, instance-setting secrets, embedding-cache rows, and Redis cache payloads. Required for production. | — |
@@ -91,7 +91,7 @@ Later, manage settings at:
 | `/settings?tab=account` | Account settings |
 | `/settings?tab=health` | Dependency health |
 | `/settings?tab=security` | Trusted proxies, provider URL allow-lists, embedding-cache mode, and private-network escape hatches. CORS origins and session-cookie policy are still supported, but managed from deployment config or the instance settings API instead of the Security tab. |
-| `/settings?tab=data` | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
+| `/settings?tab=data` | Upload limits, OCR, queue depth, webhook delivery limits, and retention windows. |
 | `/settings?tab=vector_store` | Turbopuffer API key, public-region dropdown, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
 | `/models` | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 

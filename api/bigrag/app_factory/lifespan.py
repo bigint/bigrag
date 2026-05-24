@@ -53,7 +53,6 @@ async def lifespan(app: FastAPI):
 
     runtime = await runtime_settings.get_values(
         [
-            "ingestion_workers",
             "turbopuffer_api_key",
             "turbopuffer_base_url",
             "turbopuffer_namespace_prefix",
@@ -86,7 +85,6 @@ async def lifespan(app: FastAPI):
     await redis_cache.connect(s.redis_url)
     await event_bus.connect(s.redis_url)
 
-    ingestion_queue._num_workers = runtime["ingestion_workers"]
     await ingestion_queue.connect(s.redis_url)
     ingestion_queue.bind_vector_store(vector_store)
     app.state.queue = ingestion_queue

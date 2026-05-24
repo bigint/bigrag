@@ -13,7 +13,6 @@ from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.upload_session import UploadSessionFileResponse
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
-from bigrag.routers._documents import document_response
 from bigrag.routers._upload_sessions import (
     TERMINAL_SESSION_STATUSES,
     upload_session_response,
@@ -42,6 +41,7 @@ from bigrag.services.document_progress import document_progress, publish_queued_
 from bigrag.services.documents import (
     SUPPORTED_EXTENSIONS,
     content_hash_match,
+    document_response,
     persist_document,
     stream_upload_to_temp,
 )

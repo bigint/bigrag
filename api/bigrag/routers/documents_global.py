@@ -7,9 +7,12 @@ from bigrag.db.session import get_session
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.document import DocumentResponse
 from bigrag.routers import get_collection_or_404
-from bigrag.routers._documents import check_document_tenant, document_response
 from bigrag.services.document_progress import document_progress
-from bigrag.services.documents import get_document_with_collection
+from bigrag.services.documents import (
+    check_document_tenant,
+    document_response,
+    get_document_with_collection,
+)
 from bigrag.services.vector_store import vector_store
 
 global_router = APIRouter(prefix="/v1/documents", tags=["documents"])
