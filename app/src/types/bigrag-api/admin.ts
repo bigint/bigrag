@@ -31,7 +31,6 @@ export type McpServer = {
   server_name: string;
   collection: string | null;
   key_prefix: string;
-  key_active: boolean;
   last_used_at: string | null;
   created_at: string;
   updated_at: string;

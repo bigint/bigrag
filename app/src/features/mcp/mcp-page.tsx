@@ -1,6 +1,6 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { Check, Copy, ExternalLink, KeyRound, Plug, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   mcpCreateBodyFromValues,
   mcpServerNameFromTitle,
   slugifyMcpServerName,
-  validateMcpCreateFormValues,
 } from "@/features/mcp/mcp-form-state";
 import { useCollections } from "@/hooks/use-collections";
 import {
@@ -27,7 +26,7 @@ import {
   useMcpServers,
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
-import { errorText, firstString, submitWith } from "@/lib/form";
+import { errorText, submitWith } from "@/lib/form";
 import { formatRelative } from "@/lib/format";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
 
@@ -62,11 +61,11 @@ const buildRemoteUrl = (origin: string) => `${trimSlash(origin)}/mcp`;
 
 const buildAuthHeader = (plaintext: string) => `Authorization: Bearer ${plaintext}`;
 
-const buildClaudeDesktopJson = (server: McpServer, origin: string, plaintext: string) =>
+const buildClaudeDesktopJson = (serverName: string, origin: string, plaintext: string) =>
   JSON.stringify(
     {
       mcpServers: {
-        [server.server_name]: {
+        [serverName]: {
           command: "bigrag-mcp",
           env: {
             BIGRAG_URL: trimSlash(origin),
@@ -86,13 +85,27 @@ const buildShellSnippet = (origin: string, plaintext: string) =>
   BIGRAG_API_KEY=${shellQuote(plaintext)} \\
   bigrag-mcp`;
 
+const buildSnippets = (serverName: string, keyValue: string) => {
+  const origin = getOrigin();
+  return {
+    remoteUrl: buildRemoteUrl(origin),
+    authHeader: buildAuthHeader(keyValue),
+    jsonSnippet: buildClaudeDesktopJson(serverName, origin, keyValue),
+    shellSnippet: buildShellSnippet(origin, keyValue),
+  };
+};
+
 const CopyButton = ({ code, label }: { code: string; label: string }) => {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    toast.success("Copied");
-    setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success("Copied");
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Couldn't copy — select and copy manually");
+    }
   };
   return (
     <Tooltip content={copied ? "Copied" : "Copy"}>
@@ -120,6 +133,22 @@ const CodeBlock = ({ code, label }: { code: string; label: string }) => (
   </div>
 );
 
+const ToolsExposed = ({ isScoped }: { isScoped: boolean }) => (
+  <section>
+    <h3 className="mb-2 font-medium text-sm">
+      Tools exposed {isScoped ? "(scoped set)" : "(full set)"}
+    </h3>
+    <ul className="divide-y divide-border">
+      {(isScoped ? TOOLS_SCOPED : TOOLS_UNSCOPED).map((tool) => (
+        <li className="flex items-start gap-3 py-2 first:pt-0 last:pb-0" key={tool.name}>
+          <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
+          <span className="text-sm text-muted-foreground">{tool.description}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
+
 interface CreateDialogProps {
   open: boolean;
   onClose: () => void;
@@ -137,9 +166,6 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
   const [autoSlug, setAutoSlug] = useState(true);
   const form = useForm({
     defaultValues: defaultMcpCreateFormValues(),
-    validators: {
-      onSubmit: ({ value }) => validateMcpCreateFormValues(value),
-    },
     onSubmit: async ({ value }) => {
       try {
         const created = await create.mutateAsync(mcpCreateBodyFromValues(value));
@@ -166,16 +192,6 @@ const CreateDialog = ({ open, onClose, onCreated, collections }: CreateDialogPro
   return (
     <Modal onClose={onClose} open={open} size="md" title="New MCP server">
       <form className="space-y-4" noValidate onSubmit={submitWith(() => form.handleSubmit())}>
-        <form.Subscribe selector={(state) => state.errors}>
-          {(errors) => {
-            const formError = firstString(errors);
-            return formError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {formError}
-              </div>
-            ) : null;
-          }}
-        </form.Subscribe>
         <form.Field
           name="title"
           validators={{
@@ -258,11 +274,10 @@ interface CredentialDialogProps {
 const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProps) => {
   const [testing, setTesting] = useState(false);
   if (!created) return null;
-  const origin = getOrigin();
-  const remoteUrl = buildRemoteUrl(origin);
-  const authHeader = buildAuthHeader(created.api_key);
-  const jsonSnippet = buildClaudeDesktopJson(created, origin, created.api_key);
-  const shellSnippet = buildShellSnippet(origin, created.api_key);
+  const { remoteUrl, authHeader, jsonSnippet, shellSnippet } = buildSnippets(
+    created.server_name,
+    created.api_key,
+  );
   const isScoped = !!created.collection;
   const testCredential = async () => {
     setTesting(true);
@@ -339,19 +354,7 @@ const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProp
           <CodeBlock code={shellSnippet} label="shell command" />
         </section>
 
-        <section>
-          <h3 className="mb-2 font-medium text-sm">
-            Tools exposed {isScoped ? "(scoped set)" : "(full set)"}
-          </h3>
-          <ul className="divide-y divide-border">
-            {(isScoped ? TOOLS_SCOPED : TOOLS_UNSCOPED).map((tool) => (
-              <li className="flex items-start gap-3 py-2 first:pt-0 last:pb-0" key={tool.name}>
-                <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
-                <span className="text-sm text-muted-foreground">{tool.description}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ToolsExposed isScoped={isScoped} />
       </div>
     </Modal>
   );
@@ -367,12 +370,11 @@ interface DetailDialogProps {
 
 const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialogProps) => {
   if (!server) return null;
-  const origin = getOrigin();
   const redacted = `bigrag_sk_${server.key_prefix.replace(/^bigrag_sk_/, "")}…<REDACTED>`;
-  const remoteUrl = buildRemoteUrl(origin);
-  const authHeader = buildAuthHeader(redacted);
-  const jsonSnippet = buildClaudeDesktopJson(server, origin, redacted);
-  const shellSnippet = buildShellSnippet(origin, redacted);
+  const { remoteUrl, authHeader, jsonSnippet, shellSnippet } = buildSnippets(
+    server.server_name,
+    redacted,
+  );
   const isScoped = !!server.collection;
 
   return (
@@ -430,19 +432,7 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
           <CodeBlock code={shellSnippet} label="shell command template" />
         </section>
 
-        <section>
-          <h3 className="mb-2 font-medium text-sm">
-            Tools exposed {isScoped ? "(scoped set)" : "(full set)"}
-          </h3>
-          <ul className="divide-y divide-border">
-            {(isScoped ? TOOLS_SCOPED : TOOLS_UNSCOPED).map((tool) => (
-              <li className="flex items-start gap-3 py-2 first:pt-0 last:pb-0" key={tool.name}>
-                <code className="mt-0.5 shrink-0 font-mono text-sm">{tool.name}</code>
-                <span className="text-sm text-muted-foreground">{tool.description}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ToolsExposed isScoped={isScoped} />
       </div>
     </Modal>
   );
@@ -462,7 +452,11 @@ export const McpPage = () => {
   const [deleteFor, setDeleteFor] = useState<McpServer | null>(null);
   const [credential, setCredential] = useState<CredentialNotice | null>(null);
 
-  useCredentialExpiry(credential, setCredential);
+  useEffect(() => {
+    if (!credential) return;
+    const timer = setTimeout(() => setCredential(null), 5 * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [credential]);
 
   const handleRotate = async () => {
     if (!detailId) return;
@@ -599,7 +593,7 @@ export const McpPage = () => {
       />
 
       <CreateDialog
-        collections={collections.map((c) => ({ name: c.name }))}
+        collections={collections}
         onClose={() => setCreateOpen(false)}
         onCreated={(created) => setCredential({ server: created, kind: "created" })}
         open={createOpen}
@@ -635,15 +629,4 @@ export const McpPage = () => {
       />
     </Page.Shell>
   );
-};
-
-const useCredentialExpiry = (
-  credential: CredentialNotice | null,
-  setCredential: Dispatch<SetStateAction<CredentialNotice | null>>,
-) => {
-  useEffect(() => {
-    if (!credential) return;
-    const timer = setTimeout(() => setCredential(null), 5 * 60 * 1000);
-    return () => clearTimeout(timer);
-  }, [credential, setCredential]);
 };

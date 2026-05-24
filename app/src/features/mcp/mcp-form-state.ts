@@ -22,15 +22,6 @@ export const slugifyMcpServerName = (value: string) =>
 
 export const mcpServerNameFromTitle = (title: string) => slugifyMcpServerName(title) || "bigrag";
 
-export const validateMcpCreateFormValues = ({
-  serverName,
-  title,
-}: McpCreateFormValues): string | undefined => {
-  if (!title.trim()) return "Title is required";
-  if (!serverName.trim()) return "Server name is required";
-  return undefined;
-};
-
 export const mcpCreateBodyFromValues = ({
   collection,
   serverName,
