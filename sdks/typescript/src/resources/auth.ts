@@ -46,8 +46,12 @@ export class AuthResource {
     return this._client._request("POST", "/v1/auth/password", { json: body });
   }
 
-  preferences(): Promise<PreferencesResponse> {
+  getPreferences(): Promise<PreferencesResponse> {
     return this._client._request("GET", "/v1/auth/preferences");
+  }
+
+  preferences(): Promise<PreferencesResponse> {
+    return this.getPreferences();
   }
 
   updatePreferences(
