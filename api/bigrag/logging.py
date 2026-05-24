@@ -12,6 +12,7 @@ from bigrag.logging_redaction import (
 )
 from bigrag.logging_rendering import console_renderer
 from bigrag.logging_terminal import (
+    WORKER_LOG_CONTEXT_ENV,
     add_worker_context,
     compact_terminal_event,
     current_worker_label,
@@ -23,6 +24,7 @@ REQUEST_ID_HEADER = "x-request-id"
 
 __all__ = [
     "REQUEST_ID_HEADER",
+    "WORKER_LOG_CONTEXT_ENV",
     "configure_logging",
     "current_worker_label",
     "get_logger",
