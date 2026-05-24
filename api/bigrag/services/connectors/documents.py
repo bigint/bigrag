@@ -62,43 +62,27 @@ async def sync_downloaded_file(
             await storage.put_stream(storage_key, fh, size=downloaded.file_size)
 
     if manifest is None:
-        doc_id = uuid7()
-        storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
-        await _put_downloaded(storage_key)
-        doc = Document(
-            id=doc_id,
-            collection_id=collection.id,
-            filename=downloaded.filename,
-            file_type=downloaded.file_ext.lstrip("."),
-            file_size=downloaded.file_size,
-            file_path=storage_key,
-            content_hash=downloaded.content_hash,
-            meta=metadata,
+        doc = await _create_new_synced_document(
+            session,
+            source=source,
+            collection=collection,
+            downloaded=downloaded,
+            metadata=metadata,
+            counters=counters,
+            put_downloaded=_put_downloaded,
         )
-        session.add(doc)
-        await session.flush()
-        session.add(manifest_for_download(source=source, doc=doc, downloaded=downloaded))
-        counters.created += 1
     else:
         doc = existing_doc
         if doc is None:
-            doc_id = uuid7()
-            storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
-            await _put_downloaded(storage_key)
-            doc = Document(
-                id=doc_id,
-                collection_id=collection.id,
-                filename=downloaded.filename,
-                file_type=downloaded.file_ext.lstrip("."),
-                file_size=downloaded.file_size,
-                file_path=storage_key,
-                content_hash=downloaded.content_hash,
-                meta=metadata,
+            doc = await _create_new_synced_document(
+                session,
+                source=source,
+                collection=collection,
+                downloaded=downloaded,
+                metadata=metadata,
+                counters=counters,
+                put_downloaded=_put_downloaded,
             )
-            session.add(doc)
-            await session.flush()
-            session.add(manifest_for_download(source=source, doc=doc, downloaded=downloaded))
-            counters.created += 1
         else:
             await ingestion_queue.cancel_documents([str(doc.id)])
             await vector_store.delete_by_document(
@@ -144,6 +128,36 @@ async def sync_downloaded_file(
         await session.commit()
         await clear_document_staged_file(doc.id, doc.file_path)
         raise
+
+
+async def _create_new_synced_document(
+    session: Any,
+    *,
+    source: ConnectorSource,
+    collection: Collection,
+    downloaded: DownloadedConnectorFile,
+    metadata: dict[str, Any],
+    counters: ConnectorSyncCounters,
+    put_downloaded: Any,
+) -> Document:
+    doc_id = uuid7()
+    storage_key = f"{source.collection_name}/{doc_id}{downloaded.file_ext}"
+    await put_downloaded(storage_key)
+    doc = Document(
+        id=doc_id,
+        collection_id=collection.id,
+        filename=downloaded.filename,
+        file_type=downloaded.file_ext.lstrip("."),
+        file_size=downloaded.file_size,
+        file_path=storage_key,
+        content_hash=downloaded.content_hash,
+        meta=metadata,
+    )
+    session.add(doc)
+    await session.flush()
+    session.add(manifest_for_download(source=source, doc=doc, downloaded=downloaded))
+    counters.created += 1
+    return doc
 
 
 async def delete_synced_document(
