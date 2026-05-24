@@ -12,6 +12,28 @@ from bigrag.services.staged_files import cleanup_terminal_staged_files
 logger = get_logger("bigrag.cleanup")
 
 TERMINAL_SESSION_STATUSES = ("complete", "failed", "canceled")
+_DELETE_CHUNK = 5000
+
+
+def _days_ago(days: int):
+    return sa.func.now() - sa.text("make_interval(days => :days)").bindparams(days=days)
+
+
+def _hours_ago(hours: int):
+    return sa.func.now() - sa.text("make_interval(hours => :hours)").bindparams(hours=hours)
+
+
+async def _delete_in_chunks(model, condition) -> int:
+    total = 0
+    while True:
+        async with session_factory()() as session:
+            subquery = sa.select(model.id).where(condition).limit(_DELETE_CHUNK)
+            result = await session.execute(sa.delete(model).where(model.id.in_(subquery)))
+            await session.commit()
+        deleted = result.rowcount or 0
+        total += deleted
+        if deleted < _DELETE_CHUNK:
+            return total
 
 
 async def cleanup_old_data_once() -> None:
@@ -24,38 +46,27 @@ async def cleanup_old_data_once() -> None:
             "embedding_cache_retention_days",
         ]
     )
-    async with session_factory()() as session:
-        query_cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
-            days=retention["query_log_retention_days"]
-        )
-        access_cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
-            days=retention["access_log_retention_days"]
-        )
-        webhook_cutoff = sa.func.now() - sa.text("make_interval(days => :days)").bindparams(
-            days=retention["webhook_delivery_retention_days"]
-        )
-        upload_cutoff = sa.func.now() - sa.text("make_interval(hours => :hours)").bindparams(
-            hours=retention["upload_session_item_retention_hours"]
-        )
-        ql_result = await session.execute(
-            sa.delete(QueryLog).where(QueryLog.created_at < query_cutoff)
-        )
-        al_result = await session.execute(
-            sa.delete(AccessLog).where(AccessLog.created_at < access_cutoff)
-        )
-        wd_result = await session.execute(
-            sa.delete(WebhookDelivery).where(WebhookDelivery.created_at < webhook_cutoff)
-        )
-        us_result = await session.execute(
-            sa.delete(UploadSession)
-            .where(UploadSession.updated_at < upload_cutoff)
-            .where(UploadSession.status.in_(TERMINAL_SESSION_STATUSES))
-        )
-        await session.commit()
-    logger.info("query_log cleanup", deleted=ql_result.rowcount or 0)
-    logger.info("access_log cleanup", deleted=al_result.rowcount or 0)
-    logger.info("webhook_deliveries cleanup", deleted=wd_result.rowcount or 0)
-    logger.info("upload_sessions cleanup", deleted=us_result.rowcount or 0)
+    ql = await _delete_in_chunks(
+        QueryLog, QueryLog.created_at < _days_ago(retention["query_log_retention_days"])
+    )
+    al = await _delete_in_chunks(
+        AccessLog, AccessLog.created_at < _days_ago(retention["access_log_retention_days"])
+    )
+    wd = await _delete_in_chunks(
+        WebhookDelivery,
+        WebhookDelivery.created_at < _days_ago(retention["webhook_delivery_retention_days"]),
+    )
+    us = await _delete_in_chunks(
+        UploadSession,
+        sa.and_(
+            UploadSession.updated_at < _hours_ago(retention["upload_session_item_retention_hours"]),
+            UploadSession.status.in_(TERMINAL_SESSION_STATUSES),
+        ),
+    )
+    logger.info("query_log cleanup", deleted=ql)
+    logger.info("access_log cleanup", deleted=al)
+    logger.info("webhook_deliveries cleanup", deleted=wd)
+    logger.info("upload_sessions cleanup", deleted=us)
     purged_embeddings = await embedding_cache.purge_stale(
         int(retention["embedding_cache_retention_days"])
     )
