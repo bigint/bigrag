@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from bigrag.config import settings
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.db")
@@ -37,6 +38,12 @@ def _normalize_url(dsn: str) -> tuple[str, dict]:
         dsn = dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif dsn.startswith("postgres://"):
         dsn = dsn.replace("postgres://", "postgresql+asyncpg://", 1)
+    if "+asyncpg://" in dsn:
+        command_timeout = getattr(settings, "db_statement_timeout_seconds", 0) or 0
+        if command_timeout > 0:
+            connect_args["command_timeout"] = float(command_timeout)
+        if getattr(settings, "db_disable_prepared_statements", False):
+            connect_args["statement_cache_size"] = 0
     return dsn, connect_args
 
 
