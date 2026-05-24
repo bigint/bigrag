@@ -31,6 +31,4 @@ class AdminUsersResource:
         )
 
     async def delete(self, user_id: str) -> StatusResponse:
-        return await self._client._request(
-            "DELETE", f"/v1/admin/users/{quote(user_id, safe='')}"
-        )
+        return await self._client._request("DELETE", f"/v1/admin/users/{quote(user_id, safe='')}")

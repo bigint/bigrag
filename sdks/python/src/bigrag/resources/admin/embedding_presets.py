@@ -24,18 +24,12 @@ class AdminEmbeddingPresetsResource:
         self, *, limit: int | None = None, offset: int | None = None
     ) -> EmbeddingPresetListResponse:
         params = _pagination(limit=limit, offset=offset)
-        return await self._client._request(
-            "GET", "/v1/admin/embedding-presets", params=params
-        )
+        return await self._client._request("GET", "/v1/admin/embedding-presets", params=params)
 
     async def create(self, body: CreateEmbeddingPresetBody) -> EmbeddingPreset:
-        return await self._client._request(
-            "POST", "/v1/admin/embedding-presets", json=body
-        )
+        return await self._client._request("POST", "/v1/admin/embedding-presets", json=body)
 
-    async def update(
-        self, preset_id: str, body: UpdateEmbeddingPresetBody
-    ) -> EmbeddingPreset:
+    async def update(self, preset_id: str, body: UpdateEmbeddingPresetBody) -> EmbeddingPreset:
         return await self._client._request(
             "PATCH",
             f"/v1/admin/embedding-presets/{quote(preset_id, safe='')}",
@@ -55,9 +49,7 @@ class AdminEmbeddingPresetsResource:
             body["api_key"] = api_key
         if base_url is not None:
             body["base_url"] = base_url
-        return await self._client._request(
-            "POST", "/v1/admin/embedding-presets/test", json=body
-        )
+        return await self._client._request("POST", "/v1/admin/embedding-presets/test", json=body)
 
     async def test_saved(self, preset_id: str) -> StatusResponse:
         return await self._client._request(

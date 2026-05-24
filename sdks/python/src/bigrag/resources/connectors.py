@@ -32,14 +32,10 @@ class S3ConnectorResource:
         params: dict[str, str] = {}
         if collection is not None:
             params["collection"] = collection
-        return await self._client._request(
-            "GET", "/v1/connectors/s3/sources", params=params
-        )
+        return await self._client._request("GET", "/v1/connectors/s3/sources", params=params)
 
     async def create_source(self, body: CreateS3SourceBody) -> S3Source:
-        return await self._client._request(
-            "POST", "/v1/connectors/s3/sources", json=body
-        )
+        return await self._client._request("POST", "/v1/connectors/s3/sources", json=body)
 
     async def update_source(self, source_id: str, body: UpdateS3SourceBody) -> S3Source:
         return await self._client._request(
@@ -72,6 +68,4 @@ class S3ConnectorResource:
             params["source_id"] = source_id
         if limit is not None:
             params["limit"] = str(limit)
-        return await self._client._request(
-            "GET", "/v1/connectors/s3/sync-jobs", params=params
-        )
+        return await self._client._request("GET", "/v1/connectors/s3/sync-jobs", params=params)

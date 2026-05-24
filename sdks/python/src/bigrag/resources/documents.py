@@ -95,9 +95,7 @@ class DocumentsResource:
             },
         )
 
-    async def get_upload_session(
-        self, collection: str, session_id: str
-    ) -> UploadSession:
+    async def get_upload_session(self, collection: str, session_id: str) -> UploadSession:
         return await self._client._request(
             "GET",
             _upload_session_path(collection, session_id),
@@ -113,26 +111,20 @@ class DocumentsResource:
         filename: str | None = None,
     ) -> UploadSessionFileResponse:
         name, data = normalize_file_input(file)
-        form_data = (
-            {"client_item_id": client_item_id} if client_item_id is not None else None
-        )
+        form_data = {"client_item_id": client_item_id} if client_item_id is not None else None
         return await self._client._request_form(
             f"{_upload_session_path(collection, session_id)}/files",
             files={"file": (filename or name, data)},
             data=form_data,
         )
 
-    async def complete_upload_session(
-        self, collection: str, session_id: str
-    ) -> UploadSession:
+    async def complete_upload_session(self, collection: str, session_id: str) -> UploadSession:
         return await self._client._request(
             "POST",
             f"{_upload_session_path(collection, session_id)}/complete",
         )
 
-    async def cancel_upload_session(
-        self, collection: str, session_id: str
-    ) -> StatusResponse:
+    async def cancel_upload_session(self, collection: str, session_id: str) -> StatusResponse:
         return await self._client._request(
             "POST",
             f"{_upload_session_path(collection, session_id)}/cancel",

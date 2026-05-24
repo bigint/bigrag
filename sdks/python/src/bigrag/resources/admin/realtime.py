@@ -62,9 +62,7 @@ class AdminRealtimeResource:
             {"collection": collection, "session_id": session_id},
         )
 
-    def collection_stats(
-        self, collection: str
-    ) -> AsyncGenerator[AdminRealtimeEvent, None]:
+    def collection_stats(self, collection: str) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream("admin.collections.stats", {"collection": collection})
 
     def connector_sources(
@@ -151,9 +149,7 @@ class AdminRealtimeResource:
             },
         )
 
-    def usage(
-        self, *, window_days: int | None = None
-    ) -> AsyncGenerator[AdminRealtimeEvent, None]:
+    def usage(self, *, window_days: int | None = None) -> AsyncGenerator[AdminRealtimeEvent, None]:
         return self._stream("admin.usage", {"window_days": window_days})
 
     def platform_stats(self) -> AsyncGenerator[AdminRealtimeEvent, None]:

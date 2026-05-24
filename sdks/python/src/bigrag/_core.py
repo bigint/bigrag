@@ -84,9 +84,7 @@ class BigRAGCore:
         max_retries: int = _DEFAULT_MAX_RETRIES,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = (
-            api_key if api_key is not None else (os.environ.get("BIGRAG_API_KEY") or "")
-        )
+        self.api_key = api_key if api_key is not None else (os.environ.get("BIGRAG_API_KEY") or "")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
@@ -104,9 +102,7 @@ class BigRAGCore:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
-    async def _execute_with_retry(
-        self, send_fn, *, safe_to_retry: bool = False
-    ) -> httpx.Response:
+    async def _execute_with_retry(self, send_fn, *, safe_to_retry: bool = False) -> httpx.Response:
         last_error: Exception | None = None
         retry_after_override: float | None = None
 
@@ -132,11 +128,7 @@ class BigRAGCore:
                     continue
                 raise APIConnectionError(str(exc)) from exc
 
-            if (
-                response.status_code >= 500
-                and attempt < self.max_retries
-                and safe_to_retry
-            ):
+            if response.status_code >= 500 and attempt < self.max_retries and safe_to_retry:
                 last_error = Exception(response.text)
                 continue
 

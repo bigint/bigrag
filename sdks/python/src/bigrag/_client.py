@@ -103,14 +103,10 @@ class BigRAG(BigRAGCore):
     async def chat_create(self, body: ChatBody) -> ChatCreateResponse:
         return await self.chat.create(body)
 
-    async def chat_question_suggestions(
-        self, collection: str
-    ) -> ChatQuestionSuggestionsResponse:
+    async def chat_question_suggestions(self, collection: str) -> ChatQuestionSuggestionsResponse:
         return await self.chat.get_question_suggestions(collection)
 
-    async def chat_stream(
-        self, body: ChatBody
-    ) -> AsyncGenerator[ChatStreamEvent, None]:
+    async def chat_stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
         async for event in self.chat.stream(body):
             yield event
 
@@ -123,9 +119,7 @@ class CollectionClient:
         self._client = client
         self._name = name
 
-    async def upload(
-        self, file: FileInput, *, metadata: dict[str, Any] | None = None
-    ) -> Document:
+    async def upload(self, file: FileInput, *, metadata: dict[str, Any] | None = None) -> Document:
         return await self._client.documents.upload(self._name, file, metadata=metadata)
 
     async def list_documents(
@@ -148,9 +142,7 @@ class CollectionClient:
     async def batch_upload(
         self, files: list[FileInput], *, metadata: dict[str, Any] | None = None
     ) -> DocumentListResponse:
-        return await self._client.documents.batch_upload(
-            self._name, files, metadata=metadata
-        )
+        return await self._client.documents.batch_upload(self._name, files, metadata=metadata)
 
     async def create_upload_session(
         self,
@@ -186,29 +178,21 @@ class CollectionClient:
         )
 
     async def complete_upload_session(self, session_id: str) -> UploadSession:
-        return await self._client.documents.complete_upload_session(
-            self._name, session_id
-        )
+        return await self._client.documents.complete_upload_session(self._name, session_id)
 
     async def cancel_upload_session(self, session_id: str) -> StatusResponse:
-        return await self._client.documents.cancel_upload_session(
-            self._name, session_id
-        )
+        return await self._client.documents.cancel_upload_session(self._name, session_id)
 
     async def batch_get_status(self, document_ids: list[str]) -> BatchStatusResponse:
         return await self._client.documents.batch_get_status(self._name, document_ids)
 
-    async def batch_get_documents(
-        self, document_ids: list[str]
-    ) -> BatchGetDocumentsResponse:
+    async def batch_get_documents(self, document_ids: list[str]) -> BatchGetDocumentsResponse:
         return await self._client.documents.batch_get(self._name, document_ids)
 
     async def stats(self) -> CollectionStatsResponse:
         return await self._client.collections.stats(self._name)
 
-    async def batch_delete(
-        self, document_ids: list[str]
-    ) -> BatchDeleteDocumentsResponse:
+    async def batch_delete(self, document_ids: list[str]) -> BatchDeleteDocumentsResponse:
         return await self._client.documents.batch_delete(self._name, document_ids)
 
     async def get_document_chunks(

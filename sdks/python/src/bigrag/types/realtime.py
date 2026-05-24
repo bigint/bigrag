@@ -42,11 +42,7 @@ class RealtimeControlMessage(TypedDict):
 
 
 RealtimeMessage = (
-    RealtimeSnapshot
-    | RealtimeEvent
-    | RealtimeError
-    | RealtimeComplete
-    | RealtimeControlMessage
+    RealtimeSnapshot | RealtimeEvent | RealtimeError | RealtimeComplete | RealtimeControlMessage
 )
 
 

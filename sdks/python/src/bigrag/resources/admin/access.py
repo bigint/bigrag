@@ -41,16 +41,10 @@ class AdminAccessResource:
             params["status_family"] = status_family
         if success is not None:
             params["success"] = "true" if success else "false"
-        return await self._client._request(
-            "GET", "/v1/admin/access/logs", params=params
-        )
+        return await self._client._request("GET", "/v1/admin/access/logs", params=params)
 
-    async def overview(
-        self, *, window_days: int | None = None
-    ) -> AccessLogOverviewResponse:
+    async def overview(self, *, window_days: int | None = None) -> AccessLogOverviewResponse:
         params: dict[str, str] = {}
         if window_days is not None:
             params["window_days"] = str(window_days)
-        return await self._client._request(
-            "GET", "/v1/admin/access/overview", params=params
-        )
+        return await self._client._request("GET", "/v1/admin/access/overview", params=params)

@@ -42,9 +42,7 @@ class CollectionsResource:
         return await self._client._request("GET", "/v1/collections", params=params)
 
     async def get(self, name: str) -> Collection:
-        return await self._client._request(
-            "GET", f"/v1/collections/{quote(name, safe='')}"
-        )
+        return await self._client._request("GET", f"/v1/collections/{quote(name, safe='')}")
 
     async def create(self, body: CreateCollectionBody) -> Collection:
         return await self._client._request("POST", "/v1/collections", json=body)
@@ -55,14 +53,10 @@ class CollectionsResource:
         )
 
     async def delete(self, name: str) -> StatusResponse:
-        return await self._client._request(
-            "DELETE", f"/v1/collections/{quote(name, safe='')}"
-        )
+        return await self._client._request("DELETE", f"/v1/collections/{quote(name, safe='')}")
 
     async def stats(self, name: str) -> CollectionStatsResponse:
-        return await self._client._request(
-            "GET", f"/v1/collections/{quote(name, safe='')}/stats"
-        )
+        return await self._client._request("GET", f"/v1/collections/{quote(name, safe='')}/stats")
 
     async def analytics(self, name: str) -> AnalyticsResponse:
         return await self._client._request(
