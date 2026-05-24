@@ -16,6 +16,10 @@ class ConnectorNotFoundError(ConnectorError):
     pass
 
 
+class ConnectorDeleteSafetyError(ConnectorError):
+    pass
+
+
 @dataclass(frozen=True)
 class RemoteConnectorFile:
     id: str

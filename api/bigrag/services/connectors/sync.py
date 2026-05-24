@@ -34,7 +34,7 @@ from bigrag.services.connectors.realtime import notify_connector_sources
 from bigrag.services.connectors.status import fail_sync
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import (
-    ConnectorNotFoundError,
+    ConnectorDeleteSafetyError,
     ConnectorSyncAdapter,
     ConnectorSyncCounters,
 )
@@ -44,6 +44,22 @@ from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.connectors")
+
+CONNECTOR_DELETE_SAFETY_MIN_TRACKED = 10
+
+
+async def _guard_deletion_safety(missing: int, tracked: int) -> None:
+    from bigrag.services.runtime_settings import get_value
+
+    if missing == 0 or tracked < CONNECTOR_DELETE_SAFETY_MIN_TRACKED:
+        return
+    max_percent = await get_value("connector_max_delete_percent")
+    if missing * 100 > tracked * max_percent:
+        raise ConnectorDeleteSafetyError(
+            f"Refusing to remove {missing} of {tracked} tracked files "
+            f"(over {max_percent}% safety limit); verify the source and re-sync."
+        )
+
 
 __all__ = [
     "apply_counters",
@@ -126,10 +142,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 phase="scanning",
                 message="Scanning S3 objects",
             )
-            try:
-                remotes = await adapter.iter_files(session, source=source)
-            except ConnectorNotFoundError:
-                remotes = []
+            remotes = await adapter.iter_files(session, source=source)
 
             counters.found = len(remotes)
             await update_sync_progress(
@@ -168,6 +181,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 for remote_id, manifest in manifests.items()
                 if remote_id not in seen_remote_ids
             ]
+            await _guard_deletion_safety(len(missing), len(manifests))
             await update_sync_progress(
                 session,
                 job=job,
