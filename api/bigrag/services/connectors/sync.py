@@ -14,7 +14,7 @@ from bigrag.db.models import (
 )
 from bigrag.logging import get_logger
 from bigrag.services import collection_cache
-from bigrag.services.connectors.batches import sync_remote_files
+from bigrag.services.connectors.batches import sync_page
 from bigrag.services.connectors.documents import (
     delete_synced_document,
     sync_downloaded_file,
@@ -47,6 +47,7 @@ from bigrag.services.webhook import enqueue_webhook_event
 logger = get_logger("bigrag.connectors")
 
 CONNECTOR_DELETE_SAFETY_MIN_TRACKED = 10
+CONNECTOR_DELETE_BATCH_SIZE = 200
 
 
 async def _guard_deletion_safety(missing: int, tracked: int) -> None:
@@ -60,6 +61,51 @@ async def _guard_deletion_safety(missing: int, tracked: int) -> None:
             f"Refusing to remove {missing} of {tracked} tracked files "
             f"(over {max_percent}% safety limit); verify the source and re-sync."
         )
+
+
+def _processed_count(counters: ConnectorSyncCounters) -> int:
+    return counters.created + counters.updated + counters.skipped + counters.failed
+
+
+async def _load_page_manifests(
+    session, source_id: uuid.UUID, remote_ids: list[str]
+) -> dict[str, ConnectorDocument]:
+    if not remote_ids:
+        return {}
+    rows = (
+        await session.scalars(
+            sa.select(ConnectorDocument).where(
+                ConnectorDocument.source_id == source_id,
+                ConnectorDocument.remote_id.in_(remote_ids),
+            )
+        )
+    ).all()
+    return {manifest.remote_id: manifest for manifest in rows}
+
+
+async def _count_manifests(session, source_id: uuid.UUID) -> int:
+    return (
+        await session.scalar(
+            sa.select(sa.func.count())
+            .select_from(ConnectorDocument)
+            .where(ConnectorDocument.source_id == source_id)
+        )
+        or 0
+    )
+
+
+async def _count_unseen_manifests(session, source_id: uuid.UUID, job_uuid: uuid.UUID) -> int:
+    return (
+        await session.scalar(
+            sa.select(sa.func.count())
+            .select_from(ConnectorDocument)
+            .where(
+                ConnectorDocument.source_id == source_id,
+                ConnectorDocument.last_seen_job_id.is_distinct_from(job_uuid),
+            )
+        )
+        or 0
+    )
 
 
 __all__ = [
@@ -141,86 +187,89 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 source=source,
                 counters=counters,
                 phase="scanning",
-                message="Scanning S3 objects",
+                message="Scanning remote objects",
             )
-            remotes = await adapter.iter_files(session, source=source)
 
-            counters.found = len(remotes)
-            await update_sync_progress(
-                session,
-                job=job,
-                source=source,
-                counters=counters,
-                phase="syncing",
-                message=f"Found {len(remotes)} S3 objects",
-                processed_items=0,
-                total_items=len(remotes),
-            )
-            seen_remote_ids = {remote.id for remote in remotes}
-            manifests = {
-                manifest.remote_id: manifest
-                for manifest in (
-                    await session.scalars(
-                        sa.select(ConnectorDocument).where(ConnectorDocument.source_id == source.id)
+            job_uuid = job.id
+            async for page in adapter.iter_files(session, source=source):
+                counters.found += len(page)
+                page_ids = [remote.id for remote in page]
+                page_manifests = await _load_page_manifests(session, source.id, page_ids)
+                await sync_page(
+                    session,
+                    adapter=adapter,
+                    source=source,
+                    collection=collection,
+                    remotes=page,
+                    manifests=page_manifests,
+                    counters=counters,
+                )
+                await session.execute(
+                    sa.update(ConnectorDocument)
+                    .where(
+                        ConnectorDocument.source_id == source.id,
+                        ConnectorDocument.remote_id.in_(page_ids),
                     )
-                ).all()
-            }
+                    .values(last_seen_job_id=job_uuid)
+                )
+                await session.commit()
+                processed = _processed_count(counters)
+                await update_sync_progress(
+                    session,
+                    job=job,
+                    source=source,
+                    counters=counters,
+                    phase="syncing",
+                    message=f"Synced {processed} of {counters.found} remote files",
+                    processed_items=processed,
+                    total_items=counters.found,
+                )
 
-            await sync_remote_files(
-                session,
-                adapter=adapter,
-                source=source,
-                collection=collection,
-                job=job,
-                remotes=remotes,
-                manifests=manifests,
-                counters=counters,
-            )
-
-            missing = [
-                manifest
-                for remote_id, manifest in manifests.items()
-                if remote_id not in seen_remote_ids
-            ]
-            await _guard_deletion_safety(len(missing), len(manifests))
+            tracked = await _count_manifests(session, source.id)
+            missing_count = await _count_unseen_manifests(session, source.id, job_uuid)
+            await _guard_deletion_safety(missing_count, tracked)
             await update_sync_progress(
                 session,
                 job=job,
                 source=source,
                 counters=counters,
                 phase="removing",
-                message="Checking for removed S3 objects",
+                message="Checking for removed remote objects",
                 processed_items=0,
-                total_items=len(missing),
+                total_items=missing_count,
             )
-            for index, manifest in enumerate(missing, start=1):
+            removed = 0
+            while True:
+                stale = (
+                    await session.scalars(
+                        sa.select(ConnectorDocument)
+                        .where(
+                            ConnectorDocument.source_id == source.id,
+                            ConnectorDocument.last_seen_job_id.is_distinct_from(job_uuid),
+                        )
+                        .limit(CONNECTOR_DELETE_BATCH_SIZE)
+                    )
+                ).all()
+                if not stale:
+                    break
+                for manifest in stale:
+                    await delete_synced_document(
+                        session,
+                        source=source,
+                        manifest=manifest,
+                        counters=counters,
+                    )
+                await session.commit()
+                removed += len(stale)
                 await update_sync_progress(
                     session,
                     job=job,
                     source=source,
                     counters=counters,
                     phase="removing",
-                    message=f"Removing {manifest.remote_name}",
-                    current_item=manifest,
-                    processed_items=index - 1,
-                    total_items=len(missing),
-                )
-                await delete_synced_document(
-                    session,
-                    source=source,
-                    manifest=manifest,
-                    counters=counters,
-                )
-                await update_sync_progress(
-                    session,
-                    job=job,
-                    source=source,
-                    counters=counters,
-                    phase="removing",
-                    message=f"Removed {index} of {len(missing)} missing remote files",
-                    current_item=manifest,
-                    processed_items=index,
-                    total_items=len(missing),
+                    message=f"Removed {removed} of {missing_count} missing remote files",
+                    processed_items=removed,
+                    total_items=missing_count,
                 )
 
             await update_sync_progress(
@@ -254,7 +303,7 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                     else adapter.partial_failure_message
                 ),
                 processed_items=counters.found + counters.deleted,
-                total_items=counters.found + len(missing),
+                total_items=counters.found + missing_count,
             )
             notify_connector_sources(adapter.provider, source.collection_name)
             await collection_cache.invalidate(source.collection_name)

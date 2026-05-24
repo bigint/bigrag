@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from bigrag.db.models import ConnectorSource
 from bigrag.services.connector_core import run_due_syncs, sync_connector_job
-from bigrag.services.connectors.s3_client import download_s3_object, list_s3_objects
+from bigrag.services.connectors.s3_client import download_s3_object, list_s3_object_pages
 from bigrag.services.connectors.s3_sources import start_s3_sync_job
 from bigrag.services.connectors.s3_types import S3_PROVIDER, s3_object_metadata
 from bigrag.services.connectors.types import DownloadedConnectorFile, RemoteConnectorFile
@@ -19,8 +20,9 @@ class S3SyncAdapter:
         session: Any,
         *,
         source: ConnectorSource,
-    ) -> list[RemoteConnectorFile]:
-        return await list_s3_objects(session, source=source)
+    ) -> AsyncIterator[list[RemoteConnectorFile]]:
+        async for page in list_s3_object_pages(session, source=source):
+            yield page
 
     async def download(
         self,

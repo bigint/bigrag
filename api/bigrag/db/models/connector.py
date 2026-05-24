@@ -90,6 +90,7 @@ class ConnectorDocument(Base):
     __table_args__ = (
         sa.Index("idx_connector_documents_document_id", "document_id"),
         sa.Index("idx_connector_documents_source_remote", "source_id", "remote_id"),
+        sa.Index("idx_connector_documents_source_last_seen", "source_id", "last_seen_job_id"),
         sa.UniqueConstraint(
             "source_id",
             "remote_id",
@@ -113,6 +114,7 @@ class ConnectorDocument(Base):
     content_hash: Mapped[str | None] = mapped_column(sa.Text)
     web_url: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="active")
+    last_seen_job_id: Mapped[UUID | None] = mapped_column(sa.Uuid)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )
