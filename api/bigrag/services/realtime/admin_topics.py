@@ -9,7 +9,7 @@ from bigrag.db.engine import session_factory
 from bigrag.services.access_log.queries import access_logs_payload, access_overview_payload
 from bigrag.services.audit import audit_log_payload
 from bigrag.services.backup.views import backup_jobs_payload
-from bigrag.services.collection_stats import collection_stats_payload
+from bigrag.services.collections.stats import collection_stats_payload
 from bigrag.services.connectors.realtime import (
     connector_sources_event_key,
     connector_sync_jobs_event_key,
