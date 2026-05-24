@@ -11,7 +11,7 @@ from bigrag.routers import ensure_embedding_or_400, get_collection_or_404, get_r
 from bigrag.services import access_log
 from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
-from bigrag.services.tenant_enforcement import require_tenant_filters
+from bigrag.services.tenant_enforcement import enforce_tenant_filters
 
 logger = get_logger("bigrag.routers.evaluation")
 
@@ -103,7 +103,7 @@ async def run_evaluation(
         assert_collection_matches_pin(pinned, body.collection)
 
     collection = await get_collection_or_404(body.collection)
-    require_tenant_filters(collection, body.filters)
+    body_filters = enforce_tenant_filters(collection, body.filters, user)
     embedding_model = ensure_embedding_or_400(collection)
 
     per_case: list[EvalPerCase] = []
@@ -112,8 +112,7 @@ async def run_evaluation(
     ndcg_sum = 0.0
 
     for case in body.cases:
-        case_filters = case.filters or body.filters
-        require_tenant_filters(collection, case_filters)
+        case_filters = enforce_tenant_filters(collection, case.filters or body_filters, user)
         outcome = await retrieve(
             collection_name=body.collection,
             query=case.query,

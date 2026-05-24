@@ -106,21 +106,6 @@ async def stop_access_log_flusher() -> None:
     _access_log_queue = None
 
 
-async def flush_access_logs() -> None:
-    queue = _access_log_queue
-    if queue is None:
-        return
-    while not queue.empty():
-        batch: list[dict[str, Any]] = []
-        while len(batch) < _ACCESS_LOG_BATCH_MAX:
-            try:
-                batch.append(queue.get_nowait())
-            except asyncio.QueueEmpty:
-                break
-        if batch:
-            await _flush_batch(batch)
-
-
 def enqueue(row: dict[str, Any]) -> None:
     queue = _access_log_queue
     if queue is None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as _json
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
@@ -95,9 +96,7 @@ class DocumentsResource:
             },
         )
 
-    async def get_upload_session(
-        self, collection: str, session_id: str
-    ) -> UploadSession:
+    async def get_upload_session(self, collection: str, session_id: str) -> UploadSession:
         return await self._client._request(
             "GET",
             _upload_session_path(collection, session_id),
@@ -113,26 +112,20 @@ class DocumentsResource:
         filename: str | None = None,
     ) -> UploadSessionFileResponse:
         name, data = normalize_file_input(file)
-        form_data = (
-            {"client_item_id": client_item_id} if client_item_id is not None else None
-        )
+        form_data = {"client_item_id": client_item_id} if client_item_id is not None else None
         return await self._client._request_form(
             f"{_upload_session_path(collection, session_id)}/files",
             files={"file": (filename or name, data)},
             data=form_data,
         )
 
-    async def complete_upload_session(
-        self, collection: str, session_id: str
-    ) -> UploadSession:
+    async def complete_upload_session(self, collection: str, session_id: str) -> UploadSession:
         return await self._client._request(
             "POST",
             f"{_upload_session_path(collection, session_id)}/complete",
         )
 
-    async def cancel_upload_session(
-        self, collection: str, session_id: str
-    ) -> StatusResponse:
+    async def cancel_upload_session(self, collection: str, session_id: str) -> StatusResponse:
         return await self._client._request(
             "POST",
             f"{_upload_session_path(collection, session_id)}/cancel",
@@ -170,6 +163,37 @@ class DocumentsResource:
             f"{_col_path(collection)}/documents",
             params=params,
         )
+
+    async def list_all(
+        self,
+        collection: str,
+        *,
+        q: str | None = None,
+        status: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> AsyncGenerator[Document, None]:
+        page_size = limit if limit is not None else 100
+        offset = 0
+        while True:
+            page = await self.list(
+                collection,
+                q=q,
+                status=status,
+                sort=sort,
+                order=order,
+                limit=page_size,
+                offset=offset,
+            )
+            for doc in page["documents"]:
+                yield doc
+            if len(page["documents"]) < page_size:
+                return
+            offset += len(page["documents"])
+            total = page["total"]
+            if total is not None and offset >= total:
+                return
 
     async def get(self, collection: str, document_id: str) -> Document:
         return await self._client._request("GET", _doc_path(collection, document_id))

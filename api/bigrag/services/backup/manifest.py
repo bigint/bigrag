@@ -34,12 +34,14 @@ def _manifest(
     vector_counts: dict[str, int],
     stats: BackupUploadStats,
     db_revision: str | None = None,
+    snapshot_ts: datetime | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "backup_id": str(job_id),
         "format_version": BACKUP_FORMAT_VERSION,
         "app_version": __version__,
         "generated_at": datetime.now(UTC).isoformat(),
+        "snapshot_ts": snapshot_ts.isoformat() if snapshot_ts is not None else None,
         "encryption": "redacted",
         "redaction": {
             "secret_columns": True,

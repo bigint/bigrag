@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import tempfile
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -93,16 +94,24 @@ async def probe_s3_credentials(
         raise S3ConnectorError("S3 bucket could not be reached") from exc
 
 
-async def list_s3_objects(session: Any, *, source: ConnectorSource) -> list[RemoteConnectorFile]:
+async def list_s3_object_pages(
+    session: Any, *, source: ConnectorSource
+) -> AsyncIterator[list[RemoteConnectorFile]]:
     credential = await source_credential(session, source)
     config = source_s3_config(source)
     client = _client_from_credential(credential)
     bucket = config["bucket"]
     prefix = config["prefix"]
-    try:
-        return await asyncio.to_thread(_list_s3_objects_sync, client, bucket, prefix)
-    except Exception as exc:
-        raise S3ConnectorError("S3 objects could not be listed") from exc
+    pages = _iter_s3_pages_sync(client, bucket, prefix)
+    while True:
+        try:
+            page = await asyncio.to_thread(_next_s3_page, pages)
+        except Exception as exc:
+            raise S3ConnectorError("S3 objects could not be listed") from exc
+        if page is None:
+            break
+        if page:
+            yield page
 
 
 async def download_s3_object(
@@ -142,10 +151,10 @@ def _client_from_credential(credential: ConnectorSourceCredential):
     )
 
 
-def _list_s3_objects_sync(client, bucket: str, prefix: str) -> list[RemoteConnectorFile]:
+def _iter_s3_pages_sync(client, bucket: str, prefix: str) -> Iterator[list[RemoteConnectorFile]]:
     paginator = client.get_paginator("list_objects_v2")
-    remotes: list[RemoteConnectorFile] = []
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        remotes: list[RemoteConnectorFile] = []
         for item in page.get("Contents", []):
             key = str(item.get("Key") or "")
             if not key or (key.endswith("/") and int(item.get("Size") or 0) == 0):
@@ -165,7 +174,11 @@ def _list_s3_objects_sync(client, bucket: str, prefix: str) -> list[RemoteConnec
                     web_url=f"s3://{bucket}/{key}",
                 )
             )
-    return remotes
+        yield remotes
+
+
+def _next_s3_page(pages: Iterator[list[RemoteConnectorFile]]) -> list[RemoteConnectorFile] | None:
+    return next(pages, None)
 
 
 def _download_s3_object_sync(

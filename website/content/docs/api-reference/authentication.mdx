@@ -105,6 +105,8 @@ The `collection.events` realtime topic accepts bearer headers or short-lived rea
 | `active` | Disable without deleting |
 | `last_used_at` | Updated on each successful auth |
 
+Collection pins and scopes are independent: a key with `collection: "docs"` and omitted / empty `scopes` has full access inside `docs`, while cross-collection requests stay blocked by the pin.
+
 ### Scopes
 
 Scopes use `resource:action` with `*` as a wildcard.

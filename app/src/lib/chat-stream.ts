@@ -1,5 +1,6 @@
+import type { ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client";
 import { apiUrl } from "@/config/runtime";
-import type { ChatCreateBody, ChatMessage, ChatSource, QueryTimings } from "@/types/bigrag";
+import type { QueryTimings } from "@/types/bigrag";
 
 type ChatStreamEvent =
   | { event: "user_message"; data: ChatMessage }
@@ -18,14 +19,7 @@ type StreamOptions = {
   onEvent: (event: ChatStreamEvent) => void;
 };
 
-class ChatStreamError extends Error {
-  constructor(
-    message: string,
-    public status?: number,
-  ) {
-    super(message);
-  }
-}
+class ChatStreamError extends Error {}
 
 export const streamChat = async (opts: StreamOptions): Promise<void> => {
   const res = await fetch(apiUrl("v1/chat"), {
@@ -46,7 +40,7 @@ export const streamChat = async (opts: StreamOptions): Promise<void> => {
     } catch {
       detail = `${res.status} ${res.statusText}`;
     }
-    throw new ChatStreamError(detail, res.status);
+    throw new ChatStreamError(detail);
   }
 
   const reader = res.body.getReader();

@@ -121,12 +121,12 @@ if [ "$START_BACKEND" = true ] || [ "$START_WEBSITE" = true ]; then
   done
 fi
 if [ "$START_BACKEND" = true ]; then
-  stale_workers=$(ps -axo pid=,command= | awk -v root="$ROOT_DIR" '$0 ~ root "/api" && $0 ~ /bigrag-worker/ {print $1}' || true)
+  stale_workers=$(ps -axo pid=,command= | awk -v root="$ROOT_DIR/api" 'index($0, root) && /bigrag-worker/ {print $1}' || true)
   if [ -n "$stale_workers" ]; then
     echo -e "${YELLOW}Stopping stale bigrag-worker process tree(s)${NC}"
     for wpid in $stale_workers; do stop_tree "$wpid"; done
   fi
-  orphans=$(ps -axo pid=,ppid=,command= | awk -v root="$ROOT_DIR" '$2==1 && $0 ~ root "/api/.venv" && /multiprocessing/ {print $1}' || true)
+  orphans=$(ps -axo pid=,ppid=,command= | awk -v root="$ROOT_DIR/api/.venv" '$2==1 && index($0, root) && /multiprocessing/ {print $1}' || true)
   if [ -n "$orphans" ]; then
     echo -e "${YELLOW}Cleaning orphaned worker subprocess(es)${NC}"
     echo "$orphans" | xargs kill -9 2>/dev/null || true
@@ -183,6 +183,7 @@ if [ "$START_BACKEND" = true ]; then
   export BIGRAG_REDIS_URL="$REDIS_URL"
   export BIGRAG_MASTER_KEY="$DEV_MASTER_KEY"
   export BIGRAG_CORS_ORIGINS="${BIGRAG_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
+  export BIGRAG_SESSION_COOKIE_SECURE="${BIGRAG_SESSION_COOKIE_SECURE:-false}"
   export BIGRAG_LOG_LEVEL="${BIGRAG_LOG_LEVEL:-info}"
   export PYTHONUNBUFFERED=1
 

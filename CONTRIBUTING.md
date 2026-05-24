@@ -109,7 +109,7 @@ chore: update ingestion pipeline fixtures
 
 ### Release Versioning
 
-bigRAG release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm, Cargo, and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
+bigRAG release artifacts use [CalVer](https://calver.org/) with the `YYYY.M.D` scheme, without zero-padding month or day so npm and Python package versions stay compatible. A release on April 30, 2026 is `2026.4.30`.
 
 When cutting a release, keep the API package, SDK packages, admin UI/docs package metadata, SDK user-agent constants, Docker image tags, and docs examples on the same CalVer version.
 

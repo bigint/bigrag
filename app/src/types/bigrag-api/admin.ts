@@ -1,53 +1,33 @@
-export type EmbeddingPreset = {
-  id: string;
-  name: string;
-  provider: "openai" | "openai_compatible" | "cohere" | "voyage";
-  model: string;
-  base_url: string | null;
-  dimension: number;
-  has_api_key: boolean;
-  created_at: string;
-  updated_at: string;
+import type {
+  AccessLogEntry,
+  AccessLogOverviewResponse,
+  ApiKey,
+  McpServer,
+  EmbeddingPreset as SdkEmbeddingPreset,
+  Webhook,
+} from "@bigrag/client";
+import type { Paginated } from "@/types/pagination";
+
+export type { AccessLogEntry, ApiKey, McpServer, Webhook };
+
+export type EmbeddingProvider = "openai" | "openai_compatible" | "cohere" | "voyage";
+
+export type EmbeddingPreset = Omit<SdkEmbeddingPreset, "provider"> & {
+  provider: EmbeddingProvider;
 };
 
-export type ApiKey = {
-  id: string;
+export type EmbeddingPresetBody = {
   name: string;
-  prefix: string;
-  active: boolean;
-  scopes: string[];
-  collection: string | null;
-  last_used_at: string | null;
-  expires_at: string | null;
-  created_at: string;
-  updated_at: string;
+  provider: EmbeddingProvider;
+  model: string;
+  api_key: string;
+  base_url?: string | null;
+  dimension: number;
 };
 
 export type CreatedApiKey = ApiKey & { key: string };
 
-export type McpServer = {
-  id: string;
-  title: string;
-  server_name: string;
-  collection: string | null;
-  key_prefix: string;
-  key_active: boolean;
-  last_used_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type CreatedMcpServer = McpServer & { api_key: string };
-
-export type Webhook = {
-  id: string;
-  url: string;
-  events: string[];
-  collections: string[] | null;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-};
 
 export type WorkerStats = {
   online: boolean;
@@ -110,60 +90,18 @@ export type ReadinessReport = {
   status: "ok" | "degraded";
 };
 
-export type AccessLogEntry = {
-  id: string;
-  actor_id: string | null;
-  actor_email: string | null;
-  api_key_id: string | null;
-  api_key_name: string | null;
-  auth_method: string | null;
-  action: string;
-  resource_type: string;
-  resource_id: string | null;
-  collection_name: string | null;
-  method: string;
-  path: string;
-  route: string | null;
-  status_code: number;
-  success: boolean;
-  latency_ms: number;
-  request_id: string | null;
-  metadata: Record<string, unknown>;
-  ip: string | null;
-  user_agent: string | null;
-  created_at: string;
-};
+export type AccessLogOverview = AccessLogOverviewResponse;
 
-type AccessLogBucket = {
-  label: string;
-  count: number;
-  avg_latency_ms?: number | null;
-};
+export type AccessLogListResponse = Paginated<"entries", AccessLogEntry>;
 
-type AccessLogTimelinePoint = {
-  bucket: string;
-  events: number;
-  errors: number;
-  avg_latency_ms: number;
-};
-
-export type AccessLogOverview = {
-  window_days: number;
-  total_events: number;
-  success_rate: number;
-  error_rate: number;
-  avg_latency_ms: number;
-  p95_latency_ms: number;
-  unique_users: number;
-  query_events: number;
-  by_action: AccessLogBucket[];
-  latency_by_action: AccessLogBucket[];
-  timeline: AccessLogTimelinePoint[];
-  recent: AccessLogEntry[];
-};
-
-export type AccessLogListResponse = {
-  entries: AccessLogEntry[];
-  total: number | null;
-  next_cursor: string | null;
+export type AccessLogFilters = {
+  action?: string;
+  actor_id?: string;
+  collection?: string;
+  method?: string;
+  path?: string;
+  status_family?: "2xx" | "3xx" | "4xx" | "5xx";
+  success?: boolean;
+  limit?: number;
+  offset?: number;
 };

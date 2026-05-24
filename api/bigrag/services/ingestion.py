@@ -10,8 +10,75 @@ class Chunk:
     char_end: int
 
 
-def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
+def _stripped_chunk(segment: str, start: int) -> Chunk:
+    stripped = segment.strip()
+    leading = len(segment) - len(segment.lstrip())
+    return Chunk(
+        text=stripped,
+        char_start=start + leading,
+        char_end=start + leading + len(stripped),
+    )
 
+
+def _flush_chunk(current: str, start: int) -> Chunk | None:
+    if current.strip():
+        return _stripped_chunk(current, start)
+    return None
+
+
+def _split_oversized_sentence(
+    sentence: str, sent_start: int, chunk_size: int
+) -> tuple[list[Chunk], str, int]:
+    chunks: list[Chunk] = []
+    carry_text = ""
+    carry_start = 0
+    for pos in range(0, len(sentence), chunk_size):
+        part = sentence[pos : pos + chunk_size]
+        part_start = sent_start + pos
+        if pos + chunk_size < len(sentence):
+            chunks.append(_stripped_chunk(part, part_start))
+        else:
+            carry_text = part
+            carry_start = part_start
+    return chunks, carry_text, carry_start
+
+
+def _split_oversized_paragraph(
+    para: str, para_start: int, chunk_size: int
+) -> tuple[list[Chunk], str, int]:
+    chunks: list[Chunk] = []
+    carry_text = ""
+    carry_start = 0
+    sentences = para.replace(". ", ".\n").split("\n")
+    sub_cursor = para_start
+    for sentence in sentences:
+        slice_start = sub_cursor - para_start
+        rel_idx = para.find(sentence, slice_start)
+        sent_start = sub_cursor if rel_idx < 0 else para_start + rel_idx
+        sub_cursor = sent_start + len(sentence)
+        if len(carry_text) + len(sentence) + 1 <= chunk_size:
+            if carry_text:
+                carry_text = f"{carry_text} {sentence}"
+            else:
+                carry_text = sentence
+                carry_start = sent_start
+        else:
+            flushed = _flush_chunk(carry_text, carry_start)
+            if flushed is not None:
+                chunks.append(flushed)
+            carry_text = ""
+            if len(sentence) > chunk_size:
+                sub_chunks, carry_text, carry_start = _split_oversized_sentence(
+                    sentence, sent_start, chunk_size
+                )
+                chunks.extend(sub_chunks)
+            else:
+                carry_text = sentence
+                carry_start = sent_start
+    return chunks, carry_text, carry_start
+
+
+def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
     if not text.strip():
         return []
 
@@ -21,18 +88,6 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
     cursor = 0
     current_text = ""
     current_start = 0
-
-    def _flush(current: str, start: int) -> None:
-        if current.strip():
-            stripped = current.strip()
-            leading = len(current) - len(current.lstrip())
-            chunks.append(
-                Chunk(
-                    text=stripped,
-                    char_start=start + leading,
-                    char_end=start + leading + len(stripped),
-                )
-            )
 
     for raw_para in paragraphs:
         para = raw_para.strip()
@@ -51,52 +106,22 @@ def _paragraph_chunks(text: str, chunk_size: int) -> list[Chunk]:
                 current_text = para
                 current_start = para_start
         else:
-            _flush(current_text, current_start)
+            flushed = _flush_chunk(current_text, current_start)
+            if flushed is not None:
+                chunks.append(flushed)
             current_text = ""
             if len(para) > chunk_size:
-                sentences = para.replace(". ", ".\n").split("\n")
-                sub_cursor = para_start
-                for sentence in sentences:
-                    slice_start = sub_cursor - para_start
-                    rel_idx = para.find(sentence, slice_start)
-                    if rel_idx < 0:
-                        sent_start = sub_cursor
-                    else:
-                        sent_start = para_start + rel_idx
-                    sub_cursor = sent_start + len(sentence)
-                    if len(current_text) + len(sentence) + 1 <= chunk_size:
-                        if current_text:
-                            current_text = f"{current_text} {sentence}"
-                        else:
-                            current_text = sentence
-                            current_start = sent_start
-                    else:
-                        _flush(current_text, current_start)
-                        current_text = ""
-                        if len(sentence) > chunk_size:
-                            for pos in range(0, len(sentence), chunk_size):
-                                part = sentence[pos : pos + chunk_size]
-                                part_start = sent_start + pos
-                                if pos + chunk_size < len(sentence):
-                                    leading = len(part) - len(part.lstrip())
-                                    chunks.append(
-                                        Chunk(
-                                            text=part.strip(),
-                                            char_start=part_start + leading,
-                                            char_end=part_start + leading + len(part.strip()),
-                                        )
-                                    )
-                                else:
-                                    current_text = part
-                                    current_start = part_start
-                        else:
-                            current_text = sentence
-                            current_start = sent_start
+                sub_chunks, current_text, current_start = _split_oversized_paragraph(
+                    para, para_start, chunk_size
+                )
+                chunks.extend(sub_chunks)
             else:
                 current_text = para
                 current_start = para_start
 
-    _flush(current_text, current_start)
+    final = _flush_chunk(current_text, current_start)
+    if final is not None:
+        chunks.append(final)
     return chunks
 
 

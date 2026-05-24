@@ -25,12 +25,8 @@ class AdminBackupsResource:
         return await self._client._request("GET", "/v1/admin/backups", params=params)
 
     async def get(self, backup_id: str) -> BackupJob:
-        return await self._client._request(
-            "GET", f"/v1/admin/backups/{quote(backup_id, safe='')}"
-        )
+        return await self._client._request("GET", f"/v1/admin/backups/{quote(backup_id, safe='')}")
 
     async def create(self, body: BackupCreateBody | None = None) -> BackupJob:
         label = (body or {}).get("label", "")
-        return await self._client._request(
-            "POST", "/v1/admin/backups", json={"label": label}
-        )
+        return await self._client._request("POST", "/v1/admin/backups", json={"label": label})

@@ -85,7 +85,14 @@ class CohereEmbedding(EmbeddingModel):
                 if is_rate_limit_error(exc):
                     await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
                 raise
-        return [list(e) for e in response.embeddings.float_]
+        vectors = [list(e) for e in response.embeddings.float_]
+        for vector in vectors:
+            if len(vector) != self._dimension:
+                raise ValueError(
+                    f"cohere returned vector of length {len(vector)}, "
+                    f"expected {self._dimension} for model {self._model_name}"
+                )
+        return vectors
 
     @property
     def dimension(self) -> int:

@@ -13,9 +13,7 @@ class VectorsResource:
     def __init__(self, client: BigRAGCore) -> None:
         self._client = client
 
-    async def upsert(
-        self, collection: str, vectors: list[VectorEntry]
-    ) -> UpsertResponse:
+    async def upsert(self, collection: str, vectors: list[VectorEntry]) -> UpsertResponse:
         return await self._client._request(
             "POST",
             f"/v1/collections/{quote(collection, safe='')}/vectors/upsert",

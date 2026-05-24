@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import struct
 
@@ -15,6 +16,7 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.embedding_cache")
 
 _LAST_HIT_REFRESH_SECONDS = 3600
+_INSERT_CHUNK_SIZE = 500
 
 
 def _model_key(cache_identity: str, input_type: str = "document") -> str:
@@ -49,6 +51,40 @@ def _decode_vector(blob: bytes, dimension: int) -> list[float] | None:
     except Exception as exc:
         logger.warning("embedding_cache: decrypt failed", error=str(exc))
         return None
+
+
+def _decode_many(
+    hashes: list[str],
+    by_hash: dict[str, bytes],
+    dimension: int,
+) -> dict[int, list[float]]:
+    out: dict[int, list[float]] = {}
+    for i, h in enumerate(hashes):
+        blob = by_hash.get(h)
+        if blob is None:
+            continue
+        vector = _decode_vector(blob, dimension)
+        if vector is None:
+            continue
+        out[i] = vector
+    return out
+
+
+def _encode_rows(
+    texts: list[str],
+    vectors: list[list[float]],
+    model_key: str,
+    dimension: int,
+) -> list[dict]:
+    return [
+        {
+            "content_hash": _hash(t),
+            "model_key": model_key,
+            "vector": _encode_vector(v),
+            "dimension": dimension,
+        }
+        for t, v in zip(texts, vectors, strict=False)
+    ]
 
 
 async def _cache_enabled() -> bool:
@@ -88,15 +124,7 @@ async def get_many(
                 )
             ).all()
             by_hash = {r.content_hash: r.vector for r in rows}
-            out: dict[int, list[float]] = {}
-            for i, h in enumerate(hashes):
-                blob = by_hash.get(h)
-                if blob is None:
-                    continue
-                vector = _decode_vector(blob, dimension)
-                if vector is None:
-                    continue
-                out[i] = vector
+            out = await asyncio.to_thread(_decode_many, hashes, by_hash, dimension)
             if out:
                 hit_hashes = [hashes[i] for i in out]
                 stale = sa.func.now() - sa.text("make_interval(secs => :secs)").bindparams(
@@ -129,27 +157,21 @@ async def put_many(
     if not await _cache_enabled():
         return
     model_key = _model_key(cache_identity, input_type)
-    rows = [
-        {
-            "content_hash": _hash(t),
-            "model_key": model_key,
-            "vector": _encode_vector(v),
-            "dimension": dimension,
-        }
-        for t, v in zip(texts, vectors, strict=False)
-    ]
-    stmt = pg_insert(EmbeddingCache).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[EmbeddingCache.content_hash, EmbeddingCache.model_key],
-        set_={
-            "vector": stmt.excluded.vector,
-            "dimension": stmt.excluded.dimension,
-            "last_hit_at": sa.func.now(),
-        },
-    )
+    rows = await asyncio.to_thread(_encode_rows, texts, vectors, model_key, dimension)
     try:
         async with session_factory()() as session:
-            await session.execute(stmt)
+            for start in range(0, len(rows), _INSERT_CHUNK_SIZE):
+                chunk = rows[start : start + _INSERT_CHUNK_SIZE]
+                stmt = pg_insert(EmbeddingCache).values(chunk)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=[EmbeddingCache.content_hash, EmbeddingCache.model_key],
+                    set_={
+                        "vector": stmt.excluded.vector,
+                        "dimension": stmt.excluded.dimension,
+                        "last_hit_at": sa.func.now(),
+                    },
+                )
+                await session.execute(stmt)
             await session.commit()
     except Exception as exc:
         logger.warning("embedding_cache: insert failed", error=str(exc))
@@ -158,6 +180,28 @@ async def put_many(
 async def purge_all() -> int:
     async with session_factory()() as session:
         result = await session.execute(sa.delete(EmbeddingCache))
+        await session.commit()
+        return int(result.rowcount or 0)
+
+
+async def purge_to_row_limit(max_rows: int) -> int:
+    if max_rows <= 0:
+        return 0
+    async with session_factory()() as session:
+        total = await session.scalar(sa.select(sa.func.count()).select_from(EmbeddingCache)) or 0
+        if total <= max_rows:
+            return 0
+        cutoff = await session.scalar(
+            sa.select(EmbeddingCache.last_hit_at)
+            .order_by(EmbeddingCache.last_hit_at.desc())
+            .offset(max_rows - 1)
+            .limit(1)
+        )
+        if cutoff is None:
+            return 0
+        result = await session.execute(
+            sa.delete(EmbeddingCache).where(EmbeddingCache.last_hit_at < cutoff)
+        )
         await session.commit()
         return int(result.rowcount or 0)
 

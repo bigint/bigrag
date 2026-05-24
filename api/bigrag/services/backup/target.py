@@ -85,6 +85,25 @@ class S3BackupTarget:
         )
         return UploadedObject(key=object_key, path=path, bytes=size, sha256=digest)
 
+    async def download_file(self, *, backup_prefix: str, path: str, dest: Path) -> None:
+        object_key = self.object_key(backup_prefix, path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(
+            self.client.download_file,
+            self.bucket,
+            object_key,
+            str(dest),
+        )
+
+    async def read_object(self, *, backup_prefix: str, path: str) -> bytes:
+        object_key = self.object_key(backup_prefix, path)
+
+        def _read() -> bytes:
+            response = self.client.get_object(Bucket=self.bucket, Key=object_key)
+            return response["Body"].read()
+
+        return await asyncio.to_thread(_read)
+
 
 def build_backup_target(values: dict[str, Any]) -> S3BackupTarget:
     return S3BackupTarget(values)

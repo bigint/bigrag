@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
 
 from bigrag.logging import get_logger
-from bigrag.services.event_bus import IngestionEvent, event_bus
+from bigrag.services.event_bus import IngestionEvent
 from bigrag.services.webhook import delivery as _delivery
 from bigrag.services.webhook.events import DOCUMENT_STEP_EVENTS, VALID_EVENTS
 from bigrag.services.webhook.payload import (
@@ -27,22 +26,6 @@ def invalidate_webhooks_cache() -> None:
 
 
 class WebhookDispatcher:
-    async def _listen(self) -> None:
-        queue = event_bus.subscribe("*")
-        try:
-            while True:
-                event = await queue.get()
-                if event is None:
-                    continue
-                try:
-                    await self._handle_event(event)
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    logger.error("error handling webhook event", error=repr(exc))
-        finally:
-            event_bus.unsubscribe("*", queue)
-
     async def _handle_event(self, event: IngestionEvent) -> None:
         webhook_event = DOCUMENT_STEP_EVENTS.get(event.step)
         if webhook_event is None:

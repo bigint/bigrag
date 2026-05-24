@@ -69,5 +69,4 @@ export interface WebhookTestResponse {
   status: string;
   status_code: number | null;
   error: string | null;
-  duration_ms?: number;
 }

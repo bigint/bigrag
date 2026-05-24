@@ -16,9 +16,13 @@ jobs:
   push:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -52,7 +56,7 @@ jobs:
           tags: |
             yoginth/bigrag-api:${{ steps.version.outputs.version }}
             yoginth/bigrag-api:latest
-            yoginth/bigrag-api:${{ github.sha }}
+            yoginth/bigrag-api:${{ env.DEPLOY_SHA }}
           cache-from: type=gha,scope=bigrag-api
           cache-to: type=gha,mode=max,scope=bigrag-api
 
@@ -66,6 +70,6 @@ jobs:
           tags: |
             yoginth/bigrag-ui:${{ steps.version.outputs.version }}
             yoginth/bigrag-ui:latest
-            yoginth/bigrag-ui:${{ github.sha }}
+            yoginth/bigrag-ui:${{ env.DEPLOY_SHA }}
           cache-from: type=gha,scope=bigrag-ui
           cache-to: type=gha,mode=max,scope=bigrag-ui

@@ -5,6 +5,13 @@ import asyncio
 import httpx
 
 from bigrag.services.embedding.base import EmbeddingModel, get_semaphore, logger, truncate_to_tokens
+from bigrag.services.embedding_rate_limit import (
+    is_rate_limit_error,
+    rate_limit_cooldown_key,
+    rate_limit_delay,
+    record_rate_limit_cooldown,
+    wait_for_rate_limit_cooldown,
+)
 from bigrag.services.url_security import pin_embedding_base_url, pinned_async_client
 
 
@@ -12,6 +19,7 @@ class VoyageHTTPError(RuntimeError):
     def __init__(self, status_code: int, message: str) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.headers: object | None = None
 
 
 class VoyageEmbedding(EmbeddingModel):
@@ -92,26 +100,46 @@ class VoyageEmbedding(EmbeddingModel):
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
         }
+        cooldown_key = rate_limit_cooldown_key(
+            self._cache_identity, self.provider, self._model_name, self._dimension
+        )
         client = await self._get_client()
         async with await get_semaphore(self._semaphore_key):
-            response = await client.post(
-                f"{self._DEFAULT_BASE_URL}{self._EMBEDDINGS_PATH}",
-                json=payload,
-                headers=headers,
-            )
-        if response.status_code >= 400:
-            logger.warning(
-                "voyage embed http error",
-                status=response.status_code,
-                body_preview=response.text[:500],
-                model=self._model_name,
-            )
-            raise VoyageHTTPError(
-                response.status_code,
-                f"Voyage embed failed ({response.status_code})",
-            )
+            await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
+            try:
+                response = await client.post(
+                    f"{self._DEFAULT_BASE_URL}{self._EMBEDDINGS_PATH}",
+                    json=payload,
+                    headers=headers,
+                )
+            except Exception as exc:
+                if is_rate_limit_error(exc):
+                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+                raise
+            if response.status_code >= 400:
+                logger.warning(
+                    "voyage embed http error",
+                    status=response.status_code,
+                    body_preview=response.text[:500],
+                    model=self._model_name,
+                )
+                exc = VoyageHTTPError(
+                    response.status_code,
+                    f"Voyage embed failed ({response.status_code})",
+                )
+                exc.headers = response.headers
+                if is_rate_limit_error(exc):
+                    await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
+                raise exc
         data = response.json()
-        return [item["embedding"] for item in data["data"]]
+        vectors = [item["embedding"] for item in data["data"]]
+        for vector in vectors:
+            if len(vector) != self._dimension:
+                raise ValueError(
+                    f"voyage returned vector of length {len(vector)}, "
+                    f"expected {self._dimension} for model {self._model_name}"
+                )
+        return vectors
 
     @property
     def dimension(self) -> int:

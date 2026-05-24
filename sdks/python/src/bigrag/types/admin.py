@@ -175,6 +175,7 @@ class CreateApiKeyResponse(ApiKey):
 class UpdateApiKeyBody(TypedDict, total=False):
     name: str
     active: bool
+    expires_at: str | None
     scopes: list[str] | None
     collection: str | None
 
@@ -244,7 +245,6 @@ class McpServer(TypedDict):
     server_name: str
     collection: str | None
     key_prefix: str
-    key_active: bool
     last_used_at: str | None
     created_at: str
     updated_at: str

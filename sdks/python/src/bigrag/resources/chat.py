@@ -26,9 +26,7 @@ class ChatResource:
         payload["stream"] = False
         return await self._client._request("POST", "/v1/chat", json=payload)
 
-    async def get_question_suggestions(
-        self, collection: str
-    ) -> ChatQuestionSuggestionsResponse:
+    async def get_question_suggestions(self, collection: str) -> ChatQuestionSuggestionsResponse:
         return await self._client._request(
             "GET",
             "/v1/chat/question-suggestions",
@@ -38,9 +36,7 @@ class ChatResource:
     async def generate_question_suggestions(
         self, body: ChatQuestionSuggestionsBody
     ) -> ChatQuestionSuggestionsResponse:
-        return await self._client._request(
-            "POST", "/v1/chat/question-suggestions", json=body
-        )
+        return await self._client._request("POST", "/v1/chat/question-suggestions", json=body)
 
     async def stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
         payload = dict(body)

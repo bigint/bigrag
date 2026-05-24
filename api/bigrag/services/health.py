@@ -172,6 +172,11 @@ async def check_embedding_provider() -> dict[str, object]:
         }
 
 
+async def readiness_payload(vs, queue) -> dict[str, object]:
+    checks, _healthy = await readiness_status(vs, queue)
+    return checks
+
+
 async def readiness_status(vs, queue) -> tuple[dict[str, object], bool]:
     cached = await cache_get(READINESS_CACHE_KEY)
     if cached:

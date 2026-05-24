@@ -33,3 +33,6 @@ Issues = "https://github.com/bigint/rag.computer/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bigrag"]
+
+[tool.ruff]
+extend = "../../api/pyproject.toml"

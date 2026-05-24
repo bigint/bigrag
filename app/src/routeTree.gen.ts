@@ -16,10 +16,8 @@ import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overv
 import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
 import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
 import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
-import { Route as DashboardDataStorageRouteImport } from "./routes/_dashboard.data-storage";
 import { Route as DashboardConnectorsRouteImport } from "./routes/_dashboard.connectors";
 import { Route as DashboardChatRouteImport } from "./routes/_dashboard.chat";
-import { Route as DashboardBackupsRouteImport } from "./routes/_dashboard.backups";
 import { Route as DashboardAuditRouteImport } from "./routes/_dashboard.audit";
 import { Route as DashboardApiKeysRouteImport } from "./routes/_dashboard.api-keys";
 import { Route as DashboardAccessLogsRouteImport } from "./routes/_dashboard.access-logs";
@@ -89,11 +87,6 @@ const DashboardEvalsRoute = DashboardEvalsRouteImport.update({
   path: "/evals",
   getParentRoute: () => DashboardRoute,
 } as any);
-const DashboardDataStorageRoute = DashboardDataStorageRouteImport.update({
-  id: "/data-storage",
-  path: "/data-storage",
-  getParentRoute: () => DashboardRoute,
-} as any);
 const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
   id: "/connectors",
   path: "/connectors",
@@ -102,11 +95,6 @@ const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
 const DashboardChatRoute = DashboardChatRouteImport.update({
   id: "/chat",
   path: "/chat",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardBackupsRoute = DashboardBackupsRouteImport.update({
-  id: "/backups",
-  path: "/backups",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardAuditRoute = DashboardAuditRouteImport.update({
@@ -203,10 +191,8 @@ export interface FileRoutesByFullPath {
   "/access-logs": typeof DashboardAccessLogsRoute;
   "/api-keys": typeof DashboardApiKeysRoute;
   "/audit": typeof DashboardAuditRoute;
-  "/backups": typeof DashboardBackupsRoute;
   "/chat": typeof DashboardChatRoute;
   "/connectors": typeof DashboardConnectorsRoute;
-  "/data-storage": typeof DashboardDataStorageRoute;
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
@@ -233,10 +219,8 @@ export interface FileRoutesByTo {
   "/access-logs": typeof DashboardAccessLogsRoute;
   "/api-keys": typeof DashboardApiKeysRoute;
   "/audit": typeof DashboardAuditRoute;
-  "/backups": typeof DashboardBackupsRoute;
   "/chat": typeof DashboardChatRoute;
   "/connectors": typeof DashboardConnectorsRoute;
-  "/data-storage": typeof DashboardDataStorageRoute;
   "/evals": typeof DashboardEvalsRoute;
   "/mcp": typeof DashboardMcpRoute;
   "/models": typeof DashboardModelsRoute;
@@ -264,10 +248,8 @@ export interface FileRoutesById {
   "/_dashboard/access-logs": typeof DashboardAccessLogsRoute;
   "/_dashboard/api-keys": typeof DashboardApiKeysRoute;
   "/_dashboard/audit": typeof DashboardAuditRoute;
-  "/_dashboard/backups": typeof DashboardBackupsRoute;
   "/_dashboard/chat": typeof DashboardChatRoute;
   "/_dashboard/connectors": typeof DashboardConnectorsRoute;
-  "/_dashboard/data-storage": typeof DashboardDataStorageRoute;
   "/_dashboard/evals": typeof DashboardEvalsRoute;
   "/_dashboard/mcp": typeof DashboardMcpRoute;
   "/_dashboard/models": typeof DashboardModelsRoute;
@@ -296,10 +278,8 @@ export interface FileRouteTypes {
     | "/access-logs"
     | "/api-keys"
     | "/audit"
-    | "/backups"
     | "/chat"
     | "/connectors"
-    | "/data-storage"
     | "/evals"
     | "/mcp"
     | "/models"
@@ -326,10 +306,8 @@ export interface FileRouteTypes {
     | "/access-logs"
     | "/api-keys"
     | "/audit"
-    | "/backups"
     | "/chat"
     | "/connectors"
-    | "/data-storage"
     | "/evals"
     | "/mcp"
     | "/models"
@@ -356,10 +334,8 @@ export interface FileRouteTypes {
     | "/_dashboard/access-logs"
     | "/_dashboard/api-keys"
     | "/_dashboard/audit"
-    | "/_dashboard/backups"
     | "/_dashboard/chat"
     | "/_dashboard/connectors"
-    | "/_dashboard/data-storage"
     | "/_dashboard/evals"
     | "/_dashboard/mcp"
     | "/_dashboard/models"
@@ -465,13 +441,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardEvalsRouteImport;
       parentRoute: typeof DashboardRoute;
     };
-    "/_dashboard/data-storage": {
-      id: "/_dashboard/data-storage";
-      path: "/data-storage";
-      fullPath: "/data-storage";
-      preLoaderRoute: typeof DashboardDataStorageRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
     "/_dashboard/connectors": {
       id: "/_dashboard/connectors";
       path: "/connectors";
@@ -484,13 +453,6 @@ declare module "@tanstack/react-router" {
       path: "/chat";
       fullPath: "/chat";
       preLoaderRoute: typeof DashboardChatRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/backups": {
-      id: "/_dashboard/backups";
-      path: "/backups";
-      fullPath: "/backups";
-      preLoaderRoute: typeof DashboardBackupsRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/audit": {
@@ -663,10 +625,8 @@ interface DashboardRouteChildren {
   DashboardAccessLogsRoute: typeof DashboardAccessLogsRoute;
   DashboardApiKeysRoute: typeof DashboardApiKeysRoute;
   DashboardAuditRoute: typeof DashboardAuditRoute;
-  DashboardBackupsRoute: typeof DashboardBackupsRoute;
   DashboardChatRoute: typeof DashboardChatRoute;
   DashboardConnectorsRoute: typeof DashboardConnectorsRoute;
-  DashboardDataStorageRoute: typeof DashboardDataStorageRoute;
   DashboardEvalsRoute: typeof DashboardEvalsRoute;
   DashboardMcpRoute: typeof DashboardMcpRoute;
   DashboardModelsRoute: typeof DashboardModelsRoute;
@@ -682,10 +642,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccessLogsRoute: DashboardAccessLogsRoute,
   DashboardApiKeysRoute: DashboardApiKeysRoute,
   DashboardAuditRoute: DashboardAuditRoute,
-  DashboardBackupsRoute: DashboardBackupsRoute,
   DashboardChatRoute: DashboardChatRoute,
   DashboardConnectorsRoute: DashboardConnectorsRoute,
-  DashboardDataStorageRoute: DashboardDataStorageRoute,
   DashboardEvalsRoute: DashboardEvalsRoute,
   DashboardMcpRoute: DashboardMcpRoute,
   DashboardModelsRoute: DashboardModelsRoute,

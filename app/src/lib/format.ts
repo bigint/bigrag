@@ -16,3 +16,6 @@ export const formatRelative = (iso: string | Date | null | undefined): string =>
   if (Number.isNaN(d.getTime())) return "—";
   return `${formatDistanceToNowStrict(d)} ago`;
 };
+
+export const formatRelativeOrNever = (iso: string | Date | null | undefined): string =>
+  iso ? formatRelative(iso) : "never";

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 
+from cryptography.fernet import Fernet
+
 from bigrag.config import Settings
 from bigrag.logging import get_logger
 
@@ -21,6 +23,12 @@ def check_production_safety(s: Settings) -> None:
             "'bigrag:bigrag' credentials — rotate the Postgres password."
         )
 
+    if "sslmode=disable" in s.database_url:
+        problems.append(
+            "BIGRAG_DATABASE_URL sets sslmode=disable — database traffic is unencrypted. "
+            "Use sslmode=require (or stricter) in prod."
+        )
+
     if not s.master_key:
         problems.append(
             "BIGRAG_MASTER_KEY is not set — required for at-rest encryption "
@@ -28,6 +36,18 @@ def check_production_safety(s: Settings) -> None:
             "`python -c 'from cryptography.fernet import Fernet; "
             "print(Fernet.generate_key().decode())'`."
         )
+    else:
+        try:
+            Fernet(s.master_key.encode())
+        except (ValueError, TypeError):
+            problems.append(
+                "BIGRAG_MASTER_KEY is not a valid Fernet key. Generate one with "
+                "`python -c 'from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())'`."
+            )
+
+    if s.storage_backend == "s3" and not s.storage_s3_bucket:
+        problems.append("BIGRAG_STORAGE_BACKEND=s3 requires BIGRAG_STORAGE_S3_BUCKET to be set.")
 
     if not s.session_cookie_secure:
         problems.append(

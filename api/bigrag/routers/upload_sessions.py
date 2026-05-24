@@ -20,9 +20,6 @@ from bigrag.routers._upload_sessions import (
     effective_item_status as _effective_item_status,
 )
 from bigrag.routers._upload_sessions import (
-    get_upload_session as _get_upload_session,
-)
-from bigrag.routers._upload_sessions import (
     get_upload_session_for_update as _get_upload_session_for_update,
 )
 from bigrag.routers._upload_sessions import (
@@ -36,6 +33,8 @@ from bigrag.services.documents import prepare_document_metadata
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.staged_files import delete_staged_file_path
+from bigrag.services.tenant_enforcement import enforce_tenant_metadata
+from bigrag.services.upload_sessions import upload_session_payload
 
 logger = get_logger("bigrag.routers.upload_sessions")
 
@@ -72,6 +71,7 @@ async def create_upload_session(
         meta = prepare_document_metadata(collection, body.metadata)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+    meta = enforce_tenant_metadata(collection, meta, user, label="metadata")
     upload_session = UploadSession(
         collection_id=collection["id"],
         collection_name=collection_name,
@@ -112,11 +112,12 @@ async def get_upload_session(
     db: AsyncSession = Depends(get_session),
 ):
     enforce_collection_pin(user, collection_name)
-    collection = await get_collection_or_404(collection_name)
-    upload_session = await _get_upload_session(
-        db, collection["id"], session_id, user_id=uuid.UUID(user["id"])
+    return await upload_session_payload(
+        db,
+        user=user,
+        collection_name=collection_name,
+        session_id=session_id,
     )
-    return await upload_session_response(db, upload_session, persist_counts=True)
 
 
 @router.post("/{session_id}/complete", response_model=UploadSessionResponse)

@@ -1,85 +1,14 @@
-export type ConnectorSyncProgressPhase =
-  | "queued"
-  | "authenticating"
-  | "scanning"
-  | "syncing"
-  | "removing"
-  | "finalizing"
-  | "complete"
-  | "failed";
+import type { S3SourceListResponse, S3SyncJobListResponse } from "@bigrag/client";
 
-export type ConnectorSyncProgress = {
-  phase: ConnectorSyncProgressPhase;
-  message: string;
-  current_item_name: string | null;
-  current_item_id: string | null;
-  progress_percent: number;
-  processed_items: number;
-  total_items: number;
-  counts: {
-    created: number;
-    updated: number;
-    skipped: number;
-    deleted: number;
-    failed: number;
-  };
-};
+export type {
+  ConnectorSyncJobDetails,
+  ConnectorSyncProgress,
+  ConnectorSyncProgressPhase,
+  CreateS3SourceBody,
+  S3Source,
+  S3SyncJob,
+  UpdateS3SourceBody,
+} from "@bigrag/client";
 
-export type ConnectorSyncJobDetails = Record<string, unknown> & {
-  errors?: Array<Record<string, string>>;
-  progress?: ConnectorSyncProgress;
-};
-
-export type S3Source = {
-  id: string;
-  provider: "s3";
-  collection_name: string;
-  bucket: string;
-  prefix: string;
-  region: string;
-  endpoint_url: string | null;
-  force_path_style: boolean;
-  has_credentials: boolean;
-  root_id: string;
-  root_name: string;
-  source_type: "prefix";
-  status: "idle" | "syncing" | "error";
-  schedule_enabled: boolean;
-  sync_interval_hours: number;
-  last_sync_at: string | null;
-  next_sync_at: string | null;
-  last_error: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
-export type S3SourceList = {
-  sources: S3Source[];
-  total: number;
-};
-
-export type S3SyncJob = {
-  id: string;
-  provider: "s3";
-  source_id: string | null;
-  trigger: "initial" | "manual" | "scheduled";
-  status: "pending" | "running" | "complete" | "failed";
-  total_found: number;
-  total_created: number;
-  total_updated: number;
-  total_skipped: number;
-  total_deleted: number;
-  total_failed: number;
-  error_message: string | null;
-  details: ConnectorSyncJobDetails;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type S3SyncJobList = {
-  jobs: S3SyncJob[];
-  total: number;
-};
+export type S3SourceList = S3SourceListResponse;
+export type S3SyncJobList = S3SyncJobListResponse;

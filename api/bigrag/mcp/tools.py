@@ -104,6 +104,44 @@ async def call_query(
     return r.json()
 
 
+async def call_list_collections(
+    client: httpx.AsyncClient,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    r = await client.get("/v1/collections", params={"limit": limit, "offset": offset})
+    raise_for_status(r)
+    return r.json()
+
+
+async def call_multi_collection_query(
+    client: httpx.AsyncClient,
+    collections: list[str],
+    query: str,
+    top_k: int,
+    search_mode: str,
+    min_score: float | None,
+    rerank: bool,
+    skip_cache: bool,
+    filters: dict[str, Any] | None,
+) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "collections": collections,
+        "query": query,
+        "top_k": top_k,
+        "search_mode": search_mode,
+        "rerank": rerank,
+        "skip_cache": skip_cache,
+    }
+    if min_score is not None:
+        body["min_score"] = min_score
+    if filters is not None:
+        body["filters"] = filters
+    r = await client.post("/v1/query", json=body)
+    raise_for_status(r)
+    return r.json()
+
+
 async def call_get_collection(client: httpx.AsyncClient, name: str) -> dict[str, Any]:
     r = await client.get(f"/v1/collections/{name}")
     raise_for_status(r)
@@ -145,7 +183,12 @@ async def call_get_document_chunks(
     client: httpx.AsyncClient,
     collection: str,
     document_id: str,
+    limit: int,
+    offset: int,
 ) -> dict[str, Any]:
-    r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
+    r = await client.get(
+        f"/v1/collections/{collection}/documents/{document_id}/chunks",
+        params={"limit": limit, "offset": offset},
+    )
     raise_for_status(r)
     return r.json()

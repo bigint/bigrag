@@ -27,6 +27,10 @@ class IngestionJob:
     max_attempts: int = 3
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
+    @property
+    def should_enrich_multimodal(self) -> bool:
+        return self.multimodal_enrichment_enabled and self.embedding_provider == "openai"
+
     def serialize(self) -> bytes:
         return orjson.dumps(
             {

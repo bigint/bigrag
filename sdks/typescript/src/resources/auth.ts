@@ -7,7 +7,6 @@ import type {
   SetupBody,
   SetupStatusResponse,
   StatusResponse,
-  UpdatePreferencesBody,
   WhoamiResponse,
 } from "../types/index.js";
 
@@ -46,13 +45,11 @@ export class AuthResource {
     return this._client._request("POST", "/v1/auth/password", { json: body });
   }
 
-  preferences(): Promise<PreferencesResponse> {
+  getPreferences(): Promise<PreferencesResponse> {
     return this._client._request("GET", "/v1/auth/preferences");
   }
 
-  updatePreferences(
-    body: UpdatePreferencesBody | Record<string, unknown>,
-  ): Promise<PreferencesResponse> {
-    return this._client._request("PUT", "/v1/auth/preferences", { json: { data: body } });
+  updatePreferences(data: Record<string, unknown>): Promise<PreferencesResponse> {
+    return this._client._request("PUT", "/v1/auth/preferences", { json: { data } });
   }
 }

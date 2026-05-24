@@ -3,6 +3,7 @@ from __future__ import annotations
 import orjson
 import redis.asyncio as aioredis
 
+from bigrag.config import settings
 from bigrag.logging import get_logger
 from bigrag.services import crypto
 
@@ -17,7 +18,8 @@ _redis: aioredis.Redis | None = None
 
 async def connect(redis_url: str) -> None:
     global _redis
-    _redis = aioredis.from_url(redis_url, decode_responses=False, max_connections=MAX_CONNECTIONS)
+    url = getattr(settings, "cache_redis_url", None) or redis_url
+    _redis = aioredis.from_url(url, decode_responses=False, max_connections=MAX_CONNECTIONS)
     logger.info("redis cache connected")
 
 

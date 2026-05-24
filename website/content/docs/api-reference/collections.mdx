@@ -111,7 +111,7 @@ All endpoints require [authentication](/docs/api-reference/authentication) — a
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | — | Cohere API key |
 | `multimodal_enabled` | boolean | no | `false` | Store first-class document elements and chunk provenance for future ingestions |
-| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for images, tables, and equations; requires `multimodal_enabled` |
+| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue LLM summaries for images, tables, and equations; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 **Response** `201`: Full collection object.

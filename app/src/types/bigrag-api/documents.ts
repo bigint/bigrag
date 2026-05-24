@@ -29,3 +29,22 @@ export type UploadSessionFileResponse = Omit<SdkUploadSessionFileResponse, "item
   item: UploadSessionItem;
   session: UploadSession;
 };
+
+export type DocumentListSort =
+  | "created_at"
+  | "updated_at"
+  | "filename"
+  | "file_size"
+  | "chunk_count"
+  | "status";
+
+export type DocumentListOrder = "asc" | "desc";
+
+export type DocumentListFilters = {
+  q?: string;
+  status?: string;
+  sort?: DocumentListSort;
+  order?: DocumentListOrder;
+  limit?: number;
+  offset?: number;
+};

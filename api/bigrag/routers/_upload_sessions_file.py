@@ -36,9 +36,9 @@ from bigrag.routers._upload_sessions import (
 from bigrag.routers._upload_sessions import (
     session_rows as _session_rows,
 )
-from bigrag.routers.documents_progress import document_progress, publish_queued_progress
 from bigrag.routers.upload_sessions import router
 from bigrag.services import audit, collection_cache
+from bigrag.services.document_progress import document_progress, publish_queued_progress
 from bigrag.services.documents import (
     SUPPORTED_EXTENSIONS,
     content_hash_match,

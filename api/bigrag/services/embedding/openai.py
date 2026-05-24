@@ -21,6 +21,10 @@ from bigrag.services.url_security import (
 class OpenAIEmbedding(EmbeddingModel):
     _MAX_INPUTS_PER_REQUEST = 2048
 
+    @staticmethod
+    def _supports_dimensions(model_name: str) -> bool:
+        return model_name.startswith("text-embedding-3-")
+
     def __init__(
         self,
         model_name: str = "text-embedding-3-small",
@@ -90,18 +94,28 @@ class OpenAIEmbedding(EmbeddingModel):
         cooldown_key = rate_limit_cooldown_key(
             self._cache_identity, self.provider, self._model_name, self._dimension
         )
+        kwargs: dict = {"input": texts, "model": self._model_name}
+        if self._supports_dimensions(self._model_name):
+            kwargs["dimensions"] = self._dimension
         async with await get_semaphore(self._semaphore_key):
             await wait_for_rate_limit_cooldown(cooldown_key, self.provider, self._model_name)
             try:
                 response = await asyncio.wait_for(
-                    self._client.embeddings.create(input=texts, model=self._model_name),
+                    self._client.embeddings.create(**kwargs),
                     timeout=60,
                 )
             except Exception as exc:
                 if is_rate_limit_error(exc):
                     await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
                 raise
-        return [item.embedding for item in response.data]
+        vectors = [item.embedding for item in response.data]
+        for vector in vectors:
+            if len(vector) != self._dimension:
+                raise ValueError(
+                    f"openai returned vector of length {len(vector)}, "
+                    f"expected {self._dimension} for model {self._model_name}"
+                )
+        return vectors
 
     @property
     def dimension(self) -> int:

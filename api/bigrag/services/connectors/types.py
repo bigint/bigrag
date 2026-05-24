@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +13,7 @@ class ConnectorError(RuntimeError):
     pass
 
 
-class ConnectorNotFoundError(ConnectorError):
+class ConnectorDeleteSafetyError(ConnectorError):
     pass
 
 
@@ -58,12 +59,12 @@ class ConnectorSyncAdapter(Protocol):
     provider: str
     partial_failure_message: str
 
-    async def iter_files(
+    def iter_files(
         self,
         session: Any,
         *,
         source: ConnectorSource,
-    ) -> list[RemoteConnectorFile]: ...
+    ) -> AsyncIterator[list[RemoteConnectorFile]]: ...
 
     async def download(
         self,

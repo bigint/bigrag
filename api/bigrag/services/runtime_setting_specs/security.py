@@ -45,14 +45,6 @@ SECURITY_SPECS: tuple[SettingSpec, ...] = (
         description="Optional cookie domain for split frontend and API deployments.",
     ),
     SettingSpec(
-        key="allow_public_bind_in_prod",
-        group="security",
-        label="Allow public prod bind",
-        kind="bool",
-        default=False,
-        description="Allow BIGRAG_HOST=0.0.0.0 or :: when BIGRAG_ENV=prod.",
-    ),
-    SettingSpec(
         key="allowed_embedding_base_urls",
         group="security",
         label="Allowed embedding base URLs",

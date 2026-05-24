@@ -11,7 +11,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MODEL_SETTINGS_GROUPS, type ModelsTab } from "@/features/models/model-tabs";
 import { PresetForm } from "@/features/models/preset-form";
-import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
+import { InstanceSettingsTab } from "@/features/settings/instance-settings/instance-settings-tab";
 import { useDeleteEmbeddingPreset, useEmbeddingPresets } from "@/hooks/use-embedding-presets";
 import { formatRelative } from "@/lib/format";
 import type { EmbeddingPreset, InstanceSettingGroup } from "@/types/bigrag";

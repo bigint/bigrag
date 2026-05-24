@@ -4,16 +4,14 @@ import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { Webhook } from "@/types/bigrag";
+import type { Paginated } from "@/types/pagination";
 
 const KEY = queryKeys.webhooks();
 
 export const useWebhooks = () =>
   useQuery({
     queryKey: KEY,
-    queryFn: () =>
-      apiClient.get<{ webhooks: Webhook[]; total: number | null; next_cursor: string | null }>(
-        "v1/admin/webhooks",
-      ),
+    queryFn: () => apiClient.get<Paginated<"webhooks", Webhook>>("v1/admin/webhooks"),
   });
 
 export const useCreateWebhook = () => {

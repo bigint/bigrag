@@ -22,9 +22,7 @@ class AdminSettingsResource:
     async def list(self) -> InstanceSettingsResponse:
         return await self._client._request("GET", "/v1/admin/settings")
 
-    async def update(
-        self, body: UpdateInstanceSettingsBody
-    ) -> InstanceSettingsResponse:
+    async def update(self, body: UpdateInstanceSettingsBody) -> InstanceSettingsResponse:
         return await self._client._request("PUT", "/v1/admin/settings", json=body)
 
     async def test(
@@ -35,14 +33,10 @@ class AdminSettingsResource:
             "POST", "/v1/admin/settings/test", json={"values": values}
         )
 
-    async def reset(
-        self, body: ResetInstanceSettingsBody | None = None
-    ) -> StatusResponse:
+    async def reset(self, body: ResetInstanceSettingsBody | None = None) -> StatusResponse:
         return await self._client._request(
             "POST", "/v1/admin/settings/reset", json=body or {"keys": []}
         )
 
     async def purge_embedding_cache(self) -> StatusResponse:
-        return await self._client._request(
-            "POST", "/v1/admin/settings/embedding-cache/purge"
-        )
+        return await self._client._request("POST", "/v1/admin/settings/embedding-cache/purge")

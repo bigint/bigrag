@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
 from bigrag.types.auth import (
     ChangePasswordBody,
     LoginBody,
@@ -48,6 +49,4 @@ class AuthResource:
         return await self._client._request("GET", "/v1/auth/preferences")
 
     async def update_preferences(self, data: dict[str, Any]) -> PreferencesResponse:
-        return await self._client._request(
-            "PUT", "/v1/auth/preferences", json={"data": data}
-        )
+        return await self._client._request("PUT", "/v1/auth/preferences", json={"data": data})

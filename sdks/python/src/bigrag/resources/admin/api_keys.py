@@ -41,6 +41,4 @@ class AdminApiKeysResource:
         )
 
     async def delete(self, key_id: str) -> StatusResponse:
-        return await self._client._request(
-            "DELETE", f"/v1/admin/api-keys/{quote(key_id, safe='')}"
-        )
+        return await self._client._request("DELETE", f"/v1/admin/api-keys/{quote(key_id, safe='')}")

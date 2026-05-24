@@ -20,6 +20,28 @@ from bigrag.services.webhook.signing import compute_signature
 logger = get_logger("bigrag.webhook")
 
 
+def _signed_headers(payload: str, *, secret: str, event: str, delivery: str) -> dict[str, str]:
+    timestamp = str(int(datetime.now(UTC).timestamp()))
+    signature = compute_signature(payload, secret, timestamp)
+    return {
+        "Content-Type": "application/json",
+        "X-BigRAG-Signature": signature,
+        "X-BigRAG-Timestamp": timestamp,
+        "X-BigRAG-Event": event,
+        "X-BigRAG-Delivery": delivery,
+        "User-Agent": "bigrag-webhooks/1.0",
+    }
+
+
+def _classify_response(response) -> dict:
+    delivered = 200 <= response.status_code < 300
+    return {
+        "status": "delivered" if delivered else "failed",
+        "status_code": response.status_code,
+        "error": None if delivered else f"HTTP {response.status_code}",
+    }
+
+
 async def process_due_deliveries(
     *,
     delivery_id: uuid.UUID | None = None,
@@ -119,21 +141,17 @@ async def _attempt_delivery(
 
     async with sem:
         try:
-            timestamp = str(int(datetime.now(UTC).timestamp()))
-            signature = compute_signature(payload, webhook["secret"], timestamp)
-            headers = {
-                "Content-Type": "application/json",
-                "X-BigRAG-Signature": signature,
-                "X-BigRAG-Timestamp": timestamp,
-                "X-BigRAG-Event": event,
-                "X-BigRAG-Delivery": str(delivery_id),
-                "User-Agent": "bigrag-webhooks/1.0",
-            }
+            headers = _signed_headers(
+                payload,
+                secret=webhook["secret"],
+                event=event,
+                delivery=str(delivery_id),
+            )
             response = await post_pinned(webhook["url"], payload, headers)
-            last_status_code = response.status_code
-            delivered = 200 <= response.status_code < 300
-            if not delivered:
-                last_error = f"HTTP {response.status_code}"
+            classified = _classify_response(response)
+            last_status_code = classified["status_code"]
+            delivered = classified["status"] == "delivered"
+            last_error = classified["error"]
         except ValueError as exc:
             last_error = f"Blocked: {exc}"
             terminal = True
@@ -205,23 +223,15 @@ async def deliver_once(
     payload: str,
     delivery_id: str | None = None,
 ) -> dict:
-    timestamp = str(int(datetime.now(UTC).timestamp()))
-    signature = compute_signature(payload, webhook["secret"], timestamp)
-    headers = {
-        "Content-Type": "application/json",
-        "X-BigRAG-Signature": signature,
-        "X-BigRAG-Timestamp": timestamp,
-        "X-BigRAG-Event": event,
-        "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid7()),
-        "User-Agent": "bigrag-webhooks/1.0",
-    }
+    headers = _signed_headers(
+        payload,
+        secret=webhook["secret"],
+        event=event,
+        delivery=delivery_id if delivery_id is not None else str(uuid7()),
+    )
     try:
         response = await post_pinned(webhook["url"], payload, headers)
-        return {
-            "status": "delivered" if 200 <= response.status_code < 300 else "failed",
-            "status_code": response.status_code,
-            "error": None if 200 <= response.status_code < 300 else f"HTTP {response.status_code}",
-        }
+        return _classify_response(response)
     except ValueError:
         return {
             "status": "failed",
@@ -237,7 +247,6 @@ async def deliver_once(
 
 
 async def deliver_test(webhook: dict, delivery_id: str | None = None) -> dict:
-    secret = webhook["secret"]
     payload = orjson.dumps(
         {
             "event": "webhook.test",
@@ -245,23 +254,15 @@ async def deliver_test(webhook: dict, delivery_id: str | None = None) -> dict:
         }
     ).decode()
 
-    timestamp = str(int(datetime.now(UTC).timestamp()))
-    signature = compute_signature(payload, secret, timestamp)
-    headers = {
-        "Content-Type": "application/json",
-        "X-BigRAG-Signature": signature,
-        "X-BigRAG-Timestamp": timestamp,
-        "X-BigRAG-Event": "webhook.test",
-        "X-BigRAG-Delivery": delivery_id if delivery_id is not None else str(uuid7()),
-        "User-Agent": "bigrag-webhooks/1.0",
-    }
+    headers = _signed_headers(
+        payload,
+        secret=webhook["secret"],
+        event="webhook.test",
+        delivery=delivery_id if delivery_id is not None else str(uuid7()),
+    )
     try:
         response = await post_pinned(webhook["url"], payload, headers)
-        return {
-            "status": "delivered" if 200 <= response.status_code < 300 else "failed",
-            "status_code": response.status_code,
-            "error": None if 200 <= response.status_code < 300 else f"HTTP {response.status_code}",
-        }
+        return _classify_response(response)
     except ValueError:
         return {
             "status": "failed",

@@ -9,10 +9,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection
-from bigrag.logging import get_logger
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.collection_config import get_embedding_model_for, get_reranking_config
-from bigrag.services.error_sanitize import safe_error_detail
 
 __all__ = [
     "ensure_embedding_or_400",
@@ -24,8 +22,6 @@ __all__ = [
     "uuid_or_404",
     "validate_collection_name",
 ]
-
-_logger = get_logger("bigrag.routers")
 
 
 def uuid_or_404(value: str, label: str) -> uuid.UUID:
@@ -42,20 +38,9 @@ def enforce_collection_pin(user: dict, collection_name: str | None) -> None:
 
 
 def ensure_embedding_or_400(collection: dict):
-    try:
-        return get_embedding_model_for(collection)
-    except (ImportError, ValueError) as exc:
-        _logger.warning(
-            "embedding model unavailable",
-            collection=collection.get("name"),
-            error=repr(exc),
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=safe_error_detail(
-                exc, "Embedding provider is not available for this collection."
-            ),
-        ) from exc
+    from bigrag.services.retrieval import resolve_embedding_model
+
+    return resolve_embedding_model(collection)
 
 
 async def validate_collection_name(session: AsyncSession, collection: str | None) -> str | None:

@@ -9,39 +9,39 @@ from bigrag.db.models import (
     Collection,
     ConnectorDocument,
     ConnectorSource,
-    ConnectorSyncJob,
     Document,
 )
 from bigrag.logging import get_logger
 from bigrag.services.connectors.documents import sync_downloaded_file
 from bigrag.services.connectors.manifest import manifest_remote_unchanged, update_manifest_remote
-from bigrag.services.connectors.progress import update_sync_progress
 from bigrag.services.connectors.types import (
     ConnectorSyncAdapter,
     ConnectorSyncCounters,
     RemoteConnectorFile,
 )
 from bigrag.services.file_validation import InvalidFileContentError
+from bigrag.services.queue import QueueFullError
 
 logger = get_logger("bigrag.connectors")
 
+DEFAULT_DOWNLOAD_CONCURRENCY = 4
 
-async def sync_remote_files(
+
+async def sync_page(
     session: Any,
     *,
     adapter: ConnectorSyncAdapter,
     source: ConnectorSource,
     collection: Collection,
-    job: ConnectorSyncJob,
     remotes: list[RemoteConnectorFile],
     manifests: dict[str, ConnectorDocument],
     counters: ConnectorSyncCounters,
+    download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY,
 ) -> None:
     async def _download(remote: RemoteConnectorFile):
         return await adapter.download(session, source=source, remote=remote)
 
-    batch_size = 4
-    index = 0
+    batch_size = max(1, download_concurrency)
     for batch_start in range(0, len(remotes), batch_size):
         batch = remotes[batch_start : batch_start + batch_size]
         batch_manifests = {
@@ -77,20 +77,8 @@ async def sync_remote_files(
             for remote, result in zip(download_targets, batch_results, strict=True)
         }
         for remote in batch:
-            index += 1
             manifest = manifests.get(remote.id)
             existing_doc = existing_docs.get(manifest.document_id) if manifest else None
-            await update_sync_progress(
-                session,
-                job=job,
-                source=source,
-                counters=counters,
-                phase="syncing",
-                message=f"Syncing {remote.name}",
-                current_item=remote,
-                processed_items=index - 1,
-                total_items=len(remotes),
-            )
             downloaded = None
             try:
                 if remote.id in skipped_remote_ids:
@@ -112,6 +100,8 @@ async def sync_remote_files(
                         downloaded=downloaded,
                         counters=counters,
                     )
+            except QueueFullError:
+                raise
             except (InvalidFileContentError, ValueError) as exc:
                 counters.add_error(remote.id, remote.name, str(exc))
             except Exception as exc:
@@ -130,14 +120,3 @@ async def sync_remote_files(
                         downloaded.path.unlink()
                     except OSError:
                         pass
-            await update_sync_progress(
-                session,
-                job=job,
-                source=source,
-                counters=counters,
-                phase="syncing",
-                message=f"Synced {index} of {len(remotes)} remote files",
-                current_item=remote,
-                processed_items=index,
-                total_items=len(remotes),
-            )

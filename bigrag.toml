@@ -11,14 +11,14 @@
 # host = "127.0.0.1"
 # port = 4000
 # workers = 1
-# log_level = "debug"             # debug | info | warning | error
+# log_level = "info"              # debug | info | warning | error
 # log_format = "text"             # text | json
 # cors_origins = []
 # trusted_proxies = []              # CIDRs allowed to supply X-Forwarded-For
 
 # database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 # db_pool_min = 5
-# db_pool_max = 25
+# db_pool_max = 10
 # Connection budget: each API/worker process opens its own pool of up to
 # db_pool_max connections. Keep (api_workers * api_replicas + worker_processes)
 # * db_pool_max under Postgres max_connections (default 200), leaving headroom
@@ -27,6 +27,7 @@
 # migration_timeout_seconds = 60
 
 # redis_url = "redis://localhost:6379/0"
+# cache_redis_url = ""              # separate cache Redis; defaults to redis_url
 
 # Encryption key for provider secrets at rest. Required in env=prod.
 # Generate with:
@@ -36,7 +37,7 @@
 
 # session_expiry_hours = 168
 # session_cookie_name = "bigrag_session"
-# session_cookie_secure = false   # set true behind HTTPS
+# session_cookie_secure = true     # default true; send admin cookie over HTTPS only
 # session_cookie_samesite = "lax"
 # session_cookie_domain = ""
 # auth_principal_cache_ttl = 60
@@ -79,7 +80,7 @@
 # conversion_timeout = 300
 # queue_max_depth = 10000
 # collection_cache_ttl = 30
-# query_embedding_cache_ttl = 3600
+# query_embedding_cache_ttl = 300
 # query_result_cache_ttl = 30
 # embedding_cache_mode = "encrypted"  # encrypted | disabled
 # embedding_cache_retention_days = 30
@@ -88,6 +89,12 @@
 # max_vector_delete_count = 10000
 # max_vector_text_chars = 100000
 # max_vector_metadata_bytes = 65536
+
+# Vector store (Turbopuffer). API key required to serve queries/ingest.
+# turbopuffer_api_key = ""          # use BIGRAG_TURBOPUFFER_API_KEY in production
+# turbopuffer_region = "aws-us-east-1"
+# turbopuffer_namespace_prefix = "bigrag_"
+# turbopuffer_base_url = ""
 
 # webhook_delivery_timeout = 10
 # webhook_retry_delays = [10, 30, 90]

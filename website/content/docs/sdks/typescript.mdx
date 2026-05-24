@@ -241,8 +241,8 @@ client.auth.logoutAll()
 client.auth.me()
 client.auth.whoami()
 client.auth.changePassword({ current_password, new_password })
-client.auth.preferences()
-client.auth.updatePreferences({ data })
+client.auth.getPreferences()
+client.auth.updatePreferences({ theme: "dark" })
 ```
 
 ## Admin

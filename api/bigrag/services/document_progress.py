@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+from bigrag.db.models import Document
+from bigrag.models.document import DocumentProgressResponse
+from bigrag.services.event_bus import IngestionEvent, event_bus
+
+TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
+TERMINAL_PROGRESS_STATUSES = {"complete", "failed"}
+
+
+def document_progress_response(
+    *,
+    document_id: str,
+    collection_name: str,
+    step: str,
+    status: str,
+    message: str,
+    progress: float,
+    detail: dict | None = None,
+) -> DocumentProgressResponse:
+    return DocumentProgressResponse(
+        document_id=document_id,
+        collection_name=collection_name,
+        step=step,
+        status=status,
+        message=message,
+        progress=max(0.0, min(1.0, progress)),
+        detail=detail or {},
+    )
+
+
+def fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:
+    doc_id = str(doc.id)
+    if doc.status == "ready":
+        return document_progress_response(
+            document_id=doc_id,
+            collection_name=collection_name,
+            step="complete",
+            status="complete",
+            message=f"Ready — {doc.chunk_count} chunks",
+            progress=1.0,
+            detail={"chunks": doc.chunk_count},
+        )
+    if doc.status == "failed":
+        return document_progress_response(
+            document_id=doc_id,
+            collection_name=collection_name,
+            step="failed",
+            status="failed",
+            message=doc.error_message or "Ingestion failed",
+            progress=0.0,
+        )
+    if doc.status == "processing":
+        return document_progress_response(
+            document_id=doc_id,
+            collection_name=collection_name,
+            step="processing",
+            status="processing",
+            message="Processing document",
+            progress=0.05,
+        )
+    return document_progress_response(
+        document_id=doc_id,
+        collection_name=collection_name,
+        step="queued",
+        status="pending",
+        message="Queued for ingestion",
+        progress=0.0,
+    )
+
+
+async def document_progress(
+    doc: Document,
+    collection_name: str,
+) -> DocumentProgressResponse:
+    event = await event_bus.latest(str(doc.id))
+    if event is None or (
+        doc.status in TERMINAL_DOCUMENT_STATUSES and event.status not in TERMINAL_PROGRESS_STATUSES
+    ):
+        return fallback_progress(doc, collection_name)
+    return document_progress_response(
+        document_id=event.document_id,
+        collection_name=event.collection_name or collection_name,
+        step=event.step,
+        status=event.status,
+        message=event.message,
+        progress=event.progress,
+        detail=event.detail,
+    )
+
+
+async def document_progress_map(
+    docs: list[Document],
+    collection_name: str,
+) -> dict[str, DocumentProgressResponse]:
+    if not docs:
+        return {}
+
+    progresses: dict[str, DocumentProgressResponse] = {}
+    active_ids = [str(doc.id) for doc in docs if doc.status not in TERMINAL_DOCUMENT_STATUSES]
+    events = await event_bus.latest_many(active_ids) if active_ids else {}
+
+    for doc in docs:
+        doc_id = str(doc.id)
+        event = events.get(doc_id)
+        if event is None:
+            progresses[doc_id] = fallback_progress(doc, collection_name)
+            continue
+        progresses[doc_id] = document_progress_response(
+            document_id=event.document_id,
+            collection_name=event.collection_name or collection_name,
+            step=event.step,
+            status=event.status,
+            message=event.message,
+            progress=event.progress,
+            detail=event.detail,
+        )
+    return progresses
+
+
+def publish_queued_progress(doc: Document, collection_name: str, message: str) -> None:
+    event_bus.publish(
+        IngestionEvent(
+            document_id=str(doc.id),
+            collection_name=collection_name,
+            step="queued",
+            status="pending",
+            message=message,
+            progress=0.0,
+        )
+    )

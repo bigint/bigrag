@@ -1,3 +1,4 @@
+import type { ChatMessage as ServerChatMessage } from "@bigrag/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Clock3, FileText, type LucideIcon, Search } from "lucide-react";
@@ -16,7 +17,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { streamChat } from "@/lib/chat-stream";
 import { queryKeys } from "@/lib/query-keys";
-import type { QueryTimings, ChatMessage as ServerChatMessage } from "@/types/bigrag";
+import type { QueryTimings } from "@/types/bigrag";
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto

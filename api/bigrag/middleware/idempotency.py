@@ -217,24 +217,29 @@ class IdempotencyMiddleware:
                         body_chunks.clear()
             await send(message)
 
-        await self.app(scope, _replay_receive(messages), send_wrapper)
-
-        if 200 <= status_code < 300 and cacheable_body:
-            body = b"".join(body_chunks)
-            await redis_cache.set(
-                cache_key,
-                {
-                    "request_hash": fingerprint,
-                    "status": status_code,
-                    "headers": [
-                        [k, v]
-                        for k, v in response_headers
-                        if k.lower() not in _SENSITIVE_RESPONSE_HEADERS
-                    ],
-                    "body": body.decode("utf-8", errors="replace"),
-                },
-                ttl=self.ttl_seconds,
-            )
+        cached_response = False
+        try:
+            await self.app(scope, _replay_receive(messages), send_wrapper)
+            if 200 <= status_code < 300 and cacheable_body:
+                body = b"".join(body_chunks)
+                await redis_cache.set(
+                    cache_key,
+                    {
+                        "request_hash": fingerprint,
+                        "status": status_code,
+                        "headers": [
+                            [k, v]
+                            for k, v in response_headers
+                            if k.lower() not in _SENSITIVE_RESPONSE_HEADERS
+                        ],
+                        "body": body.decode("utf-8", errors="replace"),
+                    },
+                    ttl=self.ttl_seconds,
+                )
+                cached_response = True
+        finally:
+            if not cached_response:
+                await redis_cache.delete(cache_key)
 
 
 async def _send_cached(send, cached: dict) -> None:

@@ -16,7 +16,6 @@ class ConnectorSource(Base):
     __table_args__ = (
         sa.Index("idx_connector_sources_collection_id", "collection_id"),
         sa.Index("idx_connector_sources_next_sync", "next_sync_at"),
-        sa.Index("idx_connector_sources_tenant_id", "tenant_id"),
         sa.UniqueConstraint(
             "provider",
             "collection_id",
@@ -46,7 +45,6 @@ class ConnectorSource(Base):
     tenant_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     root_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
     root_name: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    root_mime_type: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
     source_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
     status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="idle")
     schedule_enabled: Mapped[bool] = mapped_column(
@@ -90,6 +88,7 @@ class ConnectorDocument(Base):
     __table_args__ = (
         sa.Index("idx_connector_documents_document_id", "document_id"),
         sa.Index("idx_connector_documents_source_remote", "source_id", "remote_id"),
+        sa.Index("idx_connector_documents_source_last_seen", "source_id", "last_seen_job_id"),
         sa.UniqueConstraint(
             "source_id",
             "remote_id",
@@ -113,6 +112,7 @@ class ConnectorDocument(Base):
     content_hash: Mapped[str | None] = mapped_column(sa.Text)
     web_url: Mapped[str | None] = mapped_column(sa.Text)
     status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="active")
+    last_seen_job_id: Mapped[UUID | None] = mapped_column(sa.Uuid)
     meta: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
     )

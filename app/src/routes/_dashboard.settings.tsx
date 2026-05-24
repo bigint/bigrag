@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Page } from "@/components/ui/page";
 import { Tabs } from "@/components/ui/tabs";
 import { BackupSettingsTab } from "@/features/backups/backups-page";
+import { InstanceSettingsTab } from "@/features/settings/instance-settings/instance-settings-tab";
 import {
   DATA_SETTINGS_GROUPS,
   getSettingsTab,
@@ -10,7 +11,6 @@ import {
   type SettingsTab,
 } from "@/features/settings/settings-navigation";
 import { AccountTab } from "@/features/settings/tabs/account-tab";
-import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
 import { ServerTab } from "@/features/settings/tabs/server-tab";
 
 type SettingsSearch = {

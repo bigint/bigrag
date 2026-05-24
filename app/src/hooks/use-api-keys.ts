@@ -4,16 +4,14 @@ import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
+import type { Paginated } from "@/types/pagination";
 
 const KEY = queryKeys.apiKeys();
 
 export const useApiKeys = () =>
   useQuery({
     queryKey: KEY,
-    queryFn: () =>
-      apiClient.get<{ keys: ApiKey[]; total: number | null; next_cursor: string | null }>(
-        "v1/admin/api-keys",
-      ),
+    queryFn: () => apiClient.get<Paginated<"keys", ApiKey>>("v1/admin/api-keys"),
   });
 
 type ApiKeyMutationBody = {

@@ -10,9 +10,8 @@ from bigrag import config as _config
 from bigrag.services.auth import API_KEY_PREFIX, hash_api_key, hash_session_token
 
 
-def principal_id(scope: Scope, headers: Headers | None = None) -> str:
-    if headers is None:
-        headers = Headers(scope=scope)
+def principal_id(scope: Scope) -> str:
+    headers = Headers(scope=scope)
 
     auth = headers.get("authorization", "")
     if auth.startswith("Bearer "):

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { InstanceSettingsTab } from "@/features/settings/tabs/instance-settings-tab";
+import { InstanceSettingsTab } from "@/features/settings/instance-settings/instance-settings-tab";
 import {
   getWorkerAvailability,
   workerOfflineActionMessage,

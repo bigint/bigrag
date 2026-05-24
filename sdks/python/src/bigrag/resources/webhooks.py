@@ -36,9 +36,7 @@ class WebhooksResource:
         return await self._client._request("GET", "/v1/admin/webhooks", params=params)
 
     async def get(self, id: str) -> Webhook:
-        return await self._client._request(
-            "GET", f"/v1/admin/webhooks/{quote(id, safe='')}"
-        )
+        return await self._client._request("GET", f"/v1/admin/webhooks/{quote(id, safe='')}")
 
     async def update(self, id: str, body: UpdateWebhookBody) -> Webhook:
         return await self._client._request(
@@ -46,9 +44,7 @@ class WebhooksResource:
         )
 
     async def delete(self, id: str) -> StatusResponse:
-        return await self._client._request(
-            "DELETE", f"/v1/admin/webhooks/{quote(id, safe='')}"
-        )
+        return await self._client._request("DELETE", f"/v1/admin/webhooks/{quote(id, safe='')}")
 
     async def list_deliveries(
         self,
@@ -69,9 +65,7 @@ class WebhooksResource:
         )
 
     async def test(self, id: str) -> WebhookTestResponse:
-        return await self._client._request(
-            "POST", f"/v1/admin/webhooks/{quote(id, safe='')}/test"
-        )
+        return await self._client._request("POST", f"/v1/admin/webhooks/{quote(id, safe='')}/test")
 
     async def replay_delivery(self, id: str, delivery_id: str) -> WebhookTestResponse:
         return await self._client._request(

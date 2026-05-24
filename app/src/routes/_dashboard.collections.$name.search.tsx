@@ -1,7 +1,6 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CircleAlert, Copy, Database, Gauge, RotateCcw, Search, Sparkles, X } from "lucide-react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import {
 import { SearchModeControl, SearchToggle } from "@/features/collections/collection-search-controls";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useCollection } from "@/hooks/use-collections";
+import { useCopy } from "@/hooks/use-copy";
 import { useRunQuery } from "@/hooks/use-query";
 import { errorText, submitWith } from "@/lib/form";
 import type { QueryResult } from "@/types/bigrag";
@@ -28,6 +28,7 @@ const SearchTab = () => {
   const { name: rawName } = Route.useParams();
   const name = decodeCollectionName(rawName);
   const { data: collection } = useCollection(name);
+  const { copy } = useCopy();
   const run = useRunQuery(name);
   const form = useForm({
     defaultValues: defaultCollectionSearchFormValues(),
@@ -240,10 +241,7 @@ const SearchTab = () => {
                   aria-label="Copy result text"
                   size="icon"
                   variant="ghost"
-                  onClick={() => {
-                    navigator.clipboard.writeText(r.text);
-                    toast.success("Result copied");
-                  }}
+                  onClick={() => copy(r.text, "Result copied")}
                 >
                   <Copy className="size-4" />
                 </Button>

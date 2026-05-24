@@ -24,8 +24,12 @@ target_metadata = Base.metadata
 logger = get_logger("bigrag.db.migrations")
 
 ADVISORY_LOCK_KEY = 8675309
-LOCK_TIMEOUT_SECONDS = 60
-STATEMENT_TIMEOUT_SECONDS = 300
+STATEMENT_TIMEOUT_SECONDS = 1800
+
+
+def _lock_timeout_seconds() -> int:
+    configured = getattr(settings, "migration_timeout_seconds", 0) or 0
+    return max(int(configured), 600)
 
 
 def _database_connection() -> tuple[str, dict]:
@@ -45,18 +49,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    connection.execute(text(f"SET lock_timeout = '{LOCK_TIMEOUT_SECONDS}s'"))
+    lock_timeout = _lock_timeout_seconds()
+    connection.execute(text(f"SET lock_timeout = '{lock_timeout}s'"))
     connection.execute(text(f"SET statement_timeout = '{STATEMENT_TIMEOUT_SECONDS}s'"))
-    logger.info("acquiring migration lock", lock_key=ADVISORY_LOCK_KEY)
-    acquired = connection.scalar(
-        text("SELECT pg_try_advisory_lock(:k)").bindparams(k=ADVISORY_LOCK_KEY)
-    )
-    if not acquired:
-        raise RuntimeError(
-            "Could not acquire the bigRAG migration lock. Another API deployment or "
-            "worker is probably still running migrations; stop old API deployments or "
-            "set BIGRAG_WORKERS=1, then redeploy."
-        )
+    logger.info("acquiring migration lock", lock_key=ADVISORY_LOCK_KEY, wait_seconds=lock_timeout)
+    connection.execute(text("SELECT pg_advisory_lock(:k)").bindparams(k=ADVISORY_LOCK_KEY))
     logger.info("migration lock acquired", lock_key=ADVISORY_LOCK_KEY)
     try:
         context.configure(connection=connection, target_metadata=target_metadata)
@@ -71,6 +68,8 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     url, connect_args = _database_connection()
+    connect_args = dict(connect_args)
+    connect_args["command_timeout"] = float(STATEMENT_TIMEOUT_SECONDS + 60)
     connectable = create_async_engine(
         url,
         poolclass=pool.NullPool,

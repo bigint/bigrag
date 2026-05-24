@@ -55,6 +55,7 @@ client = BigRAG(
     base_url="http://localhost:4000",  # API server URL
     timeout=120.0,                  # request timeout in seconds
     max_retries=2,                  # retries on infrastructure 429/5xx/connection errors
+    auto_idempotency_key=True,      # auto-add an Idempotency-Key to mutating requests
 )
 ```
 
@@ -85,6 +86,10 @@ For Cloudflare R2, set `endpoint_url` to the R2 S3 API endpoint and omit `region
 ```python
 # List collections
 result = await client.collections.list(name="prefix", limit=10)
+
+# Auto-paginate through every collection
+async for collection in client.collections.list_all(name="prefix"):
+    print(collection["name"])
 
 # Create
 collection = await client.collections.create({
@@ -176,6 +181,10 @@ session = await client.documents.complete_upload_session("docs", session["id"])
 ```python
 # List documents
 docs = await client.documents.list("docs", status="ready", limit=20)
+
+# Auto-paginate through every document
+async for doc in client.documents.list_all("docs", status="ready"):
+    print(doc["id"])
 
 # Get and delete
 doc = await client.documents.get("docs", "doc-id")

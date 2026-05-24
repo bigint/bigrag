@@ -29,6 +29,10 @@ jobs:
         run: uv run ruff check . && uv run ruff format --check .
         working-directory: api
 
+      - name: Ruff check Python SDK
+        run: uv run ruff check ../sdks/python/src && uv run ruff format --check ../sdks/python/src
+        working-directory: api
+
       - uses: ./.github/actions/setup-node-pnpm
 
       - name: Biome check
@@ -39,6 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm
+      - name: Type check
+        run: pnpm typecheck
+        working-directory: sdks/typescript
       - name: Build
         run: pnpm build
         working-directory: sdks/typescript
