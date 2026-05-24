@@ -13,10 +13,6 @@ class ConnectorError(RuntimeError):
     pass
 
 
-class ConnectorNotFoundError(ConnectorError):
-    pass
-
-
 class ConnectorDeleteSafetyError(ConnectorError):
     pass
 

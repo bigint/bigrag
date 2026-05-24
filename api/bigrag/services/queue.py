@@ -19,20 +19,13 @@ from bigrag.services.ingestion_job import IngestionJob
 logger = get_logger("bigrag.queue")
 
 PROCESSING_KEY = queue_state.PROCESSING_KEY
-DEAD_LETTER_KEY = queue_state.DEAD_LETTER_KEY
 STATS_KEY = queue_state.STATS_KEY
-LEASE_KEY_PREFIX = queue_state.LEASE_KEY_PREFIX
-COLLECTION_EPOCH_KEY_PREFIX = queue_state.COLLECTION_EPOCH_KEY_PREFIX
-DOCUMENT_EPOCH_KEY_PREFIX = queue_state.DOCUMENT_EPOCH_KEY_PREFIX
-IngestionCancelledError = queue_state.IngestionCancelledError
 QueueFullError = queue_state.QueueFullError
 
 _LEASE_TTL_SECONDS = queue_state.LEASE_TTL_SECONDS
 _LEASE_RENEW_INTERVAL_SECONDS = queue_state.LEASE_RENEW_INTERVAL_SECONDS
 _LEASE_RENEW_MAX_FAILURES = 3
 _lease_key = queue_state.lease_key
-_collection_epoch_key = queue_state.collection_epoch_key
-_document_epoch_key = queue_state.document_epoch_key
 
 
 class IngestionQueue:

@@ -96,13 +96,6 @@ class VectorStore:
         async with self._backend() as backend:
             await backend.health_check()
 
-    def _client(self) -> Any:
-        client = getattr(self.backend, "client", None)
-        if client is None:
-            self.backend.connect()
-            client = getattr(self.backend, "client", None)
-        return client
-
     def _sync_client(self) -> None:
         self.client = getattr(self.backend, "client", None)
 
