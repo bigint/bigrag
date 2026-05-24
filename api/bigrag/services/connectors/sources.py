@@ -174,7 +174,6 @@ async def create_source(
         tenant_id=_tenant_id(collection, metadata_dict),
         root_id=root_id,
         root_name=root_name,
-        root_mime_type="",
         source_type="prefix",
         schedule_enabled=schedule_enabled,
         sync_interval_hours=sync_interval_hours,
