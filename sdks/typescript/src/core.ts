@@ -34,6 +34,8 @@ export interface RequestClient {
     opts?: { idempotencyKey?: string | null; signal?: AbortSignal },
   ): Promise<T>;
 
+  _throwForStatus(response: Response): Promise<never>;
+
   readonly baseUrl: string;
 
   readonly apiKey: string;

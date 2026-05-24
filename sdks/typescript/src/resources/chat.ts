@@ -1,5 +1,5 @@
 import { type RequestClient, USER_AGENT } from "../core.js";
-import { errorForStatus } from "../errors.js";
+import { APIConnectionError } from "../errors.js";
 import { parseSSEFrames } from "../sse.js";
 import type {
   ChatCreateBody,
@@ -39,9 +39,11 @@ export class ChatResource {
       headers,
       body: JSON.stringify({ ...body, stream: true }),
     });
-    if (!response.ok || !response.body) {
-      const message = await response.text().catch(() => response.statusText);
-      throw errorForStatus(response.status, message);
+    if (response.status >= 400) {
+      await this._client._throwForStatus(response);
+    }
+    if (!response.body) {
+      throw new APIConnectionError("Chat stream response has no body");
     }
 
     for await (const frame of parseSSEFrames(response)) {
