@@ -31,6 +31,7 @@ class CollectionsResource:
         name: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
+        include_total: bool | None = None,
     ) -> CollectionListResponse:
         params: dict[str, str] = {}
         if name is not None:
@@ -39,6 +40,8 @@ class CollectionsResource:
             params["limit"] = str(limit)
         if offset is not None:
             params["offset"] = str(offset)
+        if include_total is not None:
+            params["include_total"] = "true" if include_total else "false"
         return await self._client._request("GET", "/v1/collections", params=params)
 
     async def list_all(

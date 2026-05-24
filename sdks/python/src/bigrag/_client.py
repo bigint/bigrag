@@ -19,12 +19,6 @@ from bigrag.resources import (
     WebhooksResource,
 )
 from bigrag.types.analytics import AnalyticsResponse
-from bigrag.types.chat import (
-    ChatBody,
-    ChatCreateResponse,
-    ChatQuestionSuggestionsResponse,
-    ChatStreamEvent,
-)
 from bigrag.types.collections import (
     CollectionRealtimeTokenResponse,
     CollectionStatsResponse,
@@ -99,16 +93,6 @@ class BigRAG(BigRAGCore):
         if window_days is not None:
             params["window_days"] = str(window_days)
         return await self._request("GET", "/v1/usage", params=params)
-
-    async def chat_create(self, body: ChatBody) -> ChatCreateResponse:
-        return await self.chat.create(body)
-
-    async def chat_question_suggestions(self, collection: str) -> ChatQuestionSuggestionsResponse:
-        return await self.chat.get_question_suggestions(collection)
-
-    async def chat_stream(self, body: ChatBody) -> AsyncGenerator[ChatStreamEvent, None]:
-        async for event in self.chat.stream(body):
-            yield event
 
     def collection(self, name: str) -> CollectionClient:
         return CollectionClient(self, name)

@@ -46,8 +46,3 @@ export interface WhoamiResponse {
 export interface PreferencesResponse {
   data: Record<string, unknown>;
 }
-
-export interface UpdatePreferencesBody {
-  data?: Record<string, unknown>;
-  [key: string]: unknown;
-}

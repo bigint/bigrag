@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from .documents import MultimodalElementRef
 from .query import QueryTimings, SearchMode
@@ -53,9 +53,9 @@ class ChatSource(TypedDict):
 
 class ChatMessage(TypedDict):
     id: str
-    role: str
+    role: Literal["user", "assistant", "system"]
     content: str
-    status: str
+    status: Literal["complete", "error"]
     error_message: str | None
     model_provider: str | None
     model: str | None
@@ -71,6 +71,55 @@ class ChatCreateResponse(TypedDict):
     timings: NotRequired[QueryTimings | None]
 
 
-class ChatStreamEvent(TypedDict):
-    event: str
+class ChatStreamSourcesData(TypedDict):
+    collection: str | None
+    sources: list[ChatSource]
+    timings: NotRequired[QueryTimings]
+
+
+class ChatStreamDeltaData(TypedDict):
+    delta: str
+
+
+class ChatStreamErrorData(TypedDict):
+    error: str
+
+
+class ChatStreamUserMessageEvent(TypedDict):
+    event: Literal["user_message"]
+    data: ChatMessage
+
+
+class ChatStreamSourcesEvent(TypedDict):
+    event: Literal["sources"]
+    data: ChatStreamSourcesData
+
+
+class ChatStreamDeltaEvent(TypedDict):
+    event: Literal["delta"]
+    data: ChatStreamDeltaData
+
+
+class ChatStreamAssistantMessageEvent(TypedDict):
+    event: Literal["assistant_message"]
+    data: ChatMessage
+
+
+class ChatStreamDoneEvent(TypedDict):
+    event: Literal["done"]
     data: dict[str, Any]
+
+
+class ChatStreamErrorEvent(TypedDict):
+    event: Literal["error"]
+    data: ChatStreamErrorData
+
+
+ChatStreamEvent = (
+    ChatStreamUserMessageEvent
+    | ChatStreamSourcesEvent
+    | ChatStreamDeltaEvent
+    | ChatStreamAssistantMessageEvent
+    | ChatStreamDoneEvent
+    | ChatStreamErrorEvent
+)

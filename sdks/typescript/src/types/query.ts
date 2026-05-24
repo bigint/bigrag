@@ -26,12 +26,12 @@ export interface QueryResult {
 }
 
 export interface QueryTimings {
-  embed_ms?: number;
-  search_ms?: number;
-  rerank_ms?: number;
-  cache_ms?: number;
-  total_ms?: number;
-  cache_hit?: boolean;
+  embed_ms: number;
+  search_ms: number;
+  rerank_ms: number;
+  cache_ms: number;
+  total_ms: number;
+  cache_hit: boolean;
 }
 
 export interface QueryResponse {
