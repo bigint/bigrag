@@ -11,25 +11,21 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.types import ASGIApp
 
+from bigrag.mcp.tools import (
+    CollectionName,
+    DocumentId,
+    call_get_collection,
+    call_get_collection_stats,
+    call_get_document,
+    call_get_document_chunks,
+    call_list_collections,
+    call_list_documents,
+    call_multi_collection_query,
+    call_query,
+)
+
 if TYPE_CHECKING:
     from fastapi import FastAPI
-
-CollectionName = Annotated[
-    str,
-    Field(
-        min_length=1,
-        max_length=128,
-        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*$",
-        description="Collection name",
-    ),
-]
-DocumentId = Annotated[
-    str,
-    Field(
-        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-        description="Document UUID",
-    ),
-]
 
 _current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "bigrag_mcp_http_token", default=None
@@ -69,19 +65,6 @@ def _client() -> httpx.AsyncClient:
     )
 
 
-def _raise_for_status(response: httpx.Response) -> None:
-    if response.is_success:
-        return
-    if response.status_code >= 500:
-        raise RuntimeError(f"bigRAG {response.status_code}: upstream server error")
-    try:
-        payload = response.json()
-        detail = payload.get("detail") or payload.get("error") or str(payload)
-    except ValueError:
-        detail = response.text or response.reason_phrase
-    raise RuntimeError(f"bigRAG {response.status_code}: {detail}")
-
-
 def _build_server() -> FastMCP:
     mcp = FastMCP(
         name="bigrag",
@@ -105,31 +88,18 @@ def _build_server() -> FastMCP:
         limit: Annotated[int, Field(ge=1, le=100)] = 50,
         offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict[str, Any]:
-
         async with _client() as c:
-            r = await c.get("/v1/collections", params={"limit": limit, "offset": offset})
-            _raise_for_status(r)
-            return r.json()
+            return await call_list_collections(c, limit, offset)
 
     @mcp.tool()
-    async def get_collection(
-        name: CollectionName,
-    ) -> dict[str, Any]:
-
+    async def get_collection(name: CollectionName) -> dict[str, Any]:
         async with _client() as c:
-            r = await c.get(f"/v1/collections/{name}")
-            _raise_for_status(r)
-            return r.json()
+            return await call_get_collection(c, name)
 
     @mcp.tool()
-    async def get_collection_stats(
-        name: CollectionName,
-    ) -> dict[str, Any]:
-
+    async def get_collection_stats(name: CollectionName) -> dict[str, Any]:
         async with _client() as c:
-            r = await c.get(f"/v1/collections/{name}/stats")
-            _raise_for_status(r)
-            return r.json()
+            return await call_get_collection_stats(c, name)
 
     @mcp.tool()
     async def query(
@@ -144,22 +114,10 @@ def _build_server() -> FastMCP:
         skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
-
-        body: dict[str, Any] = {
-            "query": query,
-            "top_k": top_k,
-            "search_mode": search_mode,
-            "rerank": rerank,
-            "skip_cache": skip_cache,
-        }
-        if min_score is not None:
-            body["min_score"] = min_score
-        if filters is not None:
-            body["filters"] = filters
         async with _client() as c:
-            r = await c.post(f"/v1/collections/{collection}/query", json=body)
-            _raise_for_status(r)
-            return r.json()
+            return await call_query(
+                c, collection, query, top_k, search_mode, min_score, rerank, skip_cache, filters
+            )
 
     @mcp.tool()
     async def multi_collection_query(
@@ -174,23 +132,10 @@ def _build_server() -> FastMCP:
         skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
-
-        body: dict[str, Any] = {
-            "collections": collections,
-            "query": query,
-            "top_k": top_k,
-            "search_mode": search_mode,
-            "rerank": rerank,
-            "skip_cache": skip_cache,
-        }
-        if min_score is not None:
-            body["min_score"] = min_score
-        if filters is not None:
-            body["filters"] = filters
         async with _client() as c:
-            r = await c.post("/v1/query", json=body)
-            _raise_for_status(r)
-            return r.json()
+            return await call_multi_collection_query(
+                c, collections, query, top_k, search_mode, min_score, rerank, skip_cache, filters
+            )
 
     @mcp.tool()
     async def list_documents(
@@ -199,42 +144,29 @@ def _build_server() -> FastMCP:
         offset: Annotated[int, Field(ge=0)] = 0,
         status: Literal["pending", "processing", "ready", "failed"] | None = None,
     ) -> dict[str, Any]:
-
-        params: dict[str, Any] = {"limit": limit, "offset": offset}
-        if status is not None:
-            params["status"] = status
         async with _client() as c:
-            r = await c.get(f"/v1/collections/{collection}/documents", params=params)
-            _raise_for_status(r)
-            return r.json()
+            return await call_list_documents(c, collection, limit, offset, status)
 
     @mcp.tool()
     async def get_document(
         collection: CollectionName,
         document_id: DocumentId,
     ) -> dict[str, Any]:
-
         async with _client() as c:
-            r = await c.get(f"/v1/collections/{collection}/documents/{document_id}")
-            _raise_for_status(r)
-            return r.json()
+            return await call_get_document(c, collection, document_id)
 
     @mcp.tool()
     async def get_document_chunks(
         collection: CollectionName,
         document_id: DocumentId,
     ) -> dict[str, Any]:
-
         async with _client() as c:
-            r = await c.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
-            _raise_for_status(r)
-            return r.json()
+            return await call_get_document_chunks(c, collection, document_id)
 
     return mcp
 
 
 def build_mcp_http_app(parent_app: FastAPI) -> tuple[ASGIApp, Any]:
-
     mcp = _build_server()
     http_app = mcp.streamable_http_app()
 

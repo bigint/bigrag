@@ -13,9 +13,10 @@ from .tools import (
     call_get_collection_stats,
     call_get_document,
     call_get_document_chunks,
+    call_list_collections,
     call_list_documents,
+    call_multi_collection_query,
     call_query,
-    raise_for_status,
 )
 
 
@@ -25,9 +26,7 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
         limit: Annotated[int, Field(ge=1, le=100, description="Max collections to return")] = 50,
         offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict[str, Any]:
-        r = await client.get("/v1/collections", params={"limit": limit, "offset": offset})
-        raise_for_status(r)
-        return r.json()
+        return await call_list_collections(client, limit, offset)
 
     @mcp.tool()
     async def get_collection(name: CollectionName) -> dict[str, Any]:
@@ -79,21 +78,9 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
         skip_cache: Annotated[bool, Field(description="Bypass Redis query caches")] = False,
         filters: Annotated[dict[str, Any] | None, Field(description="Metadata filter")] = None,
     ) -> dict[str, Any]:
-        body: dict[str, Any] = {
-            "collections": collections,
-            "query": query,
-            "top_k": top_k,
-            "search_mode": search_mode,
-            "rerank": rerank,
-            "skip_cache": skip_cache,
-        }
-        if min_score is not None:
-            body["min_score"] = min_score
-        if filters is not None:
-            body["filters"] = filters
-        r = await client.post("/v1/query", json=body)
-        raise_for_status(r)
-        return r.json()
+        return await call_multi_collection_query(
+            client, collections, query, top_k, search_mode, min_score, rerank, skip_cache, filters
+        )
 
     @mcp.tool()
     async def list_documents(
