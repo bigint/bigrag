@@ -7,7 +7,7 @@ from typing import Any
 from bigrag import config as config_module
 from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
-from bigrag.services.embedding import reset_embedding_semaphores
+from bigrag.services.embedding import reset_embedding_limiters
 from bigrag.services.runtime_setting_specs import REGISTRY
 from bigrag.services.vector_store import VectorStore, vector_store
 
@@ -75,7 +75,7 @@ async def apply_prepared_runtime_settings(app: Any, prepared: PreparedRuntimeSet
             app.state.vector_store = vector_store
             prepared.vector_backend = None
         if "embedding_concurrency" in keyset:
-            reset_embedding_semaphores()
+            reset_embedding_limiters()
     logger.info("runtime settings applied", keys=prepared.keys)
 
 

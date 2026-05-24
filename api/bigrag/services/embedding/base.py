@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 
 from bigrag.logging import get_logger
 
 logger = get_logger("bigrag.embedding")
-
-_embed_semaphores: dict[str, asyncio.Semaphore] = {}
-_embed_semaphores_lock = asyncio.Lock()
 
 _TOKEN_LIMITS: dict[str, int] = {
     "text-embedding-3-small": 8000,
@@ -25,21 +21,6 @@ _TOKEN_LIMITS: dict[str, int] = {
     "voyage-finance-2": 32000,
     "voyage-law-2": 16000,
 }
-
-
-async def get_semaphore(key: str) -> asyncio.Semaphore:
-    if key in _embed_semaphores:
-        return _embed_semaphores[key]
-    async with _embed_semaphores_lock:
-        if key not in _embed_semaphores:
-            from bigrag.services.runtime_settings import sync_value
-
-            _embed_semaphores[key] = asyncio.Semaphore(sync_value("embedding_concurrency"))
-        return _embed_semaphores[key]
-
-
-def reset_embedding_semaphores() -> None:
-    _embed_semaphores.clear()
 
 
 def truncate_to_tokens(
