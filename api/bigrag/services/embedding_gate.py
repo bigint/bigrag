@@ -236,7 +236,7 @@ async def embedding_gate(cache_identity: str, provider: str, model_name: str):
     await wait_for_rate_limit_cooldown(cooldown_key, provider, model_name)
     redis = redis_cache.get_redis()
     token = await _acquire(redis, digest)
-    err: Exception | None = None
+    err: BaseException | None = None
     try:
         yield
     except BaseException as exc:
