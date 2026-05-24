@@ -15,6 +15,7 @@ logger = get_logger("bigrag.services.health")
 _EMBEDDING_HEALTH_TTL = 60
 READINESS_TTL = 10
 READINESS_CACHE_KEY = "health:readiness"
+READINESS_CHECK_TIMEOUT = 5
 
 
 _AUTH_TOKENS = ("401", "unauthor", "invalid api key", "invalid_api_key")
@@ -199,10 +200,13 @@ async def readiness_status(vs, queue) -> tuple[dict[str, object], bool]:
         "redis": _check_redis(),
     }
 
-    results = await asyncio.gather(
-        *infra_checks.values(),
-        return_exceptions=True,
-    )
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(*infra_checks.values(), return_exceptions=True),
+            timeout=READINESS_CHECK_TIMEOUT,
+        )
+    except TimeoutError:
+        results = [TimeoutError("readiness check timed out")] * len(infra_checks)
 
     for name, result in zip(infra_checks.keys(), results, strict=False):
         if isinstance(result, Exception):
@@ -211,7 +215,12 @@ async def readiness_status(vs, queue) -> tuple[dict[str, object], bool]:
             healthy = False
         else:
             checks[name] = True
-    embedding_result = await check_embedding_provider()
+    try:
+        embedding_result = await asyncio.wait_for(
+            check_embedding_provider(), timeout=READINESS_CHECK_TIMEOUT + 10
+        )
+    except TimeoutError:
+        embedding_result = {"embedding": False, "embedding_error": "timeout"}
     checks.update(embedding_result)
     if not embedding_result.get("embedding"):
         healthy = False
