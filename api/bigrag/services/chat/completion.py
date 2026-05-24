@@ -5,8 +5,8 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 from fastapi import Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from bigrag.db.engine import session_factory
 from bigrag.exceptions import UpstreamError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
@@ -24,16 +24,17 @@ _HEARTBEAT_INTERVAL_SECONDS = 15.0
 
 
 async def create_chat_completion(
-    session: AsyncSession,
     user: dict,
     body: ChatCreateRequest,
 ) -> ChatCreateResponse:
-    prepared = await _prepare_chat_turn(session, user, body)
+    async with session_factory()() as session:
+        prepared = await _prepare_chat_turn(session, user, body)
     try:
         content = await _complete_model(prepared)
     except Exception as exc:
         if _is_saved_key_auth_error(exc):
-            await _clear_saved_chat_key(session, user)
+            async with session_factory()() as session:
+                await _clear_saved_chat_key(session, user)
         logger.warning(
             "chat completion failed",
             collection=prepared.collection,
@@ -61,7 +62,6 @@ async def create_chat_completion(
 
 
 async def stream_chat_completion(
-    session: AsyncSession,
     user: dict,
     body: ChatCreateRequest,
     request: Request | None = None,
@@ -73,7 +73,8 @@ async def stream_chat_completion(
         if request is not None and await request.is_disconnected():
             return
 
-        prepared = await _prepare_chat_turn(session, user, body)
+        async with session_factory()() as session:
+            prepared = await _prepare_chat_turn(session, user, body)
         yield _sse("user_message", prepared.user_message.model_dump(mode="json"))
         yield _sse(
             "sources",
@@ -127,7 +128,8 @@ async def stream_chat_completion(
         message = _safe_chat_error(exc)
         if prepared is not None:
             if _is_saved_key_auth_error(exc):
-                await _clear_saved_chat_key(session, user)
+                async with session_factory()() as session:
+                    await _clear_saved_chat_key(session, user)
             logger.warning(
                 "chat stream failed",
                 collection=prepared.collection,

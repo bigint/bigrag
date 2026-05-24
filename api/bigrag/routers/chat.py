@@ -61,7 +61,6 @@ async def create_chat(
     body: ChatCreateRequest,
     request: Request,
     user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
 ):
     access_log.set_context(
         request,
@@ -79,8 +78,8 @@ async def create_chat(
     )
     if body.stream:
         return StreamingResponse(
-            stream_chat_completion(session, user, body, request),
+            stream_chat_completion(user, body, request),
             media_type="text/event-stream; charset=utf-8",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
-    return await create_chat_completion(session, user, body)
+    return await create_chat_completion(user, body)
