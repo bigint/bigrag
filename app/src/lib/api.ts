@@ -43,10 +43,7 @@ const toTypedError = async (error: unknown): Promise<never> => {
 const isRequestOptions = (
   value: SearchParams | ApiRequestOptions | undefined,
 ): value is ApiRequestOptions =>
-  Boolean(
-    value &&
-      ("searchParams" in value || "signal" in value || "timeoutMs" in value || "timeout" in value),
-  );
+  Boolean(value && ("searchParams" in value || "signal" in value || "timeoutMs" in value));
 
 const compactSearchParams = (
   searchParams: SearchParams | undefined,

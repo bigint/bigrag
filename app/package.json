@@ -8,7 +8,6 @@
     "build": "pnpm run routes:generate && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "routes:generate": "tsr generate",
-    "start": "serve dist --single --listen tcp://0.0.0.0:${PORT:-3000}",
     "typecheck": "pnpm run routes:generate && tsc --noEmit",
     "lint": "biome check --write src/"
   },
@@ -29,7 +28,6 @@
     "react-dom": "^19.2.6",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "serve": "^14.2.6",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.13"
