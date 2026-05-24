@@ -3,8 +3,14 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
+import threading
+import time
 from collections.abc import Iterable
 from urllib.parse import urlparse, urlunparse
+
+_DNS_CACHE_TTL = 30.0
+_dns_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
+_dns_lock = threading.Lock()
 
 
 class UnsafeOutboundUrlError(ValueError):
@@ -83,11 +89,20 @@ def is_cleartext_allowed_ip(
 
 
 def resolve_host_sync(hostname: str, port: int) -> list[str]:
+    key = (hostname, port)
+    now = time.monotonic()
+    with _dns_lock:
+        entry = _dns_cache.get(key)
+        if entry is not None and entry[0] > now:
+            return list(entry[1])
     try:
         addrinfo = socket.getaddrinfo(hostname, port)
     except socket.gaierror as exc:
         raise UnsafeOutboundUrlError("Outbound URL hostname could not be resolved.") from exc
-    return [sockaddr[0] for _, _, _, _, sockaddr in addrinfo]
+    addresses = [sockaddr[0] for _, _, _, _, sockaddr in addrinfo]
+    with _dns_lock:
+        _dns_cache[key] = (now + _DNS_CACHE_TTL, addresses)
+    return list(addresses)
 
 
 def validate_outbound_url_with_addrs_sync(
