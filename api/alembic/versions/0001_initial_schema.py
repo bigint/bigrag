@@ -168,52 +168,6 @@ def upgrade() -> None:
     op.create_index("idx_api_keys_prefix", "api_keys", ["prefix"], unique=False)
     op.create_index("idx_api_keys_user_id", "api_keys", ["user_id"], unique=False)
     op.create_table(
-        "backup_jobs",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("label", sa.Text(), server_default="", nullable=False),
-        sa.Column("status", sa.Text(), server_default="pending", nullable=False),
-        sa.Column("progress", sa.Double(), server_default=sa.text("0"), nullable=False),
-        sa.Column("destination_prefix", sa.Text(), server_default="", nullable=False),
-        sa.Column("object_count", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("byte_count", sa.BigInteger(), server_default=sa.text("0"), nullable=False),
-        sa.Column(
-            "manifest",
-            postgresql.JSONB(astext_type=sa.Text()),
-            server_default=sa.text("'{}'::jsonb"),
-            nullable=False,
-        ),
-        sa.Column("error_message", sa.Text(), nullable=True),
-        sa.Column("created_by", sa.Uuid(), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.CheckConstraint(
-            "status IN ('pending', 'running', 'succeeded', 'failed')",
-            name="backup_jobs_status_check",
-        ),
-        sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("idx_backup_jobs_created_at", "backup_jobs", ["created_at"], unique=False)
-    op.create_index(
-        "idx_backup_jobs_created_at_id",
-        "backup_jobs",
-        [sa.literal_column("created_at DESC"), sa.literal_column("id DESC")],
-        unique=False,
-    )
-    op.create_index("idx_backup_jobs_status", "backup_jobs", ["status"], unique=False)
-    op.create_table(
         "collections",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.Text(), nullable=False),
@@ -1133,10 +1087,6 @@ def downgrade() -> None:
     op.drop_index("idx_collections_name", table_name="collections")
     op.drop_index("idx_collections_created_at_id", table_name="collections")
     op.drop_table("collections")
-    op.drop_index("idx_backup_jobs_status", table_name="backup_jobs")
-    op.drop_index("idx_backup_jobs_created_at_id", table_name="backup_jobs")
-    op.drop_index("idx_backup_jobs_created_at", table_name="backup_jobs")
-    op.drop_table("backup_jobs")
     op.drop_index("idx_api_keys_user_id", table_name="api_keys")
     op.drop_index("idx_api_keys_prefix", table_name="api_keys")
     op.drop_index("idx_api_keys_expires_at", table_name="api_keys")

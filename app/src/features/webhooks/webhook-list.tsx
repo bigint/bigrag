@@ -87,7 +87,7 @@ export const WebhookList = ({ webhooks, loading, onAdd, onTest, onDelete }: Prop
       }
       emptyIcon={<WebhookIcon className="size-6" />}
       emptyTitle="No webhooks yet"
-      emptyDescription="Receive callbacks when documents ingest, fail, or collections change."
+      emptyDescription="Receive callbacks when collections or connector syncs change."
       keyExtractor={(w) => w.id}
       loading={loading}
       loadingMessage="Loading webhooks…"

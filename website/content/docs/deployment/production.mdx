@@ -20,10 +20,10 @@ Tick these off before pointing real traffic at a bigRAG deployment:
 - [ ] Redis with `requirepass` set and `appendonly yes` persisted to a mounted volume.
 - [ ] Turbopuffer API key and region saved from the admin UI for managed vector and full-text search.
 - [ ] Postgres warm-standby replica for failover.
-- [ ] Backup strategy: configure readable S3/R2 backups from `/settings?tab=backups`, protect that bucket as sensitive, and separately keep encrypted infrastructure snapshots for Postgres, Turbopuffer exports, Redis, and the local staging volume.
+- [ ] Disaster-recovery strategy for Postgres, Turbopuffer exports, Redis, and the local staging volume.
 - [ ] Set `metadata_schema` on collections that accept untrusted metadata so uploads with invalid shape are rejected at the edge.
 - [ ] Wire `GET /v1/admin/audit` into your SIEM / log pipeline.
-- [ ] Configure webhooks to your monitoring stack for `document.failed`, `connector.sync.failed`, and `backup.failed` events so data-operation errors don't sit silently.
+- [ ] Configure webhooks to your monitoring stack for `connector.sync.failed` events so connector errors don't sit silently.
 
 ## Startup safety guard
 
@@ -223,23 +223,6 @@ Active ingestion files are staged on the local filesystem:
 upload_dir = "./data/uploads"
 ```
 
-## Readable backups
-
-The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups. The endpoint URL should be the provider root, such as `https://ACCOUNT.r2.cloudflarestorage.com` for Cloudflare R2; bucket names and backup prefixes stay in their own fields. Saving backup settings probes bucket listing permissions before persisting the destination.
-
-**What's included:**
-
-- Postgres rows, vector-store points and payloads, and logs — all in plain JSON, JSONL, and SQL.
-- Turbopuffer point exports stream provider pages into JSONL instead of materializing a full collection in API memory.
-
-**What's redacted:**
-
-- Provider secrets, token/hash columns, S3 credentials, and embedding-cache vectors.
-
-<Callout type="info">
-  Readable backups are useful for inspection and data portability, but they are not a substitute for encrypted infrastructure snapshots or tested disaster recovery runbooks.
-</Callout>
-
 ## Logging
 
 API and worker logs are emitted through `structlog` with stable event names and key-value fields.
@@ -304,7 +287,7 @@ The worker container healthcheck reads the worker heartbeat from Redis rather th
 
 <Accordion title="Worker-dependent actions are disabled in the admin UI">
 
-Uploads, backups, webhook deliveries, and S3 sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
+Uploads, webhook deliveries, and S3 sync all depend on `bigrag-worker`. If the admin UI shows `bigrag-worker is offline`, start or restart the worker service, then confirm `/v1/stats` reports `"workers": { "online": true }` with a recent `heartbeat_at`.
 
 </Accordion>
 

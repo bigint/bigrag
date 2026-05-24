@@ -66,15 +66,13 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
     try:
         await queue._ensure_job_current(job)
         await _update_doc(status="processing")
-        await queue._fanout_webhook_event(
-            queue._publish_progress(
-                doc,
-                "processing",
-                "processing",
-                "Preparing document",
-                0.05,
-                collection_name=job.collection_name,
-            )
+        queue._publish_progress(
+            doc,
+            "processing",
+            "processing",
+            "Preparing document",
+            0.05,
+            collection_name=job.collection_name,
         )
 
         parsed = await queue._convert_document(job, prefix)

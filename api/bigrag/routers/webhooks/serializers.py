@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from bigrag.db.models import Webhook, WebhookDelivery
 from bigrag.models.webhook import WebhookDeliveryResponse, WebhookResponse
+from bigrag.services.webhook.events import VALID_EVENTS
+
+
+def _supported_events(events: list[str]) -> list[str]:
+    return [event for event in events if event in VALID_EVENTS]
 
 
 def _webhook_response(wh: Webhook) -> WebhookResponse:
     return WebhookResponse(
         id=str(wh.id),
         url=wh.url,
-        events=list(wh.events),
+        events=_supported_events(list(wh.events)),
         collections=list(wh.collections) if wh.collections else None,
         active=wh.active,
         created_by=str(wh.created_by) if wh.created_by else None,
@@ -22,7 +27,7 @@ def _webhook_to_dict(wh: Webhook) -> dict:
         "id": wh.id,
         "url": wh.url,
         "secret": wh.secret,
-        "events": list(wh.events),
+        "events": _supported_events(list(wh.events)),
         "collections": list(wh.collections) if wh.collections else None,
         "active": wh.active,
         "created_by": wh.created_by,

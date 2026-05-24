@@ -4,12 +4,10 @@ import time
 import uuid
 
 from bigrag.logging import get_logger
-from bigrag.services.event_bus import IngestionEvent
 from bigrag.services.webhook import delivery as _delivery
-from bigrag.services.webhook.events import DOCUMENT_STEP_EVENTS, VALID_EVENTS
+from bigrag.services.webhook.events import VALID_EVENTS
 from bigrag.services.webhook.payload import (
     build_event_payload,
-    build_ingestion_payload,
     matches_webhook,
 )
 
@@ -26,24 +24,6 @@ def invalidate_webhooks_cache() -> None:
 
 
 class WebhookDispatcher:
-    async def _handle_event(self, event: IngestionEvent) -> None:
-        webhook_event = DOCUMENT_STEP_EVENTS.get(event.step)
-        if webhook_event is None:
-            return
-
-        collection = event.collection_name
-        if not collection and event.document_id:
-            collection = await self._get_collection_for_document(event.document_id)
-        if not collection:
-            return
-
-        webhooks = await self._get_webhooks()
-        payload = build_ingestion_payload(webhook_event, event, collection)
-        matching_webhooks = [
-            webhook for webhook in webhooks if matches_webhook(webhook, webhook_event, collection)
-        ]
-        await self._enqueue_deliveries(matching_webhooks, webhook_event, payload)
-
     async def enqueue_event(
         self,
         event: str,
@@ -102,7 +82,7 @@ class WebhookDispatcher:
                 "id": str(w.id),
                 "url": w.url,
                 "secret": w.secret,
-                "events": list(w.events),
+                "events": [event for event in w.events if event in VALID_EVENTS],
                 "collections": list(w.collections) if w.collections else None,
                 "active": w.active,
                 "created_by": str(w.created_by) if w.created_by else None,
@@ -113,20 +93,6 @@ class WebhookDispatcher:
         ]
         _webhooks_cache = (now + _WEBHOOKS_CACHE_TTL, webhooks)
         return webhooks
-
-    async def _get_collection_for_document(self, document_id: str) -> str | None:
-        import sqlalchemy as sa
-
-        from bigrag.db.engine import session_factory
-        from bigrag.db.models import Collection, Document
-
-        async with session_factory()() as session:
-            name = await session.scalar(
-                sa.select(Collection.name)
-                .join(Document, Document.collection_id == Collection.id)
-                .where(Document.id == uuid.UUID(document_id))
-            )
-        return name
 
     async def _enqueue_deliveries(self, webhooks: list[dict], event: str, payload: str) -> None:
         await self._enqueue_deliveries_for_payloads(webhooks, event, [payload])

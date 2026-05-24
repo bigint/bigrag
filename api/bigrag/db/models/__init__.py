@@ -16,7 +16,7 @@ from bigrag.db.models.document import (
     UploadSessionItem,
 )
 from bigrag.db.models.instance import InstanceSetting, MaintenanceLock
-from bigrag.db.models.observability import AccessLog, AuditLog, BackupJob, QueryLog
+from bigrag.db.models.observability import AccessLog, AuditLog, QueryLog
 from bigrag.db.models.preference import UserPreference
 from bigrag.db.models.webhook import Webhook, WebhookDelivery
 
@@ -24,7 +24,6 @@ __all__ = [
     "AccessLog",
     "ApiKey",
     "AuditLog",
-    "BackupJob",
     "ChatQuestionSuggestion",
     "Collection",
     "ConnectorDocument",

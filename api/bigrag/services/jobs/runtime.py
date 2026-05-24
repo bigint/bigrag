@@ -14,7 +14,6 @@ from bigrag.services import crypto, redis_cache, runtime_settings
 from bigrag.services.conversion import get_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.jobs.broker import (
-    BACKUPS_QUEUE,
     CONNECTORS_QUEUE,
     INGESTION_QUEUE,
     MAINTENANCE_QUEUE,
@@ -47,7 +46,6 @@ _DEFAULT_QUEUES = {
     INGESTION_QUEUE,
     CONNECTORS_QUEUE,
     WEBHOOKS_QUEUE,
-    BACKUPS_QUEUE,
     MAINTENANCE_QUEUE,
 }
 

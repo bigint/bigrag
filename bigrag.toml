@@ -61,15 +61,6 @@
 
 # upload_dir = "./data/uploads"
 
-# Optional S3-compatible backup destination (also configurable via settings UI).
-# backup_s3_bucket = ""
-# backup_s3_endpoint_url = ""
-# backup_s3_region = "us-east-1"
-# backup_s3_prefix = ""
-# backup_s3_access_key_id = ""
-# backup_s3_secret_access_key = ""
-# backup_s3_force_path_style = false
-
 # max_upload_size_mb = 64
 # max_batch_upload_size_mb = 128
 # max_upload_session_files = 10000

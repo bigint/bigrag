@@ -1,20 +1,16 @@
 ---
 title: Webhooks
-description: Get notified when documents, collections, connectors, and backups change with HMAC-signed webhook payloads.
+description: Get notified when collections and connectors change with HMAC-signed webhook payloads.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Webhooks push notifications when data operations change state. They're useful for triggering downstream workflows when documents are ready for search, connector syncs finish, collections change, or backups complete.
+Webhooks push notifications when data operations change state. They're useful for triggering downstream workflows when connector syncs finish or collections change.
 
 ## Events
 
 | Event | Description |
 |-------|-------------|
-| `document.processing` | Document processing has started |
-| `document.ready` | Document successfully processed, now searchable |
-| `document.failed` | Document processing failed |
-| `document.deleted` | Document was deleted |
 | `collection.created` | Collection was created |
 | `collection.updated` | Collection settings changed |
 | `collection.deleted` | Collection was deleted |
@@ -22,9 +18,6 @@ Webhooks push notifications when data operations change state. They're useful fo
 | `connector.sync.started` | Connector sync started |
 | `connector.sync.completed` | Connector sync completed without failures |
 | `connector.sync.failed` | Connector sync failed or completed with failed items |
-| `backup.started` | Backup job started |
-| `backup.succeeded` | Backup job completed |
-| `backup.failed` | Backup job failed |
 
 ## Registering a Webhook
 
@@ -34,7 +27,7 @@ curl -X POST http://localhost:4000/v1/admin/webhooks \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/webhook",
-    "events": ["document.ready", "document.failed", "connector.sync.failed"],
+    "events": ["collection.truncated", "connector.sync.failed"],
     "collections": ["knowledge_base"]
   }'
 ```
@@ -51,21 +44,7 @@ The response includes a `secret` field that is shown only once. Store it — it'
 
 ## Payload Format
 
-The `document.processing`, `document.ready`, and `document.failed` events use this shape:
-
-```json
-{
-  "event": "document.ready",
-  "timestamp": "2026-04-02T12:34:56Z",
-  "collection": "docs",
-  "document_id": "abc-123",
-  "status": "ready",
-  "chunk_count": 42,
-  "error_message": null
-}
-```
-
-New data-operation events use a common envelope:
+Webhook events use a common envelope:
 
 ```json
 {
@@ -89,7 +68,7 @@ New data-operation events use a common envelope:
 }
 ```
 
-Collection filters apply to collection-scoped events. Global events such as backups deliver only to webhooks without a collection filter.
+Collection filters apply to collection-scoped events.
 
 ## Signature Verification
 
@@ -98,7 +77,7 @@ Each delivery includes an `X-BigRAG-Signature` header with an HMAC-SHA256 signat
 ```
 X-BigRAG-Signature: sha256=<hex digest>
 X-BigRAG-Timestamp: <unix timestamp>
-X-BigRAG-Event: document.ready
+X-BigRAG-Event: connector.sync.completed
 X-BigRAG-Delivery: <delivery-uuid>
 ```
 

@@ -7,23 +7,12 @@ from typing import Any
 from bigrag import config as config_module
 from bigrag.logging import get_logger
 from bigrag.services import runtime_settings
-from bigrag.services.backup import test_backup_target
 from bigrag.services.embedding import reset_embedding_semaphores
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_setting_specs import REGISTRY
 from bigrag.services.vector_store import VectorStore, vector_store
 
 logger = get_logger("bigrag.runtime_settings")
-
-BACKUP_KEYS = {
-    "backup_s3_access_key_id",
-    "backup_s3_bucket",
-    "backup_s3_endpoint_url",
-    "backup_s3_force_path_style",
-    "backup_s3_prefix",
-    "backup_s3_region",
-    "backup_s3_secret_access_key",
-}
 
 VECTOR_CONFIG_KEYS = {
     "turbopuffer_api_key",
@@ -100,11 +89,8 @@ async def _prepare_runtime_settings(
     patch: dict[str, Any],
 ) -> PreparedRuntimeSettings:
     prepared = PreparedRuntimeSettings(keys=keys, values=values, patch=patch)
-    keyset = set(keys)
     try:
-        if keyset & BACKUP_KEYS:
-            await test_backup_target(values)
-        if keyset & VECTOR_CONFIG_KEYS:
+        if set(keys) & VECTOR_CONFIG_KEYS:
             prepared.vector_backend = await _prepare_vector_backend(values)
         return prepared
     except Exception:

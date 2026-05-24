@@ -77,7 +77,6 @@ GET /v1/admin/audit
 | `webhook.*` | Webhook create, update, delete, test, delivery replay |
 | `embedding_preset.*` | Preset create, update, delete |
 | `instance_settings.*` and `embedding_cache.purge` | Runtime settings updates, resets, and cache purge |
-| `backup.requested` | Readable backup request |
 | `query.*`, `vectors.*`, `analytics.read`, `evaluation.run`, `chat.*` | Retrieval, vector, analytics, evaluation, and chat actions |
 
 Use the structured application log stream alongside the audit log when you need full request diagnostics, raw route timing, or operational events outside the audit action vocabulary.

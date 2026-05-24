@@ -1,47 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from bigrag.db.base import TS, Base, TSupd, UUIDpk
-
-
-class BackupJob(Base):
-    __tablename__ = "backup_jobs"
-    __table_args__ = (
-        sa.Index("idx_backup_jobs_created_at", "created_at"),
-        sa.Index("idx_backup_jobs_status", "status"),
-        sa.Index("idx_backup_jobs_created_at_id", sa.desc("created_at"), sa.desc("id")),
-        sa.CheckConstraint(
-            "status IN ('pending', 'running', 'succeeded', 'failed')",
-            name="backup_jobs_status_check",
-        ),
-    )
-
-    id: Mapped[UUIDpk]
-    label: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
-    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="pending")
-    progress: Mapped[float] = mapped_column(sa.Double, nullable=False, server_default=sa.text("0"))
-    destination_prefix: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default="")
-    object_count: Mapped[int] = mapped_column(
-        sa.Integer, nullable=False, server_default=sa.text("0")
-    )
-    byte_count: Mapped[int] = mapped_column(
-        sa.BigInteger, nullable=False, server_default=sa.text("0")
-    )
-    manifest: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
-    )
-    error_message: Mapped[str | None] = mapped_column(sa.Text)
-    created_by: Mapped[UUID | None] = mapped_column(sa.ForeignKey("users.id", ondelete="SET NULL"))
-    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    created_at: Mapped[TS]
-    updated_at: Mapped[TSupd]
+from bigrag.db.base import TS, Base, UUIDpk
 
 
 class QueryLog(Base):

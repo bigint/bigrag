@@ -233,21 +233,6 @@ class IngestionQueue:
         event_bus.publish(event)
         return event
 
-    async def _fanout_webhook_event(self, event: IngestionEvent) -> None:
-        if event.step not in {"processing", "complete", "failed"}:
-            return
-        try:
-            from bigrag.services.webhook import WebhookDispatcher
-
-            await WebhookDispatcher()._handle_event(event)
-        except Exception as exc:
-            logger.warning(
-                "webhook fanout failed",
-                doc=event.document_id,
-                step=event.step,
-                error=repr(exc),
-            )
-
     async def _convert_document(self, job: IngestionJob, prefix: str) -> ParsedDocument:
         return await queue_conversion.convert_document(
             job,

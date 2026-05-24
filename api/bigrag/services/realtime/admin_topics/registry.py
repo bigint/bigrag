@@ -23,7 +23,6 @@ from bigrag.services.realtime.admin_topics.documents import (
     _upload_session_topic,
 )
 from bigrag.services.realtime.admin_topics.platform import (
-    _backups_topic,
     _platform_readiness_topic,
     _platform_stats_topic,
 )
@@ -37,7 +36,6 @@ _TOPIC_BUILDERS: dict[str, TopicBuilder] = {
     "admin.collections.stats": _collection_stats_topic,
     "admin.connectors.sources": _connector_sources_topic,
     "admin.connectors.sync_jobs": _connector_jobs_topic,
-    "admin.backups": _backups_topic,
     "admin.access.overview": _access_overview_topic,
     "admin.access.logs": _access_logs_topic,
     "admin.audit": _audit_topic,

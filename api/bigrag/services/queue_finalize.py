@@ -48,17 +48,15 @@ async def finalize_success(
         chunks=total_inserted,
         elapsed=round(total_elapsed, 2),
     )
-    await queue._fanout_webhook_event(
-        queue._publish_progress(
-            doc,
-            "complete",
-            "complete",
-            f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
-            1.0,
-            collection_name=job.collection_name,
-            chunks=total_inserted,
-            elapsed=round(total_elapsed, 2),
-        )
+    queue._publish_progress(
+        doc,
+        "complete",
+        "complete",
+        f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
+        1.0,
+        collection_name=job.collection_name,
+        chunks=total_inserted,
+        elapsed=round(total_elapsed, 2),
     )
     event_bus.complete(doc)
 
@@ -188,15 +186,13 @@ async def finalize_permanent(
         reason=reason,
         error_type=type(error).__name__,
     )
-    await queue._fanout_webhook_event(
-        queue._publish_progress(
-            doc,
-            "failed",
-            "failed",
-            safe_message,
-            0.0,
-            collection_name=job.collection_name,
-            attempts=job.attempt,
-        )
+    queue._publish_progress(
+        doc,
+        "failed",
+        "failed",
+        safe_message,
+        0.0,
+        collection_name=job.collection_name,
+        attempts=job.attempt,
     )
     event_bus.complete(doc)

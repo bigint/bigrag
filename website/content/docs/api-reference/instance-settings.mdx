@@ -15,7 +15,6 @@ Session admin only. These endpoints manage the database-backed runtime settings 
 | Surface | Use it for |
 |---------|------------|
 | `/settings → Security` | Trusted proxy ranges, outbound provider URL policy, private-network escape hatches, local webhook policy, and embedding-cache posture |
-| `/settings?tab=backups` | Readable backup destination settings, export controls, and backup history |
 | Deployment config or this API | CORS origins and session-cookie flags: `cors_origins`, `session_cookie_secure`, `session_cookie_samesite`, and `session_cookie_domain`. These can lock admins out when changed incorrectly, so they are best handled deliberately during deployment |
 | Other Settings pages | Ingestion, queue, retention, webhooks, model defaults, and Turbopuffer search settings |
 
@@ -86,8 +85,6 @@ Secret values return `value: null` and `has_value: true` when saved. Secret spec
 
 Unknown keys and invalid values return `400`. Successful changed updates are audited as `instance_settings.update` and apply immediately to the running API. Values that already match the active setting are ignored, so saving an unchanged panel does not create database overrides. The update path runs the relevant service validation probes once before changed settings are persisted.
 
-Backup endpoint URLs must be S3-compatible root endpoints, with bucket and prefix supplied through their own settings. Cloudflare R2 endpoints with a pasted bucket path are normalized to the account endpoint before validation. Backup probe failures are returned as `400` with sanitized validation details instead of surfacing provider exceptions.
-
 Deployment-managed security keys use the same endpoint when you intentionally automate them:
 
 ```json
@@ -106,17 +103,13 @@ Other notable settings groups:
 - **Ingestion caps:** `max_vector_upsert_count`, `max_vector_delete_count`, `max_vector_text_chars`, `max_vector_metadata_bytes`
 - **Turbopuffer:** `turbopuffer_api_key`, `turbopuffer_base_url`, `turbopuffer_region`, `turbopuffer_namespace_prefix` (the admin UI renders `turbopuffer_region` as a public-region dropdown while the API accepts the stored string value)
 
-Backup and Turbopuffer connection changes are validated before they are saved and apply to the running API. Custom `turbopuffer_base_url` values must be normalized HTTPS roots that pass outbound URL safety checks. UI-visible settings can be changed from the admin UI; registry keys not rendered in the UI remain available through this API and the SDK admin settings resources.
+Turbopuffer connection changes are validated before they are saved and apply to the running API. Custom `turbopuffer_base_url` values must be normalized HTTPS roots that pass outbound URL safety checks. UI-visible settings can be changed from the admin UI; registry keys not rendered in the UI remain available through this API and the SDK admin settings resources.
 
 </Accordion>
 
 <Accordion title="POST /v1/admin/settings/test — Test settings">
 
-Validates submitted values without saving them. Backup settings normalize Cloudflare R2 endpoint URLs to the account root, run a lightweight S3-compatible bucket listing probe, and normalize provider errors into validation responses. Turbopuffer settings run the same connectivity validation used by save operations. Useful for SDKs and automation that want a dry run.
-
-```json
-{ "values": { "backup_s3_bucket": "bigrag-backups", "backup_s3_endpoint_url": "https://ACCOUNT.r2.cloudflarestorage.com", "backup_s3_region": "auto" } }
-```
+Validates submitted values without saving them. Turbopuffer settings run the same connectivity validation used by save operations. Useful for SDKs and automation that want a dry run.
 
 ```json
 { "values": { "turbopuffer_api_key": "tpuf_...", "turbopuffer_region": "aws-us-east-1", "turbopuffer_namespace_prefix": "prod_" } }
@@ -136,7 +129,7 @@ An empty `keys` array resets every registered instance setting back to its defau
 
 <Accordion title="POST /v1/admin/settings/embedding-cache/purge — Purge embedding cache">
 
-Deletes every row from the persistent embedding cache. Use this after key rotation, before handing a backup to another environment, or when an operator wants future ingestion to request fresh embeddings.
+Deletes every row from the persistent embedding cache. Use this after key rotation, before moving data to another environment, or when an operator wants future ingestion to request fresh embeddings.
 
 **Response** `200`:
 

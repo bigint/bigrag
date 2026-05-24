@@ -1,18 +1,11 @@
 export type WebhookEvent =
-  | "document.processing"
-  | "document.ready"
-  | "document.failed"
-  | "document.deleted"
   | "collection.created"
   | "collection.updated"
   | "collection.deleted"
   | "collection.truncated"
   | "connector.sync.started"
   | "connector.sync.completed"
-  | "connector.sync.failed"
-  | "backup.started"
-  | "backup.succeeded"
-  | "backup.failed";
+  | "connector.sync.failed";
 
 export interface Webhook {
   id: string;

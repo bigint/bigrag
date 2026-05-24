@@ -10,7 +10,6 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.admin_access import router as admin_access_router
     from bigrag.routers.admin_api_keys import router as admin_api_keys_router
     from bigrag.routers.admin_audit import router as admin_audit_router
-    from bigrag.routers.admin_backups import router as admin_backups_router
     from bigrag.routers.admin_settings import router as admin_settings_router
     from bigrag.routers.admin_users import router as admin_users_router
     from bigrag.routers.admin_vector_storage import router as admin_vector_storage_router
@@ -39,7 +38,6 @@ def include_all_routers(app: FastAPI) -> None:
     app.include_router(preferences_router)
     app.include_router(admin_users_router)
     app.include_router(admin_api_keys_router)
-    app.include_router(admin_backups_router)
     app.include_router(admin_settings_router)
     app.include_router(admin_access_router)
     app.include_router(admin_vector_storage_router)

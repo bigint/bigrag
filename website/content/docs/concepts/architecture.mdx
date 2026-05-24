@@ -13,7 +13,7 @@ bigRAG uses four distinct stores, each with a specific role, wired together thro
 |-------|------|
 | **Turbopuffer** | Dense embeddings, chunk text, payload metadata, BM25 full-text search, filtered semantic search, collection namespaces |
 | **Postgres** | Metadata and control plane: collections, documents, users, API keys, webhooks, query logs, audit trail, embedding cache. Transactions keep ingestion consistent across stores. |
-| **Redis** | Dramatiq broker for ingestion, connector, webhook, backup, and maintenance actors; processing leases, cancellation epochs, idempotency-key cache, auth/collection/query hot-path caches, batched document-progress lookups, short-lived platform/health caches |
+| **Redis** | Dramatiq broker for ingestion, connector, webhook, and maintenance actors; processing leases, cancellation epochs, idempotency-key cache, auth/collection/query hot-path caches, batched document-progress lookups, short-lived platform/health caches |
 | **Local disk** | Temporary ingestion staging shared by the API and worker. Staged originals are deleted after successful processing, final failure, cancellation, or document deletion. |
 
 <Callout type="info">
@@ -26,7 +26,7 @@ The admin UI uses TanStack Router's built-in route code splitting — each route
 
 ## Identifier model
 
-bigRAG-owned records use native Postgres `uuid` columns generated as UUIDv7 values before insert. This covers users, sessions, API keys, collections, documents, upload sessions, backup jobs, connectors, webhooks, query logs, embedding presets, audit logs, and access logs — one canonical identifier shape, time-ordered for healthier newest-first indexes.
+bigRAG-owned records use native Postgres `uuid` columns generated as UUIDv7 values before insert. This covers users, sessions, API keys, collections, documents, upload sessions, connectors, webhooks, query logs, embedding presets, audit logs, and access logs — one canonical identifier shape, time-ordered for healthier newest-first indexes.
 
 Existing UUIDv4 rows remain valid because UUIDv4 and UUIDv7 share the same Postgres `uuid` type. Foreign keys store raw UUID values internally; the REST API and SDKs expose them as strings.
 
@@ -109,7 +109,7 @@ For single-tenant deployments under ~1M vectors, pgvector would work well. bigRA
 ## Scaling notes
 
 - **Horizontal API workers**: FastAPI is stateless past the lifespan. Run N replicas behind a load balancer; they share Postgres, Redis, and the configured vector-store clients. API replicas enqueue work but do not run background jobs in-process.
-- **Dramatiq workers**: run one or more `bigrag-worker` processes for ingestion, connector syncs, webhook outbox delivery, backups, and cleanup. Worker heartbeat and queue state are visible through `/v1/stats`. Each worker initializes runtime dependencies before reserving jobs, aborts boot on failure, refreshes queue-scoped heartbeats while idle, and recovers stale processing leases on startup. Periodic maintenance and webhook outbox ticks are seeded after boot through Redis scheduler guards, so restarts and replicas do not create duplicate delayed messages.
+- **Dramatiq workers**: run one or more `bigrag-worker` processes for ingestion, connector syncs, webhook outbox delivery, and cleanup. Worker heartbeat and queue state are visible through `/v1/stats`. Each worker initializes runtime dependencies before reserving jobs, aborts boot on failure, refreshes queue-scoped heartbeats while idle, and recovers stale processing leases on startup. Periodic maintenance and webhook outbox ticks are seeded after boot through Redis scheduler guards, so restarts and replicas do not create duplicate delayed messages.
 - **Vector backend**: Turbopuffer namespaces are created on first write and store bigRAG vector IDs as payload attributes while using backend-safe IDs internally for writes, deletes, and exports.
 - **Postgres replication**: the control plane is read-light; a warm-standby suffices for failover.
 - **Redis persistence**: enable `appendonly yes` (already set in the shipped compose file). Pending Dramatiq messages, delayed retries, processing leases, and dead-letter entries survive process restarts within the Redis durability window.
@@ -124,6 +124,6 @@ Connector routes stay provider-neutral through `connector_registry.py`. Reusable
 - Sync status handling
 - Document handoff to the ingestion actor
 
-The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry, dead-letter, and webhook fanout behavior can evolve without changing route-level APIs.
+The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry and dead-letter behavior can evolve without changing route-level APIs.
 
 Scheduled connector ticks run as Dramatiq maintenance actors and claim due sources with row locks so multiple worker replicas do not create duplicate scheduled sync jobs. The S3 provider keeps credential validation, object listing, source helpers, and sync adapter wiring in separate modules.

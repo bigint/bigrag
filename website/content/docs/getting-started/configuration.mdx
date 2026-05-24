@@ -87,20 +87,19 @@ Later, manage settings at:
 
 | Location | What you configure |
 |----------|--------------------|
-| `/settings` | Platform runtime settings and backups |
+| `/settings` | Platform runtime settings |
 | `/settings?tab=account` | Account settings |
 | `/settings?tab=health` | Dependency health |
 | `/settings?tab=security` | Trusted proxies, provider URL allow-lists, embedding-cache mode, and private-network escape hatches. CORS origins and session-cookie policy are still supported, but managed from deployment config or the instance settings API instead of the Security tab. |
 | `/settings?tab=data` | Upload limits, OCR, ingestion workers, queue depth, webhook delivery limits, and retention windows. |
 | `/settings?tab=vector_store` | Turbopuffer API key, public-region dropdown, namespace prefix, and optional compatible base URL for vector, keyword, and hybrid retrieval. |
-| `/settings?tab=backups` | S3-compatible readable backup bucket, endpoint, region, prefix, credentials, export controls, and backup history. |
 | `/models` | Default embedding provider, model, dimension, key, base URL, cache TTLs, chat provider, chat model, temperature, history count, and context budget. |
 
 Turbopuffer is the search backend for every collection. Settings are stored in Postgres in the `instance_settings` table; secret settings are encrypted with `BIGRAG_MASTER_KEY` and redacted on read.
 
 `BIGRAG_CHAT_API_KEY` can seed a default instance chat credential for OpenAI's standard API endpoint. For non-default `chat_base_url` values, configure a saved chat key in the admin UI or pass `provider_api_key` on chat requests so the instance fallback key is never sent to a custom provider.
 
-The same settings are available through [`/v1/admin/settings`](/docs/api-reference/instance-settings). Database-backed admin settings apply immediately on save. Backup and Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
+The same settings are available through [`/v1/admin/settings`](/docs/api-reference/instance-settings). Database-backed admin settings apply immediately on save. Turbopuffer connection changes validate the new target before saving, then swap the runtime client in place where applicable.
 
 <Callout type="info">
 Bootstrap Turbopuffer environment variables are useful for managed deploy templates. Values saved from the admin UI are stored in Postgres and override bootstrap defaults for both API and worker processes.

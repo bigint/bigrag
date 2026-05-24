@@ -19,8 +19,7 @@ export type InstanceSettingGroup =
   | "search"
   | "chat"
   | "webhooks"
-  | "retention"
-  | "backups";
+  | "retention";
 
 export interface InstanceSettingSpec {
   key: string;
@@ -65,32 +64,6 @@ export interface InstanceSettingsTestResponse {
   status: "ok";
   checked: string[];
   message: string;
-}
-
-export interface BackupCreateBody {
-  label?: string;
-}
-
-export interface BackupJob {
-  id: string;
-  label: string;
-  status: string;
-  progress: number;
-  destination_prefix: string;
-  object_count: number;
-  byte_count: number;
-  manifest: Record<string, unknown>;
-  error_message: string | null;
-  created_by: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackupJobListResponse {
-  jobs: BackupJob[];
-  total: number;
 }
 
 export type AdminRealtimeEvent<T = unknown> = RealtimeMessage<T>;

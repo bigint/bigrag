@@ -107,18 +107,6 @@ async def release_maintenance_lock(owner_id: uuid.UUID) -> None:
     await _invalidate_lock_state_cache()
 
 
-async def acquire_backup_lock(owner_id: uuid.UUID, *, ttl_hours: int = 12) -> bool:
-    return await acquire_maintenance_lock(
-        owner_id,
-        reason="readable backup",
-        ttl_hours=ttl_hours,
-    )
-
-
-async def release_backup_lock(owner_id: uuid.UUID) -> None:
-    await release_maintenance_lock(owner_id)
-
-
 async def ensure_writes_allowed() -> None:
     lock = await active_lock_state()
     if lock is not None:

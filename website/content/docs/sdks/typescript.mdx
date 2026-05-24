@@ -224,7 +224,7 @@ client.webhooks.test(id)
 client.webhooks.replayDelivery(id, deliveryId)
 ```
 
-Webhook events cover document, collection, connector sync, and backup data-operation changes. Examples: `document.ready`, `document.deleted`, `collection.truncated`, `connector.sync.failed`, and `backup.succeeded`.
+Webhook events cover collection and connector sync data-operation changes. Examples: `collection.truncated` and `connector.sync.failed`.
 
 <Callout type="warn">
   Webhook management calls `/v1/admin/webhooks` and requires session-cookie admin auth. API-key clients receive `403`.
@@ -271,10 +271,6 @@ client.admin.settings.purgeEmbeddingCache()
 
 client.admin.vectorStorage.overview()
 
-client.admin.backups.list({ limit?, offset? })
-client.admin.backups.get(backupId)
-client.admin.backups.create({ label? })
-
 client.admin.embeddingPresets.list({ limit?, offset? })
 client.admin.embeddingPresets.create({ name, provider, model, api_key, base_url?, dimension })
 client.admin.embeddingPresets.update(presetId, { name?, provider?, model?, api_key?, base_url?, dimension? })
@@ -294,12 +290,6 @@ client.admin.mcpServers.delete(serverId)
 <Accordion title="Admin realtime WebSocket helpers">
 
 ```typescript
-for await (const event of client.admin.realtime.backups({ limit: 20 })) {
-  if (event.type === "snapshot") {
-    console.log(event.payload.jobs)
-  }
-}
-
 for await (const event of client.admin.realtime.platformReadiness()) {
   if (event.type === "snapshot") {
     console.log(event.payload)

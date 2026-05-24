@@ -13,7 +13,6 @@ from bigrag.services.jobs.runtime_middleware import WorkerRuntimeMiddleware
 INGESTION_QUEUE = "ingestion"
 CONNECTORS_QUEUE = "connectors"
 WEBHOOKS_QUEUE = "webhooks"
-BACKUPS_QUEUE = "backups"
 MAINTENANCE_QUEUE = "maintenance"
 NAMESPACE = "bigrag:dramatiq"
 WORKER_HEARTBEAT_KEY = "bigrag:dramatiq:worker:heartbeat"

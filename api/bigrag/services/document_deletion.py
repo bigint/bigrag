@@ -14,7 +14,6 @@ from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.staged_files import delete_staged_file_path
 from bigrag.services.vector_store import vector_store
-from bigrag.services.webhook import enqueue_webhook_events
 
 logger = get_logger("bigrag.services.document_deletion")
 
@@ -71,18 +70,6 @@ async def delete_document_batch_chunk(
         .values(document_count=sa.func.greatest(Collection.document_count - len(deleted_ids), 0))
     )
     await session.commit()
-    await enqueue_webhook_events(
-        "document.deleted",
-        collection=collection_name,
-        data=[
-            {
-                "document_id": str(candidate.id),
-                "collection": collection_name,
-                "filename": candidate.filename,
-            }
-            for candidate in vector_candidates
-        ],
-    )
     return BatchDeleteChunkResult(deleted=len(deleted_ids), errors=errors)
 
 

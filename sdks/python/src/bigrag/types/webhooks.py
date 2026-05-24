@@ -3,10 +3,6 @@ from __future__ import annotations
 from typing import Any, Literal, NotRequired, TypedDict
 
 WebhookEvent = Literal[
-    "document.processing",
-    "document.ready",
-    "document.failed",
-    "document.deleted",
     "collection.created",
     "collection.updated",
     "collection.deleted",
@@ -14,9 +10,6 @@ WebhookEvent = Literal[
     "connector.sync.started",
     "connector.sync.completed",
     "connector.sync.failed",
-    "backup.started",
-    "backup.succeeded",
-    "backup.failed",
 ]
 
 
