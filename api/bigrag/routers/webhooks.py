@@ -22,6 +22,7 @@ from bigrag.models.webhook import (
     WebhookResponse,
     WebhookTestResponse,
 )
+from bigrag.routers import uuid_or_404
 from bigrag.services import audit
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
@@ -33,20 +34,6 @@ from bigrag.services.webhook.dispatcher import invalidate_webhooks_cache
 logger = get_logger("bigrag.routers.webhooks")
 
 router = APIRouter(prefix="/v1/admin/webhooks", tags=["webhooks"])
-
-
-def _webhook_uuid_or_404(value: str) -> uuid.UUID:
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Webhook not found") from exc
-
-
-def _delivery_uuid_or_404(value: str) -> uuid.UUID:
-    try:
-        return uuid.UUID(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Delivery not found") from exc
 
 
 async def _validate_webhook_target(url: str) -> None:
@@ -180,7 +167,7 @@ async def get_webhook(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    wh = await session.get(Webhook, _webhook_uuid_or_404(webhook_id))
+    wh = await session.get(Webhook, uuid_or_404(webhook_id, "Webhook"))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
     return _webhook_response(wh)
@@ -194,7 +181,7 @@ async def update_webhook(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    wh = await session.get(Webhook, _webhook_uuid_or_404(webhook_id))
+    wh = await session.get(Webhook, uuid_or_404(webhook_id, "Webhook"))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
@@ -236,7 +223,7 @@ async def delete_webhook(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    wh = await session.get(Webhook, _webhook_uuid_or_404(webhook_id))
+    wh = await session.get(Webhook, uuid_or_404(webhook_id, "Webhook"))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
@@ -266,7 +253,7 @@ async def list_deliveries(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    wh_uuid = _webhook_uuid_or_404(webhook_id)
+    wh_uuid = uuid_or_404(webhook_id, "Webhook")
     wh_exists = await session.scalar(sa.select(Webhook.id).where(Webhook.id == wh_uuid))
     if wh_exists is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
@@ -311,7 +298,7 @@ async def test_webhook(
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    wh = await session.get(Webhook, _webhook_uuid_or_404(webhook_id))
+    wh = await session.get(Webhook, uuid_or_404(webhook_id, "Webhook"))
     if wh is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
@@ -339,8 +326,8 @@ async def replay_delivery(
     session: AsyncSession = Depends(get_session),
 ) -> WebhookTestResponse:
 
-    wh_uuid = _webhook_uuid_or_404(webhook_id)
-    del_uuid = _delivery_uuid_or_404(delivery_id)
+    wh_uuid = uuid_or_404(webhook_id, "Webhook")
+    del_uuid = uuid_or_404(delivery_id, "Delivery")
 
     wh = await session.get(Webhook, wh_uuid)
     if wh is None:
