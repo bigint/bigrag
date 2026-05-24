@@ -25,7 +25,7 @@ from bigrag.models.webhook import (
 from bigrag.routers import uuid_or_404
 from bigrag.services import audit
 from bigrag.services.error_sanitize import safe_error_detail
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 from bigrag.services.runtime_settings import get_value
 from bigrag.services.url_security import validate_webhook_url
 from bigrag.services.webhook import generate_secret, webhook_dispatcher
@@ -140,24 +140,21 @@ async def list_webhooks(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ):
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     stmt = sa.select(Webhook).order_by(Webhook.created_at.desc(), Webhook.id.desc())
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, Webhook.created_at, Webhook.id, cursor_tuple).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(sa.select(sa.func.count()).select_from(Webhook))) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=Webhook.created_at,
+        id_col=Webhook.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(sa.select(sa.func.count()).select_from(Webhook) if include_total else None),
+    )
     return WebhookListResponse(
-        webhooks=[_webhook_response(w) for w in page],
-        total=total,
-        next_cursor=next_cursor,
+        webhooks=[_webhook_response(w) for w in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 
@@ -258,36 +255,31 @@ async def list_deliveries(
     if wh_exists is None:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     stmt = (
         sa.select(WebhookDelivery)
         .where(WebhookDelivery.webhook_id == wh_uuid)
         .order_by(WebhookDelivery.created_at.desc(), WebhookDelivery.id.desc())
     )
-    if cursor_tuple is not None:
-        stmt = apply_cursor(
-            stmt, WebhookDelivery.created_at, WebhookDelivery.id, cursor_tuple
-        ).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (
-            await session.scalar(
-                sa.select(sa.func.count())
-                .select_from(WebhookDelivery)
-                .where(WebhookDelivery.webhook_id == wh_uuid)
-            )
-        ) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=WebhookDelivery.created_at,
+        id_col=WebhookDelivery.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(
+            sa.select(sa.func.count())
+            .select_from(WebhookDelivery)
+            .where(WebhookDelivery.webhook_id == wh_uuid)
+            if include_total
+            else None
+        ),
+    )
     return WebhookDeliveryListResponse(
-        deliveries=[_delivery_response(d) for d in page],
-        total=total,
-        next_cursor=next_cursor,
+        deliveries=[_delivery_response(d) for d in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 

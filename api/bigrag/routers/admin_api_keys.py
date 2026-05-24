@@ -23,7 +23,7 @@ from bigrag.routers import uuid_or_404, validate_collection_name
 from bigrag.services import audit
 from bigrag.services.auth import generate_api_key
 from bigrag.services.error_sanitize import safe_error_detail
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 from bigrag.services.scopes import is_mcp_key, mcp_permissions_filter
 
 logger = get_logger("bigrag.routers.admin_api_keys")
@@ -68,31 +68,26 @@ async def list_api_keys(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyListResponse:
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     base = sa.select(ApiKey).where(sa.not_(mcp_permissions_filter()))
     stmt = base.order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, ApiKey.created_at, ApiKey.id, cursor_tuple).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (
-            await session.scalar(
-                sa.select(sa.func.count())
-                .select_from(ApiKey)
-                .where(sa.not_(mcp_permissions_filter()))
-            )
-        ) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=ApiKey.created_at,
+        id_col=ApiKey.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(
+            sa.select(sa.func.count()).select_from(ApiKey).where(sa.not_(mcp_permissions_filter()))
+            if include_total
+            else None
+        ),
+    )
     return ApiKeyListResponse(
-        keys=[_key_response(k) for k in page],
-        total=total,
-        next_cursor=next_cursor,
+        keys=[_key_response(k) for k in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 

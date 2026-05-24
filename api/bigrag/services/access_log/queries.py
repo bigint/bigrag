@@ -18,7 +18,7 @@ from bigrag.models.access import (
 )
 from bigrag.services import redis_cache
 from bigrag.services.access_log.middleware import RAG_ACCESS_ACTIONS
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 
 _RAG_ACTION_FILTER = AccessLog.action.in_(tuple(sorted(RAG_ACCESS_ACTIONS)))
 _ACCESS_OVERVIEW_TTL = 15
@@ -123,32 +123,30 @@ async def access_logs_payload(
     if success is not None:
         filters.append(AccessLog.success.is_(success))
 
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     stmt = (
         sa.select(AccessLog)
         .where(*filters)
         .order_by(AccessLog.created_at.desc(), AccessLog.id.desc())
     )
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, AccessLog.created_at, AccessLog.id, cursor_tuple)
-        stmt = stmt.limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (
-            await session.scalar(sa.select(sa.func.count()).select_from(AccessLog).where(*filters))
-        ) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=AccessLog.created_at,
+        id_col=AccessLog.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(
+            sa.select(sa.func.count()).select_from(AccessLog).where(*filters)
+            if include_total
+            else None
+        ),
+    )
 
     return AccessLogListResponse(
-        entries=[access_log_entry(row) for row in page],
-        total=total,
-        next_cursor=next_cursor,
+        entries=[access_log_entry(row) for row in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 

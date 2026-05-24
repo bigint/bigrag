@@ -20,7 +20,7 @@ from bigrag.models.auth import (
 from bigrag.routers import is_unique_violation, uuid_or_404
 from bigrag.services import audit
 from bigrag.services.auth import hash_password
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 
 logger = get_logger("bigrag.routers.admin_users")
 
@@ -50,26 +50,22 @@ async def list_users(
     _: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> UserListResponse:
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     stmt = sa.select(User).order_by(User.created_at.asc(), User.id.asc())
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, User.created_at, User.id, cursor_tuple, direction="asc").limit(
-            limit + 1
-        )
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(sa.select(sa.func.count()).select_from(User))) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=User.created_at,
+        id_col=User.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(sa.select(sa.func.count()).select_from(User) if include_total else None),
+        direction="asc",
+    )
     return UserListResponse(
-        users=[UserResponse.from_user(u) for u in page],
-        total=total,
-        next_cursor=next_cursor,
+        users=[UserResponse.from_user(u) for u in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 

@@ -23,7 +23,7 @@ from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.document_progress import document_progress, document_progress_map
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import sync_value
 from bigrag.services.staged_files import clear_document_staged_file
@@ -173,30 +173,25 @@ async def list_documents_payload(
             status_code=400,
             detail="cursor pagination requires sort=created_at",
         )
-    cursor_tuple = decode_cursor_or_400(cursor)
 
-    if cursor_tuple is not None:
-        stmt = apply_cursor(
-            stmt,
-            Document.created_at,
-            Document.id,
-            cursor_tuple,
-            direction=order,
-        ).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
+    result = await paginate(
+        session,
+        stmt,
+        created_col=Document.created_at,
+        id_col=Document.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=count_stmt if include_total else None,
+        direction=order,
+    )
 
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
+    progresses = await document_progress_map(result.rows, collection_name)
+    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in result.rows]
 
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(count_stmt)) or 0
-    progresses = await document_progress_map(page, collection_name)
-
-    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in page]
-
-    return DocumentListResponse(documents=documents, total=total, next_cursor=next_cursor)
+    return DocumentListResponse(
+        documents=documents, total=result.total, next_cursor=result.next_cursor
+    )
 
 
 async def get_document_payload(

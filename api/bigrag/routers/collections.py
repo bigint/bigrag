@@ -33,7 +33,7 @@ from bigrag.services.collections import (
     truncate_collection as service_truncate_collection,
 )
 from bigrag.services.error_sanitize import safe_error_detail
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
@@ -91,27 +91,22 @@ async def list_collections(
         stmt = stmt.where(Collection.name.ilike(f"{name}%"))
         count_stmt = count_stmt.where(Collection.name.ilike(f"{name}%"))
 
-    cursor_tuple = decode_cursor_or_400(cursor)
+    result = await paginate(
+        session,
+        stmt,
+        created_col=Collection.created_at,
+        id_col=Collection.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=count_stmt if include_total else None,
+    )
 
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, Collection.created_at, Collection.id, cursor_tuple).limit(
-            limit + 1
-        )
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(count_stmt)) or 0
-
-    logger.info("list collections complete", count=len(page))
+    logger.info("list collections complete", count=len(result.rows))
     return CollectionListResponse(
-        collections=[_collection_response(c) for c in page],
-        total=total,
-        next_cursor=next_cursor,
+        collections=[_collection_response(c) for c in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
 
 

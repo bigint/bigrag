@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import BackupJob
 from bigrag.models.backup import BackupJobListResponse, BackupJobResponse
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
+from bigrag.services.pagination import paginate
 
 
 def backup_job_response(job: BackupJob) -> BackupJobResponse:
@@ -35,22 +35,19 @@ async def backup_jobs_payload(
     cursor: str | None,
     include_total: bool,
 ) -> BackupJobListResponse:
-    cursor_tuple = decode_cursor_or_400(cursor)
-
     stmt = sa.select(BackupJob).order_by(BackupJob.created_at.desc(), BackupJob.id.desc())
-    if cursor_tuple is not None:
-        stmt = apply_cursor(stmt, BackupJob.created_at, BackupJob.id, cursor_tuple).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(sa.select(sa.func.count()).select_from(BackupJob))) or 0
+    result = await paginate(
+        session,
+        stmt,
+        created_col=BackupJob.created_at,
+        id_col=BackupJob.id,
+        cursor=cursor,
+        limit=limit,
+        offset=offset,
+        count_stmt=(sa.select(sa.func.count()).select_from(BackupJob) if include_total else None),
+    )
     return BackupJobListResponse(
-        jobs=[backup_job_response(job) for job in page],
-        total=total,
-        next_cursor=next_cursor,
+        jobs=[backup_job_response(job) for job in result.rows],
+        total=result.total,
+        next_cursor=result.next_cursor,
     )
