@@ -5,6 +5,7 @@ from fastapi import Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bigrag.db.engine import session_factory
 from bigrag.db.models import Document
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
@@ -47,7 +48,6 @@ async def upload_document(
     file: UploadFile = File(...),
     metadata: str = Form(default="{}"),
     user: dict = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
 ):
     collection = await get_collection_or_404(collection_name)
     ensure_embedding_or_400(collection)
@@ -73,36 +73,11 @@ async def upload_document(
             collection, metadata, prepare_document_metadata, parse_form_metadata, user
         )
 
-        existing = await session.scalar(content_hash_match(collection, content_hash, meta))
-        if existing is not None:
-            logger.info(
-                "upload: dedup hit — returning existing doc",
-                content_hash=content_hash[:12],
-                doc_id=str(existing.id),
-            )
-            return document_response(
-                existing,
-                deduped=True,
-                progress=await document_progress(existing, collection_name),
-            )
-
-        try:
-            doc = await persist_document(
-                session=session,
-                collection_name=collection_name,
-                collection=collection,
-                filename=file.filename or "document",
-                source=tmp_path,
-                file_size=file_size,
-                metadata=meta,
-                content_hash=content_hash,
-                raise_on_enqueue_failure=True,
-            )
-        except IntegrityError:
+        async with session_factory()() as session:
             existing = await session.scalar(content_hash_match(collection, content_hash, meta))
             if existing is not None:
                 logger.info(
-                    "upload: integrity dedup hit — returning existing doc",
+                    "upload: dedup hit — returning existing doc",
                     content_hash=content_hash[:12],
                     doc_id=str(existing.id),
                 )
@@ -111,7 +86,33 @@ async def upload_document(
                     deduped=True,
                     progress=await document_progress(existing, collection_name),
                 )
-            raise
+
+            try:
+                doc = await persist_document(
+                    session=session,
+                    collection_name=collection_name,
+                    collection=collection,
+                    filename=file.filename or "document",
+                    source=tmp_path,
+                    file_size=file_size,
+                    metadata=meta,
+                    content_hash=content_hash,
+                    raise_on_enqueue_failure=True,
+                )
+            except IntegrityError:
+                existing = await session.scalar(content_hash_match(collection, content_hash, meta))
+                if existing is not None:
+                    logger.info(
+                        "upload: integrity dedup hit — returning existing doc",
+                        content_hash=content_hash[:12],
+                        doc_id=str(existing.id),
+                    )
+                    return document_response(
+                        existing,
+                        deduped=True,
+                        progress=await document_progress(existing, collection_name),
+                    )
+                raise
     finally:
         try:
             tmp_path.unlink()
