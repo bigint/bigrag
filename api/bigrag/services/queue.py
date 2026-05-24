@@ -37,6 +37,10 @@ class IngestionQueue:
     def redis(self):
         return self._redis
 
+    @property
+    def vector_store(self):
+        return self._vector_store
+
     def bind_vector_store(self, vector_store) -> None:
         self._vector_store = vector_store
 
@@ -74,7 +78,7 @@ class IngestionQueue:
     async def _document_epoch(self, document_id: str) -> int:
         return await queue_state.document_epoch(self._redis, document_id)
 
-    async def _ensure_job_current(self, job: IngestionJob) -> None:
+    async def ensure_job_current(self, job: IngestionJob) -> None:
         await queue_state.ensure_job_current(self._redis, job)
 
     async def _admit_job(self) -> None:
@@ -85,7 +89,7 @@ class IngestionQueue:
         if not admitted:
             raise QueueFullError("Ingestion queue is full. Try again later.")
 
-    async def _release_job(self) -> None:
+    async def release_job(self) -> None:
         await queue_state.release_inflight(self._redis)
 
     async def enqueue(self, job: IngestionJob) -> None:
@@ -104,7 +108,7 @@ class IngestionQueue:
         try:
             enqueue_ingestion_job(job)
         except Exception:
-            await self._release_job()
+            await self.release_job()
             raise
         if self._redis is not None:
             await self._redis.hincrby(STATS_KEY, "queued", 1)
@@ -118,7 +122,7 @@ class IngestionQueue:
         try:
             enqueue_ingestion_job(job, delay_seconds=delay_seconds)
         except Exception:
-            await self._release_job()
+            await self.release_job()
             raise
 
     async def cancel_collection(self, collection_name: str) -> None:
@@ -202,7 +206,7 @@ class IngestionQueue:
             await self._redis.lrem(PROCESSING_KEY, 1, raw)
             await self._redis.delete(lease_key)
 
-    def _publish_progress(
+    def publish_progress(
         self,
         doc_id: str,
         step: str,
@@ -227,15 +231,15 @@ class IngestionQueue:
         event_bus.publish(event)
         return event
 
-    async def _convert_document(self, job: IngestionJob, prefix: str) -> ParsedDocument:
+    async def convert_document(self, job: IngestionJob, prefix: str) -> ParsedDocument:
         return await queue_conversion.convert_document(
             job,
             prefix,
-            emit=self._publish_progress,
-            ensure_job_current=self._ensure_job_current,
+            emit=self.publish_progress,
+            ensure_job_current=self.ensure_job_current,
         )
 
-    async def _chunk_and_embed(
+    async def chunk_and_embed(
         self,
         job: IngestionJob,
         parsed: ParsedDocument,
@@ -246,8 +250,8 @@ class IngestionQueue:
             parsed,
             prefix,
             vector_store=self._vector_store,
-            emit=self._publish_progress,
-            ensure_job_current=self._ensure_job_current,
+            emit=self.publish_progress,
+            ensure_job_current=self.ensure_job_current,
         )
 
     async def _process_job(self, worker_id: int | str, job: IngestionJob) -> None:

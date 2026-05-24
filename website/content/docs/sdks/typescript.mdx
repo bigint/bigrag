@@ -16,6 +16,14 @@ npm install @bigrag/client
 Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes. Browser realtime uses native `WebSocket`; Node realtime uses the SDK's `ws` dependency.
 Published npm releases use CalVer (`YYYY.M.D`), for example `@bigrag/client@2026.5.23`.
 
+Browser applications that only need SDK error classes and shared response types can import the browser-safe subpath:
+
+```typescript
+import { APIError, type Document } from "@bigrag/client/browser";
+```
+
+The main `@bigrag/client` entry includes Node file-path upload support. Use the `/browser` subpath for admin UI code or other browser bundles that should not load Node upload helpers.
+
 ## Quick Start
 
 ```typescript

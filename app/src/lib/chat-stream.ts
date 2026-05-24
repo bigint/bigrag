@@ -1,4 +1,4 @@
-import type { ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client";
+import type { ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client/browser";
 import { apiUrl } from "@/config/runtime";
 import type { QueryTimings } from "@/types/bigrag";
 

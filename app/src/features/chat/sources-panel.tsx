@@ -1,4 +1,4 @@
-import type { ChatSource } from "@bigrag/client";
+import type { ChatSource } from "@bigrag/client/browser";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Database, FileText, Gauge, Hash } from "lucide-react";
 import type { MutableRefObject, RefObject } from "react";

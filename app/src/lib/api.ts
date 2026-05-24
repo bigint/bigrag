@@ -1,4 +1,4 @@
-import { errorForStatus } from "@bigrag/client";
+import { errorForStatus } from "@bigrag/client/browser";
 import ky, { type KyInstance, type Options } from "ky";
 import { bigragApiUrl } from "@/config/runtime";
 

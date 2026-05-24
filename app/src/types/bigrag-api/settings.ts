@@ -1,10 +1,10 @@
-import type { InstanceSetting } from "@bigrag/client";
+import type { InstanceSetting } from "@bigrag/client/browser";
 
 export type {
   InstanceSettingGroup,
   InstanceSettingKind,
   InstanceSettingSpec,
   InstanceSettingsResponse,
-} from "@bigrag/client";
+} from "@bigrag/client/browser";
 
 export type InstanceSettingValue = InstanceSetting;

@@ -11,6 +11,7 @@ from bigrag.services import queue_embedding, queue_state
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.event_bus import event_bus
 from bigrag.services.ingestion_job import IngestionJob
+from bigrag.services.queue_runtime import IngestionQueueRuntime, require_queue_redis
 from bigrag.services.staged_files import clear_document_staged_file
 
 logger = get_logger("bigrag.queue")
@@ -19,7 +20,7 @@ _delete_document_vectors_after_failure = queue_embedding.delete_document_vectors
 
 
 async def finalize_success(
-    queue: Any,
+    queue: IngestionQueueRuntime,
     job: IngestionJob,
     *,
     doc: str,
@@ -29,6 +30,7 @@ async def finalize_success(
     total_inserted: int,
     pending_enrichment_count: int,
 ) -> None:
+    redis = require_queue_redis(queue)
     await clear_document_staged_file(doc_uuid, job.file_path)
 
     from bigrag.services.retrieval import invalidate_collection_query_cache
@@ -39,16 +41,16 @@ async def finalize_success(
 
         enqueue_multimodal_enrichment(job.document_id)
     total_elapsed = time.monotonic() - start_time
-    await queue._redis.hincrby(queue_state.STATS_KEY, "completed", 1)
-    await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
-    await queue._release_job()
+    await redis.hincrby(queue_state.STATS_KEY, "completed", 1)
+    await redis.hincrby(queue_state.STATS_KEY, "processing", -1)
+    await queue.release_job()
     logger.debug(
         "job complete",
         prefix=prefix,
         chunks=total_inserted,
         elapsed=round(total_elapsed, 2),
     )
-    queue._publish_progress(
+    queue.publish_progress(
         doc,
         "complete",
         "complete",
@@ -62,7 +64,7 @@ async def finalize_success(
 
 
 async def finalize_cancelled(
-    queue: Any,
+    queue: IngestionQueueRuntime,
     job: IngestionJob,
     error: Exception,
     *,
@@ -82,8 +84,8 @@ async def finalize_cancelled(
     safe_message = sanitize_message_text(str(error)) or "ingestion cancelled"
     await update_doc(status="failed", error_message=safe_message)
     await clear_document_staged_file(doc_uuid, job.file_path)
-    await queue._release_job()
-    queue._publish_progress(
+    await queue.release_job()
+    queue.publish_progress(
         doc,
         "cancelled",
         "failed",
@@ -95,7 +97,7 @@ async def finalize_cancelled(
 
 
 async def finalize_retry(
-    queue: Any,
+    queue: IngestionQueueRuntime,
     job: IngestionJob,
     *,
     vector_store: Any,
@@ -105,6 +107,7 @@ async def finalize_retry(
     safe_error: str,
     update_doc: Callable[..., Awaitable[None]],
 ) -> None:
+    redis = require_queue_redis(queue)
     await _delete_document_vectors_after_failure(
         vector_store,
         job.collection_name,
@@ -114,17 +117,17 @@ async def finalize_retry(
     )
 
     delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
-    await queue._release_job()
+    await queue.release_job()
     try:
         await queue.enqueue_retry(job, delay_seconds=delay)
     except queue_state.QueueFullError:
-        await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
+        await redis.hincrby(queue_state.STATS_KEY, "failed", 1)
         await update_doc(
             status="failed",
             error_message=f"Attempt {job.attempt} failed: {safe_error}. Queue full, not retried.",
         )
         await clear_document_staged_file(doc_uuid, job.file_path)
-        queue._publish_progress(
+        queue.publish_progress(
             doc,
             "failed",
             "failed",
@@ -135,7 +138,7 @@ async def finalize_retry(
         )
         event_bus.complete(doc)
         return
-    queue._publish_progress(
+    queue.publish_progress(
         doc,
         "retrying",
         "processing",
@@ -153,7 +156,7 @@ async def finalize_retry(
 
 
 async def finalize_permanent(
-    queue: Any,
+    queue: IngestionQueueRuntime,
     job: IngestionJob,
     error: Exception,
     *,
@@ -165,6 +168,7 @@ async def finalize_permanent(
     is_permanent: bool,
     update_doc: Callable[..., Awaitable[None]],
 ) -> None:
+    redis = require_queue_redis(queue)
     reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
     await _delete_document_vectors_after_failure(
         vector_store,
@@ -173,20 +177,20 @@ async def finalize_permanent(
         prefix=prefix,
         log_message="failed to clean up permanently failed vectors",
     )
-    await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
-    await queue._redis.lpush(queue_state.DEAD_LETTER_KEY, job.serialize())
-    await queue._redis.ltrim(queue_state.DEAD_LETTER_KEY, 0, 999)
+    await redis.hincrby(queue_state.STATS_KEY, "failed", 1)
+    await redis.lpush(queue_state.DEAD_LETTER_KEY, job.serialize())
+    await redis.ltrim(queue_state.DEAD_LETTER_KEY, 0, 999)
     safe_message = safe_error
     await update_doc(status="failed", error_message=safe_message)
     await clear_document_staged_file(doc_uuid, job.file_path)
-    await queue._release_job()
+    await queue.release_job()
     logger.debug(
         "job permanently failed",
         prefix=prefix,
         reason=reason,
         error_type=type(error).__name__,
     )
-    queue._publish_progress(
+    queue.publish_progress(
         doc,
         "failed",
         "failed",

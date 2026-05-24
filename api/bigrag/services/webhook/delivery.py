@@ -8,6 +8,7 @@ import orjson
 
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
+from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.webhook.http import (
     delivery_timeout,
     get_semaphore,
@@ -153,10 +154,11 @@ async def _attempt_delivery(
             delivered = classified["status"] == "delivered"
             last_error = classified["error"]
         except ValueError as exc:
-            last_error = f"Blocked: {exc}"
+            safe_message = sanitize_message_text(str(exc)) or "URL rejected"
+            last_error = f"Blocked: {safe_message}"
             terminal = True
         except Exception as exc:
-            last_error = str(exc)
+            last_error = sanitize_message_text(str(exc)) or exc.__class__.__name__
 
     terminal = terminal or delivered or attempt >= max_attempts
     if delivered:
@@ -242,7 +244,7 @@ async def deliver_once(
         return {
             "status": "failed",
             "status_code": None,
-            "error": f"{exc.__class__.__name__}: {exc}",
+            "error": sanitize_message_text(str(exc)) or exc.__class__.__name__,
         }
 
 

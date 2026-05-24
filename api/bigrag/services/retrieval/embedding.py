@@ -14,9 +14,10 @@ def resolve_embedding_model(collection: dict, *, error_label: str | None = None)
         return get_embedding_model_for(collection)
     except (ImportError, ValueError) as exc:
         if error_label is not None:
+            detail = safe_error_detail(exc, "Embedding provider unavailable.")
             raise HTTPException(
                 status_code=400,
-                detail=f"{error_label}: {exc}",
+                detail=f"{error_label}: {detail}",
             ) from exc
         logger.warning(
             "embedding model unavailable",

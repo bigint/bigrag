@@ -145,7 +145,7 @@ async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: 
             pinned = await pin_chat_base_url(base_url)
         except UnsafeOutboundUrlError as exc:
             raise UpstreamError(
-                f"chat base URL rejected by SSRF check: {exc}",
+                "chat base URL rejected by SSRF check",
                 public_message="Chat provider URL was rejected by SSRF protection.",
             ) from exc
         kwargs: dict[str, Any] = {

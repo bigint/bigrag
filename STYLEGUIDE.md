@@ -19,12 +19,13 @@ function processLargeDataset(data: unknown) {
 }
 ```
 
-**Rule breaks should always be intentional, not accidental.** Do not add explanatory source comments or docstrings under `api/bigrag/`, `sdks/typescript/src/`, `app/`, or `website/`; use clearer names, smaller functions, or external review notes instead. Functional tool directives such as `# type: ignore`, `# ruff:`, `// @ts-...`, `// biome-ignore`, and `// eslint-...` are allowed when the tool requires them.
+**Rule breaks should always be intentional, not accidental.** Do not add explanatory source comments or docstrings under `api/bigrag/`, `sdks/typescript/src/`, `sdks/python/src/`, `app/`, or `website/`; use clearer names, smaller functions, or external review notes instead. Functional tool directives such as `# type: ignore`, `# ruff:`, `// @ts-...`, `// biome-ignore`, and `// eslint-...` are allowed when the tool requires them.
 
 ## Table of Contents
 
 - [Core Principles](#core-principles)
 - [Rule Severity](#rule-severity)
+- [Cross-Cut Defaults](#cross-cut-defaults)
 - [Tech Stack Overview](#tech-stack-overview)
 - [Naming Conventions](#naming-conventions)
 - [TypeScript Usage](#typescript-usage)
@@ -137,6 +138,75 @@ These rules improve code quality but are stylistic preferences:
 - **Explaining variables** - Extract complex expressions (use judgment)
 
 **When in doubt**: Follow existing patterns and prioritize clarity over dogma. If a rule seems wrong for your case, document why and discuss with the team.
+
+## Cross-Cut Defaults
+
+These rules apply across the monorepo. They adapt useful maintenance habits from other agent-facing repos while staying aligned with bigRAG's current stack and package boundaries.
+
+### Repository Hygiene
+
+- Treat changes as public-facing work: keep names precise, avoid throwaway wording, and leave the surrounding code cleaner than you found it.
+- Use conventional commit and PR titles with lowercase scopes and direct summaries: `fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, `perf:`, or `test:`.
+- Finish with the relevant formatter, linter, typecheck, build, compile, or runtime smoke check for the files touched.
+- Keep new code warning-free. Do not add lint, type, accessibility, or format suppressions to bypass work; only keep tool pragmas that are required, narrow, and explained outside source code.
+
+### Styling And Theme Tokens
+
+- Name semantic theme tokens after their purpose, not their implementation. Prefer tokens such as `canvas`, `panel`, `control`, `ink`, `muted`, `danger`, or `warning` over duplicated color names.
+- Do not create app tokens that only restate Tailwind defaults. Use built-in utilities directly unless the value represents a real bigRAG concept.
+- Prefer Tailwind utilities for styling. Keep global CSS limited to tokens, global element rules, keyframes, pseudo-elements, browser quirks, and third-party selectors that utilities cannot express clearly.
+- Reach for named Tailwind utilities first. Use arbitrary values only when the design system has no equivalent size, color, selector, or measurement.
+- Revisit custom class hooks when editing nearby UI. Delete them when inline utilities, component props, or a shared primitive can express the same result.
+- Keep Tailwind class lists inline for feature UI. Extract repeated styling into a component, component variant, or shared primitive instead of a one-off class string constant.
+- Component primitives may centralize variants with CVA, `cn`, or the repo's existing helper, but feature pages should not grow private styling registries.
+- Use Tailwind `size-*` utilities for square icon and control boxes instead of pairing matching width and height classes.
+- In MDX-rendered content or third-party selector CSS, prefer Tailwind `@apply` for styles that are expressible as utilities. Use raw CSS for pseudo-elements, data attributes, browser-specific selectors, or values Tailwind cannot represent well.
+- Do not add external fonts without a product-level reason. Preserve existing app and docs font choices instead of introducing another font family for a local change.
+
+### File Shape And Module Names
+
+- Shared helpers belong in a clearly named domain module once two or more files need them. Do not duplicate parsers or data-shaping logic across feature files.
+- Keep single-use helpers beside their caller. Promote them only when reuse is real.
+- Group clusters that share a domain or filename prefix into a folder rather than leaving broad flat lists of related files.
+- Inside a domain folder, keep child filenames short and specific. Avoid repeating the parent folder name unless it removes ambiguity.
+- Prefer descriptive module names over placeholders such as `items`, `panels`, `list`, or `card`.
+- Use `index.ts` or `index.tsx` when the file name would otherwise repeat the parent folder name exactly.
+- Split files before they become difficult to scan. Around 300 lines is the point to look for a route, component, service, provider, or stage boundary.
+
+### TypeScript Data Modeling
+
+- Use `interface` for component props and shared object shapes. Use `type` for unions, function aliases, mapped types, and utility-composed shapes.
+- Do not add `any`. Parse unknown inputs into explicit shapes, narrow with guards, or model the allowed variants.
+- Omit optional object properties when a value is absent. Avoid serializing placeholder `null` or `undefined` fields at API boundaries.
+- Represent loading and renderer states with discriminated unions instead of layered nullable sentinels.
+- Use an empty string for absent renderer-only string state such as selected ids or input values only when that state never crosses an API boundary.
+- Use a bare `return;` for no-value exits.
+- Prefer conditional object spreads for optional JSX props instead of passing absent props through ternaries.
+- Avoid single-use constants. Inline the value unless a name removes meaningful duplication, clarifies a non-obvious rule, or protects against drift.
+- Keep local prop names contextual. In a component that owns one panel, `open`, `onOpen`, `value`, and `onValueChange` are clearer than repeating the parent feature name.
+- Order interface members, type members, JSX props, destructured bindings, hook dependencies, and object constants by increasing line length when it improves scanning and does not fight framework conventions.
+
+### React Effects And UI Behavior
+
+- Use effects only to synchronize with something outside React: DOM APIs, storage, timers, observers, subscriptions, sockets, or analytics.
+- Do not use effects for derived values that can be computed during render.
+- Every timer, animation frame, listener, observer, subscription, watcher, and polling loop must have one owner and a matching cleanup path.
+- Avoid duplicate polling or duplicate listeners for the same source. If high-frequency updates drive visible UI, batch them through animation frames or a single state update path.
+- Keep cached UI surfaces fast. Popovers, pickers, menus, and frequently opened panels should show the last known useful data and refresh in the background.
+- Avoid layout jumps during hydration or refetch. If there is no meaningful content yet, prefer a stable empty surface over noisy loaders.
+- Keep primary user-facing content direct. Put diagnostics, metadata, debug payloads, traces, and tool output behind compact expandable details.
+- Extract multi-branch render logic into named helpers or child components. Hoist repeated permission, role, mode, or status checks into booleans before JSX.
+- Avoid placeholder ternaries that compute unused values. Split the branch or extract a helper so each path computes only what it renders.
+- Use hover backgrounds only when a filled selected or active affordance is needed. Otherwise prefer text, border, or icon-color feedback.
+- For small icon-only controls, keep the visual size stable and expand the hit target with padding or a pseudo-element.
+- In expandable rows, keep stable identifiers visible in the row title and reserve the expanded body for supporting details, output, diffs, or long text.
+
+### Environment And Runtime Boundaries
+
+- Read browser runtime configuration through `app/src/config/runtime.ts`, not scattered `import.meta.env` checks.
+- Read backend bootstrap settings through `api/bigrag/config.py`, not direct `os.environ` calls in services or routers.
+- Keep SDK environment fallbacks contained to the SDK client boundary. Do not leak `process.env` reads into resource modules.
+- When adding or removing configuration, update `.env.example`, `bigrag.toml`, Railway variables, Docker/deployment docs, and runtime settings docs together so operators see one coherent setup story.
 
 ## Tech Stack Overview
 
@@ -2522,6 +2592,7 @@ async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
 
 ### Core Concepts
 
+- **Agent Rule Inspiration**: [sasicodes/start AGENTS.md](https://github.com/sasicodes/start/blob/main/AGENTS.md)
 - **Functional-Light JS**: [GitHub - getify/Functional-Light-JS](https://github.com/getify/Functional-Light-JS)
 - **Clean Code JavaScript**: [GitHub - ryanmcdermott/clean-code-javascript](https://github.com/ryanmcdermott/clean-code-javascript)
 - **SOLID Principles in TypeScript**: [LogRocket Blog](https://blog.logrocket.com/applying-solid-principles-typescript/)

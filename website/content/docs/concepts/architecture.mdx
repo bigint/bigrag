@@ -124,6 +124,22 @@ Connector routes stay provider-neutral through `connector_registry.py`. Reusable
 - Sync status handling
 - Document handoff to the ingestion actor
 
-The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry and dead-letter behavior can evolve without changing route-level APIs.
+The S3 sync runner keeps job lookup, lifecycle state transitions, page scanning, stale remote deletion, and finalization in separate modules. Queue saturation completes the current sync as deferred work instead of mixing that state transition into the scanning loop.
+
+## Worker service boundaries
+
+The ingestion queue keeps Redis lease/recovery state separate from per-document processing so retry and dead-letter behavior can evolve without changing route-level APIs. Per-document processing depends on an explicit queue runtime interface for Redis stats, progress publishing, retry admission, conversion, and chunk embedding; the processing path no longer reaches through private queue internals.
+
+Document conversion is stage-based:
+
+- Storage staging downloads the original into a temporary worker-local file.
+- Plain-text files are decoded directly.
+- Structured files go through the isolated Docling converter.
+- PDFs first try embedded text extraction, then fall back to chunked OCR when enabled.
+- Progress events are emitted by the conversion boundary rather than by route handlers.
+
+Upload-session file requests follow the same route-thin pattern. The route validates auth, collection scope, and embedding readiness, then delegates item reservation, staged-file validation, persistence, deduplication, progress hydration, and failure response shaping to `bigrag.services.upload_session_files`.
+
+Retrieval is split by concern: cache lookup and timing attribution, search-mode dispatch, optional reranking, outcome logging, and multi-collection fanout live in separate retrieval modules behind the public `retrieve` and `retrieve_multi` exports.
 
 Scheduled connector ticks run as Dramatiq maintenance actors and claim due sources with row locks so multiple worker replicas do not create duplicate scheduled sync jobs. The S3 provider keeps credential validation, object listing, source helpers, and sync adapter wiring in separate modules.

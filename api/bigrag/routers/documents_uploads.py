@@ -10,6 +10,7 @@ from bigrag.services.documents import (
     UploadBudget,
     stream_upload_to_temp,
 )
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
 from bigrag.services.tenant_enforcement import enforce_tenant_metadata
 
@@ -71,7 +72,9 @@ async def validated_upload_to_temp(
             tmp_path.unlink()
         except OSError:
             pass
-        detail = f"File '{file.filename}': {exc}" if batch else str(exc)
+        detail = safe_error_detail(exc, "File content is invalid.")
+        if batch:
+            detail = f"File '{file.filename}': {detail}"
         raise HTTPException(status_code=400, detail=detail) from exc
     return tmp_path, content_hash, size
 
@@ -80,5 +83,6 @@ def metadata_or_400(collection: dict, metadata: str, prepare, parse, principal: 
     try:
         prepared = prepare(collection, parse(metadata))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+        detail = safe_error_detail(exc, "Metadata is invalid.")
+        raise HTTPException(status_code=400, detail=f"metadata: {detail}") from exc
     return enforce_tenant_metadata(collection, prepared, principal, label="metadata")

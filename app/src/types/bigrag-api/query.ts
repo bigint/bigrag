@@ -1,7 +1,7 @@
 import type {
   QueryResult as SdkQueryResult,
   QueryTimings as SdkQueryTimings,
-} from "@bigrag/client";
+} from "@bigrag/client/browser";
 
 export type Chunk = {
   id: string;

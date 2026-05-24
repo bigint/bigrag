@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any
 
 import sqlalchemy as sa
 
@@ -19,16 +18,24 @@ from bigrag.services.queue_finalize import (
     finalize_retry,
     finalize_success,
 )
+from bigrag.services.queue_runtime import IngestionQueueRuntime, require_queue_redis
 
 logger = get_logger("bigrag.queue")
 
 _PERMANENT_ERRORS = queue_embedding.PERMANENT_ERRORS
 
 
-async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> None:
-    vector_store = queue._vector_store
-    if vector_store is None:
-        from bigrag.services.vector_store import vector_store
+async def process_job(
+    queue: IngestionQueueRuntime,
+    worker_id: int | str,
+    job: IngestionJob,
+) -> None:
+    redis = require_queue_redis(queue)
+    active_vector_store = queue.vector_store
+    if active_vector_store is None:
+        from bigrag.services.vector_store import vector_store as default_vector_store
+
+        active_vector_store = default_vector_store
 
     doc_uuid = uuid.UUID(job.document_id)
 
@@ -43,14 +50,14 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
     prefix = f"[worker-{worker_id}] [job={job.job_id}] [doc={job.document_id}]"
     doc = job.document_id
 
-    await queue._redis.hincrby(queue_state.STATS_KEY, "processing", 1)
+    await redis.hincrby(queue_state.STATS_KEY, "processing", 1)
     logger.debug(
         "job starting",
         prefix=prefix,
         attempt=job.attempt,
         max_attempts=job.max_attempts,
     )
-    queue._publish_progress(
+    queue.publish_progress(
         doc,
         "queued",
         "processing",
@@ -64,9 +71,9 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
     start_time = time.monotonic()
 
     try:
-        await queue._ensure_job_current(job)
+        await queue.ensure_job_current(job)
         await _update_doc(status="processing")
-        queue._publish_progress(
+        queue.publish_progress(
             doc,
             "processing",
             "processing",
@@ -75,8 +82,8 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             collection_name=job.collection_name,
         )
 
-        parsed = await queue._convert_document(job, prefix)
-        await queue._ensure_job_current(job)
+        parsed = await queue.convert_document(job, prefix)
+        await queue.ensure_job_current(job)
         async with session_factory()() as session:
             element_counts = await replace_document_elements(
                 session,
@@ -86,7 +93,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
             await session.commit()
 
-        total_inserted, total_expected = await queue._chunk_and_embed(job, parsed, prefix)
+        total_inserted, total_expected = await queue.chunk_and_embed(job, parsed, prefix)
         token_count = len(parsed.text) // 4
 
         if total_inserted == 0:
@@ -98,7 +105,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             else None
         )
 
-        await queue._ensure_job_current(job)
+        await queue.ensure_job_current(job)
         async with session_factory()() as session:
             await session.execute(
                 sa.update(Document)
@@ -127,7 +134,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
 
     except Exception as e:
         total_elapsed = time.monotonic() - start_time
-        await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
+        await redis.hincrby(queue_state.STATS_KEY, "processing", -1)
         safe_error = sanitize_message_text(str(e)) or "ingestion failed"
         logger.error(f"{job.collection_name} | failed after {total_elapsed:.1f}s | {safe_error}")
 
@@ -138,7 +145,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                 queue,
                 job,
                 e,
-                vector_store=vector_store,
+                vector_store=active_vector_store,
                 doc=doc,
                 doc_uuid=doc_uuid,
                 prefix=prefix,
@@ -148,7 +155,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             await finalize_retry(
                 queue,
                 job,
-                vector_store=vector_store,
+                vector_store=active_vector_store,
                 doc=doc,
                 doc_uuid=doc_uuid,
                 prefix=prefix,
@@ -160,7 +167,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                 queue,
                 job,
                 e,
-                vector_store=vector_store,
+                vector_store=active_vector_store,
                 doc=doc,
                 doc_uuid=doc_uuid,
                 prefix=prefix,

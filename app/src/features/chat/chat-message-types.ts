@@ -1,4 +1,4 @@
-import type { ChatSource } from "@bigrag/client";
+import type { ChatSource } from "@bigrag/client/browser";
 import type { QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {

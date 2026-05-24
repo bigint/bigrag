@@ -16,6 +16,7 @@
     "types": ["node"],
     "paths": {
       "@bigrag/client": ["../sdks/typescript/src/index.ts"],
+      "@bigrag/client/browser": ["../sdks/typescript/src/browser.ts"],
       "@/*": ["./src/*"]
     }
   },
