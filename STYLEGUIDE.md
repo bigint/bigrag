@@ -26,12 +26,10 @@ function processLargeDataset(data: unknown) {
 - [Core Principles](#core-principles)
 - [Rule Severity](#rule-severity)
 - [Tech Stack Overview](#tech-stack-overview)
-- [File Structure \& Organization](#file-structure--organization)
 - [Naming Conventions](#naming-conventions)
 - [TypeScript Usage](#typescript-usage)
 - [React Patterns](#react-patterns)
 - [State Management](#state-management)
-- [Business Logic Extraction](#business-logic-extraction)
 - [Data Fetching with TanStack Query](#data-fetching-with-tanstack-query)
 - [Component Composition](#component-composition)
 - [Performance Guidelines](#performance-guidelines)
@@ -2543,11 +2541,6 @@ async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
 - **Tailwind CSS**: [tailwindcss.com](https://tailwindcss.com/)
 - **Base UI**: [base-ui.com](https://base-ui.com/)
 - **Biome**: [biomejs.dev](https://biomejs.dev/)
-
-### Internal Documentation
-
-- `CLAUDE.md` - Main development guidelines
-- `docs/CODING_GUIDELINES.md` - Coding philosophy
 
 ---
 
