@@ -1,5 +1,6 @@
+import type { ChatCreateBody, ChatMessage, ChatSource } from "@bigrag/client";
 import { apiUrl } from "@/config/runtime";
-import type { ChatCreateBody, ChatMessage, ChatSource, QueryTimings } from "@/types/bigrag";
+import type { QueryTimings } from "@/types/bigrag";
 
 type ChatStreamEvent =
   | { event: "user_message"; data: ChatMessage }

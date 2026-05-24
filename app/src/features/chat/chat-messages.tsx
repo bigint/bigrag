@@ -1,3 +1,4 @@
+import type { ChatSource } from "@bigrag/client";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -35,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
-import type { ChatSource, QueryTimings } from "@/types/bigrag";
+import type { QueryTimings } from "@/types/bigrag";
 
 export type ChatMessage = {
   id: string;
