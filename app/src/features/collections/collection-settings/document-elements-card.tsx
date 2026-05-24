@@ -23,7 +23,7 @@ export const DocumentElementsCard = ({
     <CardHeader>
       <CardTitle>Document elements</CardTitle>
       <CardDescription>
-        Preserve structure and optional VLM summaries for multimodal retrieval.
+        Preserve structure and optional LLM summaries for multimodal retrieval.
       </CardDescription>
     </CardHeader>
     <CardContent className="flex flex-col gap-4">
@@ -33,7 +33,7 @@ export const DocumentElementsCard = ({
         onCheckedChange={onToggleMultimodal}
       />
       <Switch
-        label="VLM enrichment"
+        label="LLM enrichment"
         checked={multimodalEnrichmentEnabled}
         onCheckedChange={onToggleEnrichment}
       />

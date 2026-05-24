@@ -15,7 +15,7 @@ When you create a collection, you define:
 - **Chunk size and overlap** — how documents are split into searchable segments
 - **Default query settings** — `top_k`, `min_score`, and `search_mode` defaults
 - **Turbopuffer namespace** — the backend search object used for writes, deletes, exports, filters, and retrieval
-- **Multimodal element handling** — whether ingestion stores headings, tables, equations, images, page bounds, and optional VLM summaries
+- **Multimodal element handling** — whether ingestion stores headings, tables, equations, images, page bounds, and optional LLM summaries
 
 All documents within a collection use the same embedding model, ensuring consistent vector dimensions for search.
 
@@ -57,7 +57,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `reranking_model` | string | no | `"rerank-v3.5"` | Cohere reranking model |
 | `reranking_api_key` | string | no | `null` | Cohere API key |
 | `multimodal_enabled` | boolean | no | `false` | Store Docling/text-derived document elements separately from chunks |
-| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue VLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
+| `multimodal_enrichment_enabled` | boolean | no | `false` | Queue LLM summaries for image, table, and equation elements; requires `multimodal_enabled` |
 | `metadata` | object | no | `{}` | Arbitrary key-value pairs |
 
 Collection creation validates the saved Turbopuffer connection and any existing namespace schema for the collection name. The namespace is created on the first document or vector write, and chunk text is stored with full-text search enabled so semantic, keyword, and hybrid retrieval use the same backend.
@@ -148,7 +148,7 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 | `reranking_model` | string | Cohere reranking model |
 | `reranking_api_key` | string | Cohere API key |
 | `multimodal_enabled` | boolean | Enable/disable element extraction for future ingestions |
-| `multimodal_enrichment_enabled` | boolean | Enable/disable asynchronous VLM element summaries |
+| `multimodal_enrichment_enabled` | boolean | Enable/disable asynchronous LLM element summaries |
 | `default_top_k` | integer | Default number of results (1–1,000) |
 | `default_min_score` | float | Default minimum similarity score |
 | `default_search_mode` | string | `semantic`, `keyword`, or `hybrid` |

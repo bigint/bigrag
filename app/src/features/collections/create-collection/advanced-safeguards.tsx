@@ -48,13 +48,13 @@ export const AdvancedSafeguards = ({
       >
         <div className="mt-3 flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3">
           <div>
-            <div className="text-sm font-semibold">VLM enrichment</div>
+            <div className="text-sm font-semibold">LLM enrichment</div>
             <p className="mt-1 text-xs text-muted-foreground">
               Queue generated summaries for tables, equations, and images.
             </p>
           </div>
           <Switch
-            aria-label="VLM enrichment"
+            aria-label="LLM enrichment"
             checked={values.multimodalEnrichmentEnabled}
             onCheckedChange={onToggleMultimodalEnrichment}
           />
