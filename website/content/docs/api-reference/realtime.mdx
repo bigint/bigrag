@@ -53,9 +53,9 @@ TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token
 
 | Topic | Params | Payload shape | Lifecycle |
 |-------|--------|---------------|-----------|
-| `admin.collections.documents` | `collection`, `q`, `status`, `sort`, `order`, `limit`, `offset` | `GET /v1/collections/{name}/documents` | stays open |
+| `admin.collections.documents` | `collection`, `q`, `status`, `sort`, `order`, `limit`, `offset`, `include_total` | `GET /v1/collections/{name}/documents` | stays open |
 | `admin.collections.documents.detail` | `collection`, `document_id` | `GET /v1/collections/{name}/documents/{document_id}` | completes when `ready` or `failed` |
-| `admin.collections.documents.batch_status` | `collection`, `document_ids` | `POST /v1/collections/{name}/documents/batch/status` | completes when watched documents are terminal |
+| `admin.collections.documents.batch_status` | `collection`, `document_ids` | `POST /v1/collections/{name}/documents/batch/status` | completes when watched documents are terminal or missing/deleted with no active returned documents |
 | `admin.collections.upload_session` | `collection`, `session_id` | `GET /v1/collections/{name}/upload-sessions/{session_id}` | completes when `complete`, `failed`, or `canceled` |
 | `admin.collections.stats` | `collection` | `GET /v1/collections/{name}/stats` | stays open |
 | `admin.connectors.sources` | `provider`, `collection` | `GET /v1/connectors/{provider}/sources` | stays open |

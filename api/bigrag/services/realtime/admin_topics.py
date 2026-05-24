@@ -70,6 +70,7 @@ def _documents_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
     status = string(params, "status")
     sort = string(params, "sort", default="created_at") or "created_at"
     order = string(params, "order", default="desc") or "desc"
+    include_total = boolean(params, "include_total") or False
     limit = integer(params, "limit", default=100, minimum=1, maximum=1000)
     offset = integer(params, "offset", default=0, minimum=0)
     snapshot_topic = f"documents:list:{collection}"
@@ -85,7 +86,7 @@ def _documents_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
                 limit=limit,
                 offset=offset,
                 cursor=None,
-                include_total=False,
+                include_total=include_total,
                 _=user,
                 session=session,
             )
@@ -109,7 +110,13 @@ def _batch_status_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
             )
         )
 
-    return SnapshotTopic(snapshot_topic, load, fixed(2.0), f"collection:{collection}", _batch_done)
+    return SnapshotTopic(
+        snapshot_topic,
+        load,
+        fixed(2.0),
+        f"collection:{collection}",
+        lambda payload: _batch_done(payload, len(ids)),
+    )
 
 
 def _document_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
@@ -356,11 +363,14 @@ def _document_done(payload: Any) -> bool:
     return getattr(payload, "status", None) in TERMINAL_DOCUMENT_STATUSES
 
 
-def _batch_done(payload: Any) -> bool:
+def _batch_done(payload: Any, expected_count: int) -> bool:
     documents = getattr(payload, "documents", [])
-    return bool(documents) and all(
+    terminal = all(
         getattr(document, "status", None) in TERMINAL_DOCUMENT_STATUSES for document in documents
     )
+    if len(documents) < expected_count:
+        return terminal
+    return bool(documents) and terminal
 
 
 def _upload_session_done(payload: Any) -> bool:
