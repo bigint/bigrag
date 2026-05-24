@@ -99,12 +99,18 @@ export class BigRAGCore implements RequestClient {
     opts?: { signal?: AbortSignal; safeToRetry?: boolean },
   ): Promise<Response> {
     let lastError: Error | undefined;
+    let retryAfterOverride: number | undefined;
     const safeToRetry = opts?.safeToRetry ?? false;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
-        const backoff = Math.min(0.5 * 2 ** attempt, 4) * 1000 * (0.5 + Math.random() * 0.5);
-        await sleep(backoff);
+        const base = Math.min(0.5 * 2 ** (attempt - 1), 4);
+        let delay = base * (0.75 + Math.random() * 0.5) * 1000;
+        if (retryAfterOverride !== undefined) {
+          delay = Math.max(retryAfterOverride, delay);
+          retryAfterOverride = undefined;
+        }
+        await sleep(delay);
       }
 
       let response: Response;
@@ -130,13 +136,11 @@ export class BigRAGCore implements RequestClient {
       }
 
       if (response.status === 429 && attempt < this.maxRetries && safeToRetry) {
-        const retryAfterHeader = response.headers.get("Retry-After");
-        const retryAfterMs = retryAfterHeader ? Math.max(0, Number(retryAfterHeader)) * 1000 : 0;
-        await response.text().catch(() => undefined);
-        const computedBackoff =
-          Math.min(0.5 * 2 ** (attempt + 1), 4) * 1000 * (0.5 + Math.random() * 0.5);
-        await sleep(Math.max(retryAfterMs, computedBackoff));
         lastError = new Error("Rate limited");
+        const retryAfterHeader = response.headers.get("Retry-After");
+        const parsed = retryAfterHeader ? Number(retryAfterHeader) : Number.NaN;
+        retryAfterOverride = Number.isFinite(parsed) ? Math.max(0, parsed) * 1000 : undefined;
+        await response.text().catch(() => undefined);
         continue;
       }
 
