@@ -7,13 +7,9 @@ type ConnectorStatusVariant = "neutral" | "primary" | "success";
 export type ConnectorProvider = {
   readonly id: ConnectorProviderId;
   readonly label: string;
-  readonly shortLabel: string;
   readonly category: string;
-  readonly description: string;
   readonly icon: LucideIcon;
   readonly collectionSegment: string;
-  readonly setupItems: readonly string[];
-  readonly capabilities: readonly string[];
 };
 
 type ConnectorStatus = {
@@ -26,13 +22,9 @@ export const connectorProviders = [
   {
     id: "s3",
     label: "S3 / R2",
-    shortLabel: "S3 / R2",
     category: "Object storage",
-    description: "Mirror object prefixes into collections.",
     icon: HardDrive,
     collectionSegment: "s3",
-    setupItems: ["Bucket", "Prefix", "Access policy"],
-    capabilities: ["Prefix mirror", "Manual sync", "Scheduled sync"],
   },
 ] as const satisfies readonly ConnectorProvider[];
 
