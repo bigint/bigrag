@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 
 import sqlalchemy as sa
@@ -47,8 +46,6 @@ logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
-LOGIN_RATE_LIMIT = int(os.environ.get("BIGRAG_LOGIN_RATE_LIMIT", "10"))
-LOGIN_RATE_WINDOW_SECONDS = int(os.environ.get("BIGRAG_LOGIN_RATE_WINDOW_SECONDS", "60"))
 SETUP_LOCK_KEY = 734119001
 
 
@@ -56,13 +53,14 @@ async def _enforce_login_rate_limit(request: Request, email: str) -> None:
     redis = get_redis()
     if redis is None:
         return
+    s = _config.settings
     ip = client_ip(request) or "unknown"
     for scope, key in (("ip", ip), ("email", email)):
         bucket = f"bigrag:rate:login:{scope}:{key}"
         try:
             pipeline = redis.pipeline()
             pipeline.incr(bucket)
-            pipeline.expire(bucket, LOGIN_RATE_WINDOW_SECONDS)
+            pipeline.expire(bucket, s.login_rate_window_seconds)
             results = await pipeline.execute()
             current = results[0]
         except Exception as exc:
@@ -72,7 +70,7 @@ async def _enforce_login_rate_limit(request: Request, email: str) -> None:
                 error=str(exc),
             )
             return
-        if current > LOGIN_RATE_LIMIT:
+        if current > s.login_rate_limit:
             raise HTTPException(
                 status_code=429,
                 detail="Too many login attempts. Try again in a minute.",
