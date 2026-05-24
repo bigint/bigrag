@@ -22,6 +22,7 @@ from bigrag.services.connectors.types import (
     RemoteConnectorFile,
 )
 from bigrag.services.file_validation import InvalidFileContentError
+from bigrag.services.queue import QueueFullError
 
 logger = get_logger("bigrag.connectors")
 
@@ -112,6 +113,8 @@ async def sync_remote_files(
                         downloaded=downloaded,
                         counters=counters,
                     )
+            except QueueFullError:
+                raise
             except (InvalidFileContentError, ValueError) as exc:
                 counters.add_error(remote.id, remote.name, str(exc))
             except Exception as exc:

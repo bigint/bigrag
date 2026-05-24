@@ -26,6 +26,7 @@ LEASE_KEY_PREFIX = queue_state.LEASE_KEY_PREFIX
 COLLECTION_EPOCH_KEY_PREFIX = queue_state.COLLECTION_EPOCH_KEY_PREFIX
 DOCUMENT_EPOCH_KEY_PREFIX = queue_state.DOCUMENT_EPOCH_KEY_PREFIX
 IngestionCancelledError = queue_state.IngestionCancelledError
+QueueFullError = queue_state.QueueFullError
 
 _LEASE_TTL_SECONDS = queue_state.LEASE_TTL_SECONDS
 _LEASE_RENEW_INTERVAL_SECONDS = queue_state.LEASE_RENEW_INTERVAL_SECONDS
@@ -106,7 +107,7 @@ class IngestionQueue:
         queue_max_depth = await get_value("queue_max_depth")
         pending = await queue_size(INGESTION_QUEUE)
         if pending >= queue_max_depth:
-            raise ValueError("Ingestion queue is full. Try again later.")
+            raise QueueFullError("Ingestion queue is full. Try again later.")
         enqueue_ingestion_job(job)
         if self._redis is not None:
             await self._redis.hincrby(STATS_KEY, "queued", 1)

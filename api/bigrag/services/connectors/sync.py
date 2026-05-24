@@ -40,6 +40,7 @@ from bigrag.services.connectors.types import (
 )
 from bigrag.services.documents import recount_collection_documents
 from bigrag.services.error_sanitize import sanitize_message_text
+from bigrag.services.queue import QueueFullError
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.webhook import enqueue_webhook_event
 
@@ -299,6 +300,30 @@ async def sync_connector_job(job_id: str, adapter: ConnectorSyncAdapter) -> None
                 counters=counters,
             )
             raise
+        except QueueFullError:
+            logger.info(
+                "connector: sync deferred, ingestion queue full",
+                provider=adapter.provider,
+                job_id=job_id,
+            )
+            completed = utcnow()
+            job.status = "complete"
+            job.error_message = None
+            job.completed_at = completed
+            apply_counters(job, counters)
+            source.status = "idle"
+            source.last_sync_at = completed
+            source.next_sync_at = next_sync_at(source, from_time=completed)
+            source.last_error = None
+            await update_sync_progress(
+                session,
+                job=job,
+                source=source,
+                counters=counters,
+                phase="complete",
+                message="Ingestion queue full; remaining files will sync on the next run.",
+            )
+            notify_connector_sources(adapter.provider, source.collection_name)
         except BaseException as exc:
             logger.exception(
                 "connector: sync job failed",

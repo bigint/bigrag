@@ -41,6 +41,10 @@ class IngestionCancelledError(RuntimeError):
     pass
 
 
+class QueueFullError(ValueError):
+    pass
+
+
 def lease_key(job_id: str) -> str:
     return f"{LEASE_KEY_PREFIX}{job_id}"
 
