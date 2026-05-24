@@ -10,6 +10,7 @@ PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
 RETRY_KEY = "bigrag:ingestion:retry"
 STATS_KEY = "bigrag:ingestion:stats"
+INFLIGHT_DEPTH_KEY = "bigrag:ingestion:inflight"
 LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
 COLLECTION_EPOCH_KEY_PREFIX = "bigrag:ingestion:collection_epoch:"
 DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
@@ -43,6 +44,36 @@ class IngestionCancelledError(RuntimeError):
 
 class QueueFullError(ValueError):
     pass
+
+
+async def admit_inflight(redis, max_depth: int) -> bool:
+    if redis is None:
+        return True
+    current = await redis.incr(INFLIGHT_DEPTH_KEY)
+    if current > int(max_depth):
+        await redis.decr(INFLIGHT_DEPTH_KEY)
+        return False
+    return True
+
+
+async def release_inflight(redis) -> None:
+    if redis is None:
+        return
+    remaining = await redis.decr(INFLIGHT_DEPTH_KEY)
+    if remaining < 0:
+        await redis.set(INFLIGHT_DEPTH_KEY, 0)
+
+
+async def inflight_depth(redis) -> int:
+    if redis is None:
+        return 0
+    raw = await redis.get(INFLIGHT_DEPTH_KEY)
+    if raw is None:
+        return 0
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
 
 
 def lease_key(job_id: str) -> str:

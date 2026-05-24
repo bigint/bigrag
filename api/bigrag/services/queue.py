@@ -30,6 +30,7 @@ QueueFullError = queue_state.QueueFullError
 
 _LEASE_TTL_SECONDS = queue_state.LEASE_TTL_SECONDS
 _LEASE_RENEW_INTERVAL_SECONDS = queue_state.LEASE_RENEW_INTERVAL_SECONDS
+_LEASE_RENEW_MAX_FAILURES = 3
 _lease_key = queue_state.lease_key
 _collection_epoch_key = queue_state.collection_epoch_key
 _document_epoch_key = queue_state.document_epoch_key
@@ -90,11 +91,20 @@ class IngestionQueue:
     async def _ensure_job_current(self, job: IngestionJob) -> None:
         await queue_state.ensure_job_current(self._redis, job)
 
+    async def _admit_job(self) -> None:
+        from bigrag.services.runtime_settings import get_value
+
+        queue_max_depth = await get_value("queue_max_depth")
+        admitted = await queue_state.admit_inflight(self._redis, queue_max_depth)
+        if not admitted:
+            raise QueueFullError("Ingestion queue is full. Try again later.")
+
+    async def _release_job(self) -> None:
+        await queue_state.release_inflight(self._redis)
+
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.services.jobs.actors import enqueue_ingestion_job
-        from bigrag.services.jobs.broker import INGESTION_QUEUE, queue_size
         from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
-        from bigrag.services.runtime_settings import get_value
 
         try:
             await ensure_writes_allowed()
@@ -104,14 +114,26 @@ class IngestionQueue:
         if job.attempt == 0:
             job.collection_epoch = await self._collection_epoch(job.collection_name)
             job.document_epoch = await self._document_epoch(job.document_id)
-        queue_max_depth = await get_value("queue_max_depth")
-        pending = await queue_size(INGESTION_QUEUE)
-        if pending >= queue_max_depth:
-            raise QueueFullError("Ingestion queue is full. Try again later.")
-        enqueue_ingestion_job(job)
+        await self._admit_job()
+        try:
+            enqueue_ingestion_job(job)
+        except Exception:
+            await self._release_job()
+            raise
         if self._redis is not None:
             await self._redis.hincrby(STATS_KEY, "queued", 1)
-        logger.info(f"{job.collection_name} | queued | {pending + 1} pending")
+        depth = await queue_state.inflight_depth(self._redis)
+        logger.info(f"{job.collection_name} | queued | {depth} in flight")
+
+    async def enqueue_retry(self, job: IngestionJob, *, delay_seconds: float = 0) -> None:
+        from bigrag.services.jobs.actors import enqueue_ingestion_job
+
+        await self._admit_job()
+        try:
+            enqueue_ingestion_job(job, delay_seconds=delay_seconds)
+        except Exception:
+            await self._release_job()
+            raise
 
     async def cancel_collection(self, collection_name: str) -> int:
         if not self._redis:
@@ -152,12 +174,27 @@ class IngestionQueue:
 
     async def _renew_lease(self, job_id: str) -> None:
         lease_key = _lease_key(job_id)
+        consecutive_failures = 0
         while True:
             await asyncio.sleep(_LEASE_RENEW_INTERVAL_SECONDS)
             try:
                 await self._redis.set(lease_key, b"1", ex=_LEASE_TTL_SECONDS)
+                consecutive_failures = 0
             except Exception as exc:
-                logger.warning("queue lease renew failed", job=job_id, error=repr(exc))
+                consecutive_failures += 1
+                logger.warning(
+                    "queue lease renew failed",
+                    job=job_id,
+                    error=repr(exc),
+                    consecutive_failures=consecutive_failures,
+                )
+                if consecutive_failures >= _LEASE_RENEW_MAX_FAILURES:
+                    logger.error(
+                        "queue lease renew giving up; lease may expire for recovery",
+                        job=job_id,
+                        consecutive_failures=consecutive_failures,
+                    )
+                    return
 
     async def process_leased_job(self, worker_id: int | str, job: IngestionJob) -> None:
         if self._redis is None:

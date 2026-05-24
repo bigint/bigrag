@@ -98,10 +98,12 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             else None
         )
 
+        await queue._ensure_job_current(job)
         async with session_factory()() as session:
             await session.execute(
                 sa.update(Document)
                 .where(Document.id == doc_uuid)
+                .where(Document.status == "processing")
                 .values(
                     status="ready",
                     chunk_count=total_inserted,
@@ -124,6 +126,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         total_elapsed = time.monotonic() - start_time
         await queue._redis.hincrby(queue_state.STATS_KEY, "completed", 1)
         await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
+        await queue._release_job()
         logger.debug(
             "job complete",
             prefix=prefix,
@@ -163,6 +166,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             safe_message = sanitize_message_text(str(e)) or "ingestion cancelled"
             await _update_doc(status="failed", error_message=safe_message)
             await clear_document_staged_file(doc_uuid, job.file_path)
+            await queue._release_job()
             queue._emit(
                 doc,
                 "cancelled",
@@ -173,8 +177,6 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
             event_bus.complete(doc)
         elif not is_permanent and job.attempt < job.max_attempts:
-            from bigrag.services.jobs.actors import enqueue_ingestion_job
-
             await _delete_document_vectors_after_failure(
                 vector_store,
                 job.collection_name,
@@ -184,6 +186,28 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
 
             delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
+            await queue._release_job()
+            try:
+                await queue.enqueue_retry(job, delay_seconds=delay)
+            except queue_state.QueueFullError:
+                await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
+                await _update_doc(
+                    status="failed",
+                    error_message=f"Attempt {job.attempt} failed: {safe_error}. "
+                    "Queue full, not retried.",
+                )
+                await clear_document_staged_file(doc_uuid, job.file_path)
+                queue._emit(
+                    doc,
+                    "failed",
+                    "failed",
+                    safe_error,
+                    0.0,
+                    collection_name=job.collection_name,
+                    attempts=job.attempt,
+                )
+                event_bus.complete(doc)
+                return
             queue._emit(
                 doc,
                 "retrying",
@@ -199,7 +223,6 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                 status="pending",
                 error_message=f"Attempt {job.attempt} failed: {safe_error}. Retrying...",
             )
-            enqueue_ingestion_job(job, delay_seconds=delay)
         else:
             reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
             await _delete_document_vectors_after_failure(
@@ -215,6 +238,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             safe_message = safe_error
             await _update_doc(status="failed", error_message=safe_message)
             await clear_document_staged_file(doc_uuid, job.file_path)
+            await queue._release_job()
             logger.debug(
                 "job permanently failed",
                 prefix=prefix,

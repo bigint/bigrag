@@ -17,6 +17,8 @@ from bigrag.services.document_elements import (
 
 logger = get_logger("bigrag.conversion")
 
+MAX_EXTRACTED_TEXT_CHARS = 50_000_000
+
 _docling_converters = {}
 _docling_lock = threading.Lock()
 
@@ -143,6 +145,14 @@ def _get_docling_converter(*, pdf_ocr_enabled: bool = True):
     return converter
 
 
+def _guard_extracted_length(text: str) -> None:
+    if len(text) > MAX_EXTRACTED_TEXT_CHARS:
+        raise ValueError(
+            f"Extracted text length {len(text)} exceeds the maximum of "
+            f"{MAX_EXTRACTED_TEXT_CHARS} characters"
+        )
+
+
 def _convert_file_path(
     path: str,
     suffix: str,
@@ -152,17 +162,20 @@ def _convert_file_path(
     if suffix == ".pdf" and not include_elements:
         text = extract_pdf_text(path)
         if text.strip() or not pdf_ocr_enabled:
+            _guard_extracted_length(text)
             return parsed_document_from_text(
                 text,
                 suffix=suffix,
                 include_elements=False,
             )
     converter = _get_docling_converter(pdf_ocr_enabled=pdf_ocr_enabled)
-    return parsed_document_from_docling_result(
+    parsed = parsed_document_from_docling_result(
         converter.convert(path),
         suffix=suffix,
         include_elements=include_elements,
     )
+    _guard_extracted_length(parsed.text)
+    return parsed
 
 
 def _pool_convert(

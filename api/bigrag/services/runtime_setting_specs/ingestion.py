@@ -11,7 +11,7 @@ INGESTION_SPECS: tuple[SettingSpec, ...] = (
         default=64,
         description="Maximum size for a single uploaded document in MB.",
         min=1,
-        max=10240,
+        max=1024,
     ),
     SettingSpec(
         key="max_batch_upload_size_mb",
@@ -31,7 +31,7 @@ INGESTION_SPECS: tuple[SettingSpec, ...] = (
         default=10000,
         description="Maximum files accepted by a resumable upload session.",
         min=1,
-        max=1000000,
+        max=100000,
     ),
     SettingSpec(
         key="max_upload_session_size_mb",

@@ -74,6 +74,14 @@ async def chunk_and_embed(
         elapsed=round(elapsed, 2),
     )
 
+    from bigrag.services.conversion import MAX_EXTRACTED_TEXT_CHARS
+
+    if len(text) > MAX_EXTRACTED_TEXT_CHARS:
+        raise ValueError(
+            f"Extracted text length {len(text)} exceeds the maximum of "
+            f"{MAX_EXTRACTED_TEXT_CHARS} characters"
+        )
+
     strategy = getattr(job, "chunk_strategy", "paragraph") or "paragraph"
     chunks = await asyncio.to_thread(
         chunk_document,
