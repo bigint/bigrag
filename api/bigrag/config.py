@@ -120,17 +120,10 @@ class Settings(BaseSettings):
             return cls()
         with open(p, "rb") as f:
             data = tomllib.load(f)
-        flat: dict = {}
-        for section, values in data.items():
-            if isinstance(values, dict):
-                for k, v in values.items():
-                    key = f"{section}_{k}"
-                    if f"BIGRAG_{key.upper()}" not in os.environ:
-                        flat[key] = v
-            else:
-                if f"BIGRAG_{section.upper()}" not in os.environ:
-                    flat[section] = values
-        return cls(**flat)
+        overrides = {
+            key: value for key, value in data.items() if f"BIGRAG_{key.upper()}" not in os.environ
+        }
+        return cls(**overrides)
 
 
 settings = Settings()
