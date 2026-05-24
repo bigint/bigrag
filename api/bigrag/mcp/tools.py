@@ -183,7 +183,12 @@ async def call_get_document_chunks(
     client: httpx.AsyncClient,
     collection: str,
     document_id: str,
+    limit: int,
+    offset: int,
 ) -> dict[str, Any]:
-    r = await client.get(f"/v1/collections/{collection}/documents/{document_id}/chunks")
+    r = await client.get(
+        f"/v1/collections/{collection}/documents/{document_id}/chunks",
+        params={"limit": limit, "offset": offset},
+    )
     raise_for_status(r)
     return r.json()

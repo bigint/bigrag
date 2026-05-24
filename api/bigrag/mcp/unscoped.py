@@ -102,5 +102,7 @@ def register(mcp: FastMCP, client: httpx.AsyncClient) -> None:
     async def get_document_chunks(
         collection: CollectionName,
         document_id: DocumentId,
+        limit: Annotated[int, Field(ge=1, le=1000)] = 50,
+        offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict[str, Any]:
-        return await call_get_document_chunks(client, collection, document_id)
+        return await call_get_document_chunks(client, collection, document_id, limit, offset)

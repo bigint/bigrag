@@ -159,9 +159,11 @@ def _build_server() -> FastMCP:
     async def get_document_chunks(
         collection: CollectionName,
         document_id: DocumentId,
+        limit: Annotated[int, Field(ge=1, le=1000)] = 50,
+        offset: Annotated[int, Field(ge=0)] = 0,
     ) -> dict[str, Any]:
         async with _client() as c:
-            return await call_get_document_chunks(c, collection, document_id)
+            return await call_get_document_chunks(c, collection, document_id, limit, offset)
 
     return mcp
 
