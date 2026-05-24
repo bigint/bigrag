@@ -49,6 +49,11 @@ export const UsagePage = () => {
     params: { window_days: windowDays },
   });
 
+  const timelineMax = useMemo(
+    () => Math.max(1, ...(data?.timeline.map((item) => item.queries) ?? [])),
+    [data?.timeline],
+  );
+
   return (
     <Page.Shell>
       <Page.Header
@@ -115,7 +120,6 @@ export const UsagePage = () => {
                 </div>
                 <div className="flex h-32 items-end gap-1">
                   {data.timeline.map((point) => {
-                    const max = Math.max(1, ...data.timeline.map((item) => item.queries));
                     return (
                       <div
                         key={point.date}
@@ -124,7 +128,7 @@ export const UsagePage = () => {
                       >
                         <div
                           className="w-full rounded-t bg-primary/70"
-                          style={{ height: `${Math.max(4, (point.queries / max) * 100)}%` }}
+                          style={{ height: `${Math.max(4, (point.queries / timelineMax) * 100)}%` }}
                         />
                         <span className="hidden text-[10px] text-muted-foreground md:block">
                           {new Date(point.date).getDate()}
