@@ -2,6 +2,7 @@ x-bigrag-env: &bigrag-env
   BIGRAG_ENV: "${BIGRAG_ENV:-dev}"
   BIGRAG_DATABASE_URL: "postgres://${POSTGRES_USER:-bigrag}:${POSTGRES_PASSWORD:-bigrag}@postgres:5432/${POSTGRES_DB:-bigrag}?sslmode=disable"
   BIGRAG_REDIS_URL: "${BIGRAG_REDIS_URL:-redis://redis:6379/0}"
+  BIGRAG_CACHE_REDIS_URL: "${BIGRAG_CACHE_REDIS_URL:-redis://redis-cache:6379/0}"
   BIGRAG_MASTER_KEY: "${BIGRAG_MASTER_KEY:-}"
   BIGRAG_MASTER_KEY_PREVIOUS: '${BIGRAG_MASTER_KEY_PREVIOUS:-[]}'
   BIGRAG_SESSION_COOKIE_SECURE: "${BIGRAG_SESSION_COOKIE_SECURE:-false}"
@@ -37,6 +38,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
@@ -62,6 +65,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-cache:
         condition: service_healthy
     healthcheck:
       test:
@@ -136,6 +141,21 @@ services:
           memory: 1536m
     healthcheck:
       test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping; else redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: bigrag-redis-cache
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save ""
+    deploy:
+      resources:
+        limits:
+          memory: 640m
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
