@@ -19,4 +19,4 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-exec uv run --project "$ROOT_DIR/api" python "$SCRIPT_DIR/streaming.py" "$1"
+exec uv run --project "$ROOT_DIR/sdks/python" python "$SCRIPT_DIR/streaming.py" "$1"
