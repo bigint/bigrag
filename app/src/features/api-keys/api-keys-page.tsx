@@ -30,7 +30,7 @@ import {
 import { useCollections } from "@/hooks/use-collections";
 import { useCopy } from "@/hooks/use-copy";
 import { errorText, firstString, submitWith } from "@/lib/form";
-import { formatRelative } from "@/lib/format";
+import { formatRelativeOrNever } from "@/lib/format";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
 
 export const ApiKeysPage = () => {
@@ -124,13 +124,13 @@ export const ApiKeysPage = () => {
       header: "Last used",
       key: "last_used_at",
       className: "text-muted-foreground",
-      render: (k) => (k.last_used_at ? formatRelative(k.last_used_at) : "never"),
+      render: (k) => formatRelativeOrNever(k.last_used_at),
     },
     {
       header: "Expires",
       key: "expires_at",
       className: "text-muted-foreground",
-      render: (k) => (k.expires_at ? formatRelative(k.expires_at) : "never"),
+      render: (k) => formatRelativeOrNever(k.expires_at),
     },
     {
       header: "Actions",

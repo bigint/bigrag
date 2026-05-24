@@ -28,7 +28,7 @@ import {
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
 import { errorText, submitWith } from "@/lib/form";
-import { formatRelative } from "@/lib/format";
+import { formatRelativeOrNever } from "@/lib/format";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
 
 const TOOLS_UNSCOPED = [
@@ -354,7 +354,7 @@ const DetailDialog = ({ open, onClose, server, onRotate, rotating }: DetailDialo
             {server.key_prefix}…
           </code>
           <span className="ml-auto text-xs text-muted-foreground">
-            Last used {server.last_used_at ? formatRelative(server.last_used_at) : "never"}
+            Last used {formatRelativeOrNever(server.last_used_at)}
           </span>
         </div>
 
@@ -479,7 +479,7 @@ export const McpPage = () => {
       header: "Last used",
       key: "last_used_at",
       className: "text-muted-foreground",
-      render: (s) => (s.last_used_at ? formatRelative(s.last_used_at) : "never"),
+      render: (s) => formatRelativeOrNever(s.last_used_at),
     },
     {
       header: "Actions",
