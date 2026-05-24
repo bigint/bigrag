@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import time
 import uuid
 from typing import Any
@@ -13,14 +12,17 @@ from bigrag.logging import get_logger
 from bigrag.services import queue_embedding, queue_state
 from bigrag.services.document_elements import replace_document_elements
 from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.event_bus import event_bus
 from bigrag.services.ingestion_job import IngestionJob
-from bigrag.services.staged_files import clear_document_staged_file
+from bigrag.services.queue_finalize import (
+    finalize_cancelled,
+    finalize_permanent,
+    finalize_retry,
+    finalize_success,
+)
 
 logger = get_logger("bigrag.queue")
 
 _PERMANENT_ERRORS = queue_embedding.PERMANENT_ERRORS
-_delete_document_vectors_after_failure = queue_embedding.delete_document_vectors_after_failure
 
 
 async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> None:
@@ -114,38 +116,16 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             )
             await session.commit()
 
-        await clear_document_staged_file(doc_uuid, job.file_path)
-
-        from bigrag.services.retrieval import invalidate_collection_query_cache
-
-        await invalidate_collection_query_cache(job.collection_name)
-        if job.multimodal_enrichment_enabled and element_count > 0:
-            from bigrag.services.jobs.actors import enqueue_multimodal_enrichment
-
-            enqueue_multimodal_enrichment(job.document_id)
-        total_elapsed = time.monotonic() - start_time
-        await queue._redis.hincrby(queue_state.STATS_KEY, "completed", 1)
-        await queue._redis.hincrby(queue_state.STATS_KEY, "processing", -1)
-        await queue._release_job()
-        logger.debug(
-            "job complete",
+        await finalize_success(
+            queue,
+            job,
+            doc=doc,
+            doc_uuid=doc_uuid,
             prefix=prefix,
-            chunks=total_inserted,
-            elapsed=round(total_elapsed, 2),
+            start_time=start_time,
+            total_inserted=total_inserted,
+            element_count=element_count,
         )
-        await queue._fanout_webhook_event(
-            queue._emit(
-                doc,
-                "complete",
-                "complete",
-                f"Done — {total_inserted} chunks in {total_elapsed:.1f}s",
-                1.0,
-                collection_name=job.collection_name,
-                chunks=total_inserted,
-                elapsed=round(total_elapsed, 2),
-            )
-        )
-        event_bus.complete(doc)
 
     except Exception as e:
         total_elapsed = time.monotonic() - start_time
@@ -156,104 +136,37 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         is_permanent = isinstance(e, _PERMANENT_ERRORS)
 
         if isinstance(e, queue_state.IngestionCancelledError):
-            await _delete_document_vectors_after_failure(
-                vector_store,
-                job.collection_name,
-                doc,
+            await finalize_cancelled(
+                queue,
+                job,
+                e,
+                vector_store=vector_store,
+                doc=doc,
+                doc_uuid=doc_uuid,
                 prefix=prefix,
-                log_message="failed to clean up cancelled vectors",
+                update_doc=_update_doc,
             )
-            safe_message = sanitize_message_text(str(e)) or "ingestion cancelled"
-            await _update_doc(status="failed", error_message=safe_message)
-            await clear_document_staged_file(doc_uuid, job.file_path)
-            await queue._release_job()
-            queue._emit(
-                doc,
-                "cancelled",
-                "failed",
-                safe_message,
-                0.0,
-                collection_name=job.collection_name,
-            )
-            event_bus.complete(doc)
         elif not is_permanent and job.attempt < job.max_attempts:
-            await _delete_document_vectors_after_failure(
-                vector_store,
-                job.collection_name,
-                doc,
+            await finalize_retry(
+                queue,
+                job,
+                vector_store=vector_store,
+                doc=doc,
+                doc_uuid=doc_uuid,
                 prefix=prefix,
-                log_message="failed to clean up partial vectors",
-            )
-
-            delay = min(2**job.attempt, 30) + random.uniform(0, min(2**job.attempt, 10))
-            await queue._release_job()
-            try:
-                await queue.enqueue_retry(job, delay_seconds=delay)
-            except queue_state.QueueFullError:
-                await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
-                await _update_doc(
-                    status="failed",
-                    error_message=f"Attempt {job.attempt} failed: {safe_error}. "
-                    "Queue full, not retried.",
-                )
-                await clear_document_staged_file(doc_uuid, job.file_path)
-                queue._emit(
-                    doc,
-                    "failed",
-                    "failed",
-                    safe_error,
-                    0.0,
-                    collection_name=job.collection_name,
-                    attempts=job.attempt,
-                )
-                event_bus.complete(doc)
-                return
-            queue._emit(
-                doc,
-                "retrying",
-                "processing",
-                f"Attempt {job.attempt} failed, retrying in {delay}s",
-                0.0,
-                collection_name=job.collection_name,
-                error=safe_error,
-                attempt=job.attempt,
-                delay=delay,
-            )
-            await _update_doc(
-                status="pending",
-                error_message=f"Attempt {job.attempt} failed: {safe_error}. Retrying...",
+                safe_error=safe_error,
+                update_doc=_update_doc,
             )
         else:
-            reason = "permanent error" if is_permanent else f"{job.max_attempts} attempts exhausted"
-            await _delete_document_vectors_after_failure(
-                vector_store,
-                job.collection_name,
-                doc,
+            await finalize_permanent(
+                queue,
+                job,
+                e,
+                vector_store=vector_store,
+                doc=doc,
+                doc_uuid=doc_uuid,
                 prefix=prefix,
-                log_message="failed to clean up permanently failed vectors",
+                safe_error=safe_error,
+                is_permanent=is_permanent,
+                update_doc=_update_doc,
             )
-            await queue._redis.hincrby(queue_state.STATS_KEY, "failed", 1)
-            await queue._redis.lpush(queue_state.DEAD_LETTER_KEY, job.serialize())
-            await queue._redis.ltrim(queue_state.DEAD_LETTER_KEY, 0, 999)
-            safe_message = safe_error
-            await _update_doc(status="failed", error_message=safe_message)
-            await clear_document_staged_file(doc_uuid, job.file_path)
-            await queue._release_job()
-            logger.debug(
-                "job permanently failed",
-                prefix=prefix,
-                reason=reason,
-                error_type=type(e).__name__,
-            )
-            await queue._fanout_webhook_event(
-                queue._emit(
-                    doc,
-                    "failed",
-                    "failed",
-                    safe_message,
-                    0.0,
-                    collection_name=job.collection_name,
-                    attempts=job.attempt,
-                )
-            )
-            event_bus.complete(doc)
