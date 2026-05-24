@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
     db_pool_min: int = 5
-    db_pool_max: int = 50
+    db_pool_max: int = 25
     migration_timeout_seconds: int = 60
 
     redis_url: str = "redis://localhost:6379/0"

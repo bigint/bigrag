@@ -18,7 +18,12 @@
 
 # database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 # db_pool_min = 5
-# db_pool_max = 50
+# db_pool_max = 25
+# Connection budget: each API/worker process opens its own pool of up to
+# db_pool_max connections. Keep (api_workers * api_replicas + worker_processes)
+# * db_pool_max under Postgres max_connections (default 200), leaving headroom
+# for migrations/admin. For higher scale, front Postgres with PgBouncer
+# (transaction mode) instead of raising these.
 # migration_timeout_seconds = 60
 
 # redis_url = "redis://localhost:6379/0"
