@@ -209,7 +209,7 @@ async def retrieve(
                 timings=timings,
             )
         elif search_mode == "hybrid":
-            results, _ = await hybrid_search(
+            results = await hybrid_search(
                 collection_name=collection_name,
                 query=query,
                 query_terms=query_terms,
@@ -221,7 +221,7 @@ async def retrieve(
                 skip_cache=skip_cache,
             )
         else:
-            results, _ = await semantic_search(
+            results = await semantic_search(
                 collection_name=collection_name,
                 query=query,
                 embedding_model=embedding_model,
