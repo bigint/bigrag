@@ -8,6 +8,7 @@ from turbopuffer import NotFoundError as TurbopufferNotFoundError
 
 from bigrag.logging import get_logger
 from bigrag.services._retrieval_filters import FilterCondition, FilterExpression
+from bigrag.services.vector_store.attributes import decode_attributes, encode_attributes
 from bigrag.services.vector_store.base import (
     _backend_name,
     _build_payload,
@@ -57,12 +58,13 @@ def _to_turbopuffer_condition(condition: FilterCondition) -> tuple:
 
 
 def _row_payload(row: dict) -> dict:
+    decoded = decode_attributes(row)
     payload = {
         k: v
-        for k, v in row.items()
+        for k, v in decoded.items()
         if k not in {"$dist", "vector", _PUBLIC_ID_FIELD} and v is not None
     }
-    payload["id"] = row.get(_PUBLIC_ID_FIELD) or row.get("id")
+    payload["id"] = decoded.get(_PUBLIC_ID_FIELD) or decoded.get("id")
     return payload
 
 
@@ -188,11 +190,13 @@ class TurbopufferVectorStore:
             public_id = payload.pop("id")
             payload[_PUBLIC_ID_FIELD] = public_id
             rows.append(
-                {
-                    "id": self._point_id(collection, ids[i]),
-                    "vector": embeddings[i],
-                    **payload,
-                }
+                encode_attributes(
+                    {
+                        "id": self._point_id(collection, ids[i]),
+                        "vector": embeddings[i],
+                        **payload,
+                    }
+                )
             )
         write_payload: dict[str, Any] = {
             "upsert_rows": rows,

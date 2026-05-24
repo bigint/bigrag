@@ -96,7 +96,7 @@ Keyword search uses Turbopuffer BM25 over the chunk `text` field. Hybrid search 
 
 ## Reranking
 
-When `reranking_enabled` is set on a collection, retrieved hits are re-scored by a Cohere cross-encoder (`rerank-v3.5` by default). Override per query with `"rerank": false` to measure lift, or `"rerank": true` on a collection that has it disabled.
+When `reranking_enabled` is set on a collection and a Cohere key is available, retrieved hits are re-scored by a Cohere cross-encoder (`rerank-v3.5` by default). Save `reranking_api_key` on the collection, or use a Cohere embedding preset/key if the collection itself embeds with Cohere. Queries skip the rerank pass instead of failing when reranking is enabled but no usable Cohere key is configured. Override per query with `"rerank": false` to measure lift, or `"rerank": true` on a collection that has it disabled.
 
 ## Timings
 

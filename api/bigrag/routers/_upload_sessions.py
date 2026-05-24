@@ -141,6 +141,10 @@ async def upload_session_response(
             upload_session.closed_at = datetime.now(UTC)
         await db.commit()
         await db.refresh(upload_session)
+        rows = await session_rows(db, upload_session.id)
+        counts = session_counts(rows)
+        status = session_status_value(upload_session, counts)
+        active = counts["queued_files"] + counts["processing_files"]
     return UploadSessionResponse(
         id=str(upload_session.id),
         collection_id=str(upload_session.collection_id),

@@ -40,8 +40,22 @@ def get_embedding_model_for(collection: dict):
 
 
 def get_reranking_config(collection: dict) -> dict:
+    api_key = _clean_api_key(collection.get("reranking_api_key"))
+    if api_key is None and collection.get("embedding_provider") == "cohere":
+        api_key = (
+            _clean_api_key(collection.get("embedding_preset_api_key"))
+            or _clean_api_key(collection.get("embedding_api_key"))
+            or _clean_api_key(sync_value("embedding_api_key"))
+        )
     return {
         "enabled": collection.get("reranking_enabled", False),
         "model": collection.get("reranking_model", "rerank-v3.5"),
-        "api_key": collection.get("reranking_api_key") or sync_value("embedding_api_key"),
+        "api_key": api_key,
     }
+
+
+def _clean_api_key(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None

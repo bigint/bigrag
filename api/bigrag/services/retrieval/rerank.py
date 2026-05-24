@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 
 from bigrag.logging import get_logger
@@ -35,8 +36,13 @@ async def close_cohere_clients() -> None:
     clients = list(_cohere_clients.values())
     _cohere_clients.clear()
     for client in clients:
+        close = getattr(client, "aclose", None) or getattr(client, "close", None)
+        if not callable(close):
+            continue
         try:
-            await client.close()
+            result = close()
+            if inspect.isawaitable(result):
+                await result
         except Exception as exc:
             logger.warning("failed to close cohere client", error=repr(exc))
 
@@ -49,6 +55,10 @@ async def rerank_results(
 ) -> list[dict]:
     if not results:
         return results
+    cohere_api_key = api_key.strip() if isinstance(api_key, str) else ""
+    if not cohere_api_key:
+        logger.warning("reranking skipped; no cohere api key configured", model=model)
+        return results
 
     try:
         import cohere  # noqa: F401
@@ -56,7 +66,7 @@ async def rerank_results(
         logger.warning("cohere package not installed, skipping reranking")
         return results
 
-    client = await _get_cohere_client(api_key or "", None)
+    client = await _get_cohere_client(cohere_api_key, None)
     try:
         texts = [r.get("text", "") for r in results]
         t0 = time.monotonic()
