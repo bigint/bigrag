@@ -509,7 +509,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
             {documents.map((d) => (
               <li
                 key={d.id}
-                className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted"
+                className="group grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-4 px-4 py-3 hover:bg-muted [content-visibility:auto] [contain-intrinsic-size:auto_3.5rem]"
               >
                 <input
                   aria-label={`Select ${d.filename}`}

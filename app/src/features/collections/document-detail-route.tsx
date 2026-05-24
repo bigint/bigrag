@@ -198,7 +198,9 @@ export const DocumentDetail = () => {
                 <article
                   id={`chunk-${c.chunk_index}`}
                   key={c.id}
-                  className={cn("scroll-mt-24 rounded-xl border border-border bg-card p-4")}
+                  className={cn(
+                    "scroll-mt-24 rounded-xl border border-border bg-card p-4 [content-visibility:auto] [contain-intrinsic-size:auto_6rem]",
+                  )}
                 >
                   <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="neutral">#{c.chunk_index}</Badge>
