@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DocumentsTab } from "@/features/collections/documents-tab";
+import { DocumentsTab } from "@/features/collections/documents/documents-tab";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import type { DocumentListOrder, DocumentListSort } from "@/hooks/use-documents";
 
