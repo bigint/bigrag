@@ -18,7 +18,6 @@ from bigrag.middleware.cors import RuntimeCorsMiddleware
 from bigrag.middleware.csrf import SessionCsrfMiddleware
 from bigrag.middleware.idempotency import IdempotencyMiddleware
 from bigrag.middleware.maintenance import MaintenanceWriteLockMiddleware
-from bigrag.middleware.rate_limit import RateLimitMiddleware
 from bigrag.middleware.request_logging import RequestLoggingMiddleware
 from bigrag.services.access_log import AccessLogMiddleware
 
@@ -59,7 +58,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(MaintenanceWriteLockMiddleware)
     app.add_middleware(SessionCsrfMiddleware)
-    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RuntimeCorsMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
 

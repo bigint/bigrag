@@ -96,14 +96,6 @@
 # turbopuffer_namespace_prefix = "bigrag_"
 # turbopuffer_base_url = ""
 
-# Per-principal request rate limits (sliding fixed window).
-# rate_limit_enabled = true
-# rate_limit_window_seconds = 60
-# rate_limit_per_minute = 600
-# rate_limit_query_per_minute = 120
-# login_rate_limit = 10
-# login_rate_window_seconds = 60
-
 # webhook_delivery_timeout = 10
 # webhook_retry_delays = [10, 30, 90]
 # webhook_max_count = 50

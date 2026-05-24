@@ -43,13 +43,6 @@ class Settings(BaseSettings):
     auth_principal_cache_ttl: int = 60
     allow_public_bind_in_prod: bool = False
 
-    rate_limit_enabled: bool = True
-    rate_limit_window_seconds: int = 60
-    rate_limit_per_minute: int = 600
-    rate_limit_query_per_minute: int = 120
-    login_rate_limit: int = 10
-    login_rate_window_seconds: int = 60
-
     queue_max_depth: int = 10000
     collection_cache_ttl: int = 30
     query_embedding_cache_ttl: int = 300
