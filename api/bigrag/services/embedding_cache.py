@@ -14,6 +14,8 @@ from bigrag.services.runtime_settings import get_values
 
 logger = get_logger("bigrag.embedding_cache")
 
+_LAST_HIT_REFRESH_SECONDS = 3600
+
 
 def _model_key(cache_identity: str, input_type: str = "document") -> str:
     return f"{cache_identity}:{input_type}"
@@ -97,10 +99,14 @@ async def get_many(
                 out[i] = vector
             if out:
                 hit_hashes = [hashes[i] for i in out]
+                stale = sa.func.now() - sa.text("make_interval(secs => :secs)").bindparams(
+                    secs=_LAST_HIT_REFRESH_SECONDS
+                )
                 await session.execute(
                     sa.update(EmbeddingCache)
                     .where(EmbeddingCache.model_key == model_key)
                     .where(EmbeddingCache.content_hash.in_(hit_hashes))
+                    .where(EmbeddingCache.last_hit_at < stale)
                     .values(last_hit_at=sa.func.now())
                 )
                 await session.commit()
