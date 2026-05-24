@@ -75,7 +75,7 @@ export const WebhookForm = ({ open, onClose, onCreated, workerAvailability }: We
         <WorkerOfflineBanner
           availability={workerAvailability}
           compact
-          message="Document-event deliveries require bigrag-worker. Queued work will not run until the worker is started."
+          message="Webhook deliveries require bigrag-worker. Queued work will not run until the worker is started."
         />
 
         <form.Subscribe selector={(state) => state.errors}>
