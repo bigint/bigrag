@@ -1,20 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 
-import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
-from bigrag.db.engine import session_factory
-from bigrag.db.models import Document
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
 from bigrag.models.query import (
-    BatchQueryItem,
     BatchQueryRequest,
     BatchQueryResponse,
-    BatchQueryResultItem,
     MultiQueryRequest,
     MultiQueryResponse,
     MultiQueryResult,
@@ -26,11 +20,17 @@ from bigrag.models.query import (
 from bigrag.routers import (
     ensure_embedding_or_400,
     get_collection_or_404,
-    get_embedding_model_for,
     get_reranking_config,
 )
 from bigrag.services import access_log
-from bigrag.services.retrieval import retrieve, retrieve_multi
+from bigrag.services.retrieval import (
+    resolve_embedding_model,
+    result_to_dict,
+    results_with_document_filenames,
+    retrieve,
+    retrieve_multi,
+    run_batch_query,
+)
 from bigrag.services.tenant_enforcement import enforce_tenant_filters
 
 logger = get_logger("bigrag.routers.query")
@@ -107,12 +107,11 @@ async def query_collection(
         results=len(outcome.results),
         total_ms=outcome.total_ms,
     )
-    results = await _results_with_document_filenames(outcome.results)
+    results = await results_with_document_filenames(outcome.results)
     include_multimodal = bool(body.multimodal and collection.get("multimodal_enabled"))
     response = QueryResponse(
         results=[
-            QueryResult(**_result_to_dict(r, include_multimodal=include_multimodal))
-            for r in results
+            QueryResult(**result_to_dict(r, include_multimodal=include_multimodal)) for r in results
         ],
         query=body.query,
         collection=collection_name,
@@ -142,53 +141,6 @@ async def query_collection(
         },
     )
     return response
-
-
-def _result_to_dict(row: dict, *, include_multimodal: bool) -> dict:
-
-    cleaned = {k: v for k, v in row.items() if k != "embedding"}
-    metadata = cleaned.get("metadata") or {}
-    for field_name in ("page_no", "char_start", "char_end", "document_filename"):
-        if field_name in metadata and field_name not in cleaned:
-            cleaned[field_name] = metadata[field_name]
-    if (
-        include_multimodal
-        and "multimodal_elements" in metadata
-        and "multimodal_elements" not in cleaned
-    ):
-        cleaned["multimodal_elements"] = metadata["multimodal_elements"]
-    if not include_multimodal and isinstance(metadata, dict):
-        cleaned["metadata"] = {k: v for k, v in metadata.items() if k != "multimodal_elements"}
-    return cleaned
-
-
-async def _results_with_document_filenames(rows: list[dict]) -> list[dict]:
-    document_ids = []
-    for row in rows:
-        if row.get("document_filename"):
-            continue
-        raw = row.get("document_id")
-        if raw is None:
-            continue
-        try:
-            document_ids.append(uuid.UUID(str(raw)))
-        except ValueError:
-            continue
-    if not document_ids:
-        return rows
-    async with session_factory()() as session:
-        records = await session.execute(
-            sa.select(Document.id, Document.filename).where(Document.id.in_(set(document_ids)))
-        )
-        filenames = {str(document_id): filename for document_id, filename in records.all()}
-    return [
-        {
-            **row,
-            "document_filename": row.get("document_filename")
-            or filenames.get(str(row.get("document_id"))),
-        }
-        for row in rows
-    ]
 
 
 @router.post("/v1/query", response_model=MultiQueryResponse)
@@ -232,10 +184,10 @@ async def multi_collection_query(
     multi_filters = body.filters
     for col_name, collection in zip(body.collections, resolved_collections, strict=True):
         multi_filters = enforce_tenant_filters(collection, multi_filters, principal)
-        try:
-            embedding_models[col_name] = get_embedding_model_for(collection)
-        except (ImportError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=f"Collection '{col_name}': {e}") from e
+        embedding_models[col_name] = resolve_embedding_model(
+            collection,
+            error_label=f"Collection '{col_name}'",
+        )
         reranking_configs[col_name] = get_reranking_config(collection)
     include_multimodal_by_collection = {
         col_name: bool(body.multimodal and collection.get("multimodal_enabled"))
@@ -263,11 +215,11 @@ async def multi_collection_query(
             "collections_hit": sorted({str(row.get("collection")) for row in results}),
         },
     )
-    results_with_filenames = await _results_with_document_filenames(results)
+    results_with_filenames = await results_with_document_filenames(results)
     return MultiQueryResponse(
         results=[
             MultiQueryResult(
-                **_result_to_dict(
+                **result_to_dict(
                     r,
                     include_multimodal=include_multimodal_by_collection.get(
                         str(r.get("collection")),
@@ -304,61 +256,8 @@ async def batch_query(
     )
     logger.debug("batch-query", queries=len(body.queries))
 
-    batch_semaphore = asyncio.Semaphore(_FANOUT_LIMIT)
+    results = await run_batch_query(body.queries, principal)
 
-    async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int, bool]:
-        async with batch_semaphore:
-            collection = await get_collection_or_404(item.collection)
-            item_filters = enforce_tenant_filters(collection, item.filters, principal)
-            try:
-                embedding_model = get_embedding_model_for(collection)
-            except (ImportError, ValueError) as e:
-                msg = f"Collection '{item.collection}': {e}"
-                raise HTTPException(status_code=400, detail=msg) from e
-
-            outcome = await retrieve(
-                collection_name=item.collection,
-                query=item.query,
-                embedding_model=embedding_model,
-                top_k=item.top_k,
-                filters=item_filters,
-                min_score=item.min_score,
-                search_mode=item.search_mode,
-                reranking_config=get_reranking_config(collection),
-                rerank_override=item.rerank,
-                skip_cache=item.skip_cache,
-            )
-
-            include_multimodal = bool(item.multimodal and collection.get("multimodal_enabled"))
-            return item, outcome.results, len(outcome.results), include_multimodal
-
-    raw_results = await asyncio.gather(*[run_one(item) for item in body.queries])
-    flat_rows = []
-    row_counts = []
-    for _, rows, _, _ in raw_results:
-        row_counts.append(len(rows))
-        flat_rows.extend(rows)
-    enriched_rows = await _results_with_document_filenames(flat_rows)
-    results = []
-    cursor = 0
-    for (item, _, total, include_multimodal), row_count in zip(
-        raw_results,
-        row_counts,
-        strict=True,
-    ):
-        rows = enriched_rows[cursor : cursor + row_count]
-        cursor += row_count
-        results.append(
-            BatchQueryResultItem(
-                results=[
-                    QueryResult(**_result_to_dict(r, include_multimodal=include_multimodal))
-                    for r in rows
-                ],
-                query=item.query,
-                collection=item.collection,
-                total=total,
-            )
-        )
     access_log.set_context(
         request,
         metadata={
