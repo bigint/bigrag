@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useChunks, useDeleteDocument, useDocument } from "@/hooks/use-documents";
@@ -156,9 +157,7 @@ export const DocumentDetail = () => {
             )}
           </div>
 
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
-          </div>
+          <ProgressBar value={progressPct} />
 
           <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span>{progressDetail ?? `${progressPct}% complete`}</span>

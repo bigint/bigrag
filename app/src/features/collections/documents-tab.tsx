@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useUploadSessionStore } from "@/features/collections/upload-session-store";
@@ -766,9 +767,7 @@ const UploadSessionProgressPanel = ({
           />
         </div>
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
-        </div>
+        <ProgressBar value={progressPct} />
 
         {active && (
           <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/60 p-3">

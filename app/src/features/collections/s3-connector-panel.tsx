@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -319,7 +320,7 @@ const SyncJobBody = ({ job }: { job: S3SyncJob }) => {
           {job.status}
         </Badge>
       </div>
-      <ProgressBar progress={progress} />
+      <SyncProgressBar progress={progress} />
       <div className="grid grid-cols-3 gap-2 text-xs sm:grid-cols-5">
         <SyncCount label="Created" value={job.total_created} />
         <SyncCount label="Updated" value={job.total_updated} />
@@ -331,13 +332,8 @@ const SyncJobBody = ({ job }: { job: S3SyncJob }) => {
   );
 };
 
-const ProgressBar = ({ progress }: { progress: ConnectorSyncProgress }) => (
-  <div className="h-2 overflow-hidden rounded-full bg-muted">
-    <div
-      className="h-full rounded-full bg-primary"
-      style={{ width: `${clampSyncProgress(progress.progress_percent)}%` }}
-    />
-  </div>
+const SyncProgressBar = ({ progress }: { progress: ConnectorSyncProgress }) => (
+  <ProgressBar fillClassName="rounded-full" value={clampSyncProgress(progress.progress_percent)} />
 );
 
 const SyncCount = ({ label, value }: { label: string; value: number }) => (
@@ -528,7 +524,7 @@ const SourceRow = ({
             <span className="font-semibold">{clampSyncProgress(progress.progress_percent)}%</span>
           </div>
           <div className="mt-2">
-            <ProgressBar progress={progress} />
+            <SyncProgressBar progress={progress} />
           </div>
         </div>
       )}
