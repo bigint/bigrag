@@ -41,6 +41,25 @@ class CollectionsResource:
             params["offset"] = str(offset)
         return await self._client._request("GET", "/v1/collections", params=params)
 
+    async def list_all(
+        self,
+        *,
+        name: str | None = None,
+        limit: int | None = None,
+    ) -> AsyncGenerator[Collection, None]:
+        page_size = limit if limit is not None else 100
+        offset = 0
+        while True:
+            page = await self.list(name=name, limit=page_size, offset=offset)
+            for collection in page["collections"]:
+                yield collection
+            if len(page["collections"]) < page_size:
+                return
+            offset += len(page["collections"])
+            total = page["total"]
+            if total is not None and offset >= total:
+                return
+
     async def get(self, name: str) -> Collection:
         return await self._client._request("GET", f"/v1/collections/{quote(name, safe='')}")
 
