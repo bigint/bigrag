@@ -1,3 +1,4 @@
+import { errorForStatus } from "@bigrag/client";
 import ky, { HTTPError, type KyInstance, type Options } from "ky";
 import { bigragApiUrl } from "@/config/runtime";
 
@@ -19,22 +20,25 @@ const api: KyInstance = ky.create({
   credentials: "include",
   timeout: API_TIMEOUT_MS,
   retry: { limit: 1, methods: ["get", "head"] },
-  hooks: {
-    beforeError: [
-      async ({ error }) => {
-        if (error instanceof HTTPError) {
-          try {
-            const body = (await error.response.clone().json()) as { detail?: string };
-            if (body.detail) {
-              error.message = body.detail;
-            }
-          } catch {}
-        }
-        return error;
-      },
-    ],
-  },
 });
+
+const idempotencyHeaders = (): Record<string, string> => ({
+  "Idempotency-Key": crypto.randomUUID(),
+});
+
+const toTypedError = async (error: unknown): Promise<never> => {
+  if (error instanceof HTTPError) {
+    let message = error.message;
+    try {
+      const body = (await error.response.clone().json()) as { detail?: string };
+      if (body.detail) {
+        message = body.detail;
+      }
+    } catch {}
+    throw errorForStatus(error.response.status, message);
+  }
+  throw error;
+};
 
 const isRequestOptions = (
   value: SearchParams | ApiRequestOptions | undefined,
@@ -66,35 +70,49 @@ const normalizeGetOptions = (
 
 export const apiClient = {
   get: <T>(path: string, searchParamsOrOptions?: SearchParams | ApiRequestOptions) =>
-    api.get(path, requestOptions(normalizeGetOptions(searchParamsOrOptions))).json<T>(),
+    api
+      .get(path, requestOptions(normalizeGetOptions(searchParamsOrOptions)))
+      .json<T>()
+      .catch(toTypedError),
   post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     api
       .post(path, {
         ...requestOptions(options),
+        headers: idempotencyHeaders(),
         ...(body === undefined ? {} : { json: body }),
       })
-      .json<T>(),
+      .json<T>()
+      .catch(toTypedError),
   put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     api
       .put(path, {
         ...requestOptions(options),
+        headers: idempotencyHeaders(),
         ...(body === undefined ? {} : { json: body }),
       })
-      .json<T>(),
+      .json<T>()
+      .catch(toTypedError),
   patch: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
     api
       .patch(path, {
         ...requestOptions(options),
+        headers: idempotencyHeaders(),
         ...(body === undefined ? {} : { json: body }),
       })
-      .json<T>(),
+      .json<T>()
+      .catch(toTypedError),
   delete: <T>(path: string, options?: ApiRequestOptions) =>
-    api.delete(path, requestOptions(options)).json<T>(),
+    api
+      .delete(path, { ...requestOptions(options), headers: idempotencyHeaders() })
+      .json<T>()
+      .catch(toTypedError),
   postForm: <T>(path: string, form: FormData, options?: ApiRequestOptions) =>
     api
       .post(path, {
         ...requestOptions({ timeoutMs: LONG_REQUEST_TIMEOUT_MS, ...options }),
+        headers: idempotencyHeaders(),
         body: form,
       })
-      .json<T>(),
+      .json<T>()
+      .catch(toTypedError),
 };

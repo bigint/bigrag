@@ -1,6 +1,5 @@
-import type { User as CurrentUser, SessionResponse } from "@bigrag/client";
+import { APIError, type User as CurrentUser, type SessionResponse } from "@bigrag/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HTTPError } from "ky";
 import { toast } from "sonner";
 import { closeAllRealtimeStreams } from "@/hooks/use-realtime-snapshot-query";
 import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
@@ -36,7 +35,7 @@ export const useSession = () =>
           timeoutMs: AUTH_TIMEOUT_MS,
         });
       } catch (err) {
-        if (err instanceof HTTPError && err.response.status === 401) {
+        if (err instanceof APIError && err.status === 401) {
           return null;
         }
         throw err;
