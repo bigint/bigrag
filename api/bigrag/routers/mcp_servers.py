@@ -39,10 +39,6 @@ class McpServerBase(BaseModel):
     )
 
 
-class CreateMcpServerRequest(McpServerBase):
-    pass
-
-
 class UpdateMcpServerRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=80)
     server_name: str | None = Field(
@@ -61,7 +57,6 @@ class McpServerResponse(BaseModel):
     server_name: str
     collection: str | None = None
     key_prefix: str
-    key_active: bool
     last_used_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -87,7 +82,6 @@ def _to_response(key: ApiKey) -> McpServerResponse:
         server_name=mcp.get("server_name") or "bigrag",
         collection=collection,
         key_prefix=key.prefix,
-        key_active=key.active,
         last_used_at=key.last_used_at,
         created_at=key.created_at,
         updated_at=key.updated_at,
@@ -144,7 +138,7 @@ async def list_mcp_servers(
 
 @router.post("", response_model=CreateMcpServerResponse, status_code=201)
 async def create_mcp_server(
-    body: CreateMcpServerRequest,
+    body: McpServerBase,
     request: Request,
     admin: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
