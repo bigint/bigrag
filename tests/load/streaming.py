@@ -19,7 +19,6 @@ from bigrag import APIError, BigRAG
 
 PAYLOAD_BYTES = 1 * 1024
 PAYLOAD_BODY_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789 "
-UPLOAD_STATUS_CODE = 201
 
 
 @dataclass(frozen=True)
@@ -44,13 +43,14 @@ class Stats:
     error_counts: Counter[str] = field(default_factory=Counter)
     latencies: list[float] = field(default_factory=list)
 
-    def record_response(self, status_code: int, latency: float) -> None:
-        self.status_counts[status_code] += 1
+    def record_success(self, latency: float) -> None:
+        self.succeeded += 1
         self.latencies.append(latency)
-        if 200 <= status_code < 300:
-            self.succeeded += 1
-        else:
-            self.failed += 1
+
+    def record_http_error(self, status_code: int, latency: float) -> None:
+        self.status_counts[status_code] += 1
+        self.failed += 1
+        self.latencies.append(latency)
 
     def record_error(self, name: str, latency: float) -> None:
         self.failed += 1
@@ -187,7 +187,7 @@ def report(stats: Stats, *, final: bool) -> None:
                 f"success_rps={success_rps:.2f}",
                 f"latency_p50={percentile(stats.latencies, 50)}",
                 f"latency_p95={percentile(stats.latencies, 95)}",
-                f"statuses={count_text(stats.status_counts)}",
+                f"error_statuses={count_text(stats.status_counts)}",
                 f"errors={count_text(stats.error_counts)}",
             ]
         )
@@ -210,9 +210,9 @@ async def upload_one(
             (filename, build_payload(sequence)),
             metadata=config.metadata,
         )
-        stats.record_response(UPLOAD_STATUS_CODE, perf_counter() - started_at)
+        stats.record_success(perf_counter() - started_at)
     except APIError as exc:
-        stats.record_response(exc.status, perf_counter() - started_at)
+        stats.record_http_error(exc.status, perf_counter() - started_at)
     except Exception as exc:
         stats.record_error(type(exc).__name__, perf_counter() - started_at)
     finally:
