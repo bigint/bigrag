@@ -59,13 +59,15 @@ _DECREASE_LUA = """
 local last = tonumber(redis.call('GET', KEYS[2])) or 0
 local limit = tonumber(redis.call('GET', KEYS[1]))
 if limit == nil then limit = tonumber(ARGV[2]) end
+local changed = 0
 if tonumber(ARGV[1]) - last > tonumber(ARGV[4]) then
   limit = limit * 0.5
   if limit < tonumber(ARGV[3]) then limit = tonumber(ARGV[3]) end
   redis.call('SET', KEYS[1], limit, 'PX', ARGV[5])
   redis.call('SET', KEYS[2], ARGV[1], 'PX', ARGV[5])
+  changed = 1
 end
-return tostring(limit)
+return {tostring(limit), changed}
 """
 
 
@@ -93,13 +95,15 @@ class _LocalLimiter:
             self.cond.notify(1)
             return self.limit
 
-    async def on_rate_limited(self) -> float:
+    async def on_rate_limited(self) -> tuple[float, bool]:
         async with self.cond:
             now = time.monotonic()
+            changed = False
             if now - self.last_decrease > DECREASE_GUARD_MS / 1000:
                 self.limit = max(self.limit * 0.5, MIN_LIMIT)
                 self.last_decrease = now
-            return self.limit
+                changed = True
+            return self.limit, changed
 
 
 _local_limiters: dict[str, _LocalLimiter] = {}
@@ -202,7 +206,7 @@ async def _on_rate_limited(
 ) -> None:
     await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
     if redis is None:
-        new_limit = await _local(digest).on_rate_limited()
+        new_limit, changed = await _local(digest).on_rate_limited()
     else:
         try:
             script = _script(redis, "decrease", _DECREASE_LUA)
@@ -211,16 +215,18 @@ async def _on_rate_limited(
                 keys=[LIMIT_PREFIX + digest, LIMIT_DEC_PREFIX + digest],
                 args=[now_ms, _ceiling(), MIN_LIMIT, DECREASE_GUARD_MS, LIMIT_TTL_MS],
             )
-            new_limit = _as_float(raw)
+            new_limit = _as_float(raw[0])
+            changed = bool(int(raw[1]))
         except Exception as update_exc:
             logger.debug("embedding gate decrease failed", error=repr(update_exc))
             return
-    logger.warning(
-        "embedding limit decreased",
-        provider=provider,
-        model=model_name,
-        new_limit=round(new_limit, 2),
-    )
+    if changed:
+        logger.warning(
+            "embedding limit decreased",
+            provider=provider,
+            model=model_name,
+            new_limit=round(new_limit, 2),
+        )
 
 
 @asynccontextmanager
@@ -233,7 +239,7 @@ async def embedding_gate(cache_identity: str, provider: str, model_name: str):
     err: Exception | None = None
     try:
         yield
-    except Exception as exc:
+    except BaseException as exc:
         err = exc
         raise
     finally:
