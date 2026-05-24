@@ -114,7 +114,7 @@ def _collection_stats_topic(
 
     async def load():
         return await with_session(
-            lambda session: collection_stats_payload(session, name=collection)
+            lambda session: collection_stats_payload(session, name=collection, use_cache=False)
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(10.0), f"collection:{collection}")

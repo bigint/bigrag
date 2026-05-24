@@ -15,12 +15,14 @@ async def collection_stats_payload(
     session: AsyncSession,
     *,
     name: str,
+    use_cache: bool = True,
 ) -> CollectionStatsResponse:
     collection = await collection_cache.get_or_404(name)
     cache_key = f"collection_stats:{collection['id']}"
-    cached = await redis_cache.get(cache_key)
-    if isinstance(cached, dict):
-        return CollectionStatsResponse(**cached)
+    if use_cache:
+        cached = await redis_cache.get(cache_key)
+        if isinstance(cached, dict):
+            return CollectionStatsResponse(**cached)
 
     stats = (
         await session.execute(
@@ -50,9 +52,10 @@ async def collection_stats_payload(
             "failed": stats.failed,
         },
     )
-    ttl = await get_value("collection_cache_ttl")
-    if ttl > 0:
-        await redis_cache.set(
-            cache_key, response.model_dump(), ttl=ttl + random.randint(0, max(1, ttl // 10))
-        )
+    if use_cache:
+        ttl = await get_value("collection_cache_ttl")
+        if ttl > 0:
+            await redis_cache.set(
+                cache_key, response.model_dump(), ttl=ttl + random.randint(0, max(1, ttl // 10))
+            )
     return response
