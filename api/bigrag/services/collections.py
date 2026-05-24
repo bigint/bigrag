@@ -21,8 +21,8 @@ async def delete_collection(session: AsyncSession, name: str) -> str:
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("delete collection jobs cancelled", collection=name, flushed=flushed)
+    await ingestion_queue.cancel_collection(name)
+    logger.info("delete collection jobs cancelled", collection=name)
 
     deleted_id = str(collection.id)
     deleted = await delete_staged_collection_prefix(name)
@@ -46,8 +46,8 @@ async def truncate_collection(session: AsyncSession, name: str) -> str:
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
 
-    flushed = await ingestion_queue.cancel_collection(name)
-    logger.info("truncate collection jobs cancelled", collection=name, flushed=flushed)
+    await ingestion_queue.cancel_collection(name)
+    logger.info("truncate collection jobs cancelled", collection=name)
 
     collection_id = str(collection.id)
     deleted = await delete_staged_collection_prefix(name)

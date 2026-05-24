@@ -5,10 +5,8 @@ from bigrag.services.ingestion_job import IngestionJob
 
 logger = get_logger("bigrag.queue")
 
-QUEUE_KEY = "bigrag:ingestion:queue"
 PROCESSING_KEY = "bigrag:ingestion:processing"
 DEAD_LETTER_KEY = "bigrag:ingestion:dead"
-RETRY_KEY = "bigrag:ingestion:retry"
 STATS_KEY = "bigrag:ingestion:stats"
 INFLIGHT_DEPTH_KEY = "bigrag:ingestion:inflight"
 LEASE_KEY_PREFIX = "bigrag:ingestion:lease:"
@@ -17,25 +15,6 @@ DOCUMENT_EPOCH_KEY_PREFIX = "bigrag:ingestion:document_epoch:"
 LEASE_TTL_SECONDS = 30 * 60
 LEASE_RENEW_INTERVAL_SECONDS = 60
 LEASE_ACTIVE_MIN_TTL_SECONDS = LEASE_TTL_SECONDS - LEASE_RENEW_INTERVAL_SECONDS * 4
-
-FLUSH_LUA = """
-local items = redis.call('LRANGE', KEYS[1], 0, -1)
-local kept = {}
-local removed = 0
-for _, raw in ipairs(items) do
-  local ok, decoded = pcall(cjson.decode, raw)
-  if ok and decoded['collection_name'] == ARGV[1] then
-    removed = removed + 1
-  else
-    table.insert(kept, raw)
-  end
-end
-redis.call('DEL', KEYS[1])
-if #kept > 0 then
-  redis.call('RPUSH', KEYS[1], unpack(kept))
-end
-return removed
-"""
 
 
 class IngestionCancelledError(RuntimeError):
@@ -154,20 +133,8 @@ async def ensure_job_current(redis, job: IngestionJob) -> None:
         raise IngestionCancelledError(f"Ingestion cancelled for document '{job.document_id}'")
 
 
-async def flush_collection_jobs(redis, collection_name: str) -> int:
-    removed = await redis.eval(
-        FLUSH_LUA,
-        1,
-        QUEUE_KEY,
-        collection_name,
-    )
-    return int(removed)
-
-
-async def cancel_collection_jobs(redis, collection_name: str) -> int:
-    removed = await flush_collection_jobs(redis, collection_name)
+async def cancel_collection_jobs(redis, collection_name: str) -> None:
     await redis.incr(collection_epoch_key(collection_name))
-    return removed
 
 
 async def cancel_document_jobs(redis, document_ids: list[str]) -> None:
@@ -179,7 +146,6 @@ async def cancel_document_jobs(redis, document_ids: list[str]) -> None:
 
 async def queue_stats(redis) -> dict:
     raw = await redis.hgetall(STATS_KEY)
-    pending = await redis.llen(QUEUE_KEY)
     processing_items = await redis.lrange(PROCESSING_KEY, 0, -1)
     processing = len(processing_items)
     leased_processing = 0
@@ -198,9 +164,7 @@ async def queue_stats(redis) -> dict:
         "queued": int(raw.get(b"queued", 0)),
         "completed": int(raw.get(b"completed", 0)),
         "failed": int(raw.get(b"failed", 0)),
-        "pending": pending,
         "processing": processing,
-        "retrying": await redis.zcard(RETRY_KEY),
         "dead_lettered": await redis.llen(DEAD_LETTER_KEY),
         "leased_processing": leased_processing,
         "stale_processing": stale_processing,

@@ -18,7 +18,6 @@ from bigrag.services.ingestion_job import IngestionJob
 
 logger = get_logger("bigrag.queue")
 
-QUEUE_KEY = queue_state.QUEUE_KEY
 PROCESSING_KEY = queue_state.PROCESSING_KEY
 DEAD_LETTER_KEY = queue_state.DEAD_LETTER_KEY
 STATS_KEY = queue_state.STATS_KEY
@@ -135,12 +134,11 @@ class IngestionQueue:
             await self._release_job()
             raise
 
-    async def cancel_collection(self, collection_name: str) -> int:
+    async def cancel_collection(self, collection_name: str) -> None:
         if not self._redis:
-            return 0
-        removed = await queue_state.cancel_collection_jobs(self._redis, collection_name)
-        logger.info("queue cancelled collection jobs", collection=collection_name, flushed=removed)
-        return removed
+            return
+        await queue_state.cancel_collection_jobs(self._redis, collection_name)
+        logger.info("queue cancelled collection jobs", collection=collection_name)
 
     async def cancel_documents(self, document_ids: list[str]) -> None:
         if not self._redis:
@@ -160,6 +158,8 @@ class IngestionQueue:
         )
 
         stats = await queue_state.queue_stats(self._redis)
+        stats["pending"] = 0
+        stats["retrying"] = 0
         try:
             stats["pending"] = await queue_size(INGESTION_QUEUE)
         except Exception:
