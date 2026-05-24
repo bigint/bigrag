@@ -31,20 +31,6 @@ logger = get_logger("bigrag.retrieval")
 MAX_TOP_K = 200
 
 
-def _safe_create_task(coro, *, name: str) -> asyncio.Task:
-    task = asyncio.create_task(coro, name=name)
-
-    def _on_done(t: asyncio.Task) -> None:
-        if t.cancelled():
-            return
-        exc = t.exception()
-        if exc:
-            logger.warning("background task failed", task=name, error=repr(exc))
-
-    task.add_done_callback(_on_done)
-    return task
-
-
 async def retrieve(
     collection_name: str,
     query: str,
@@ -117,17 +103,14 @@ async def retrieve(
                         result_count=len(cached_outcome.results),
                         total_ms=total_ms,
                     )
-                    _safe_create_task(
-                        log_query(
-                            collection_name=collection_name,
-                            query=query,
-                            top_k=top_k,
-                            result_count=len(cached_outcome.results),
-                            avg_score=avg_score,
-                            latency_ms=cached_outcome.total_ms,
-                            search_mode=search_mode,
-                        ),
-                        name="log_cached_query",
+                    log_query(
+                        collection_name=collection_name,
+                        query=query,
+                        top_k=top_k,
+                        result_count=len(cached_outcome.results),
+                        avg_score=avg_score,
+                        latency_ms=cached_outcome.total_ms,
+                        search_mode=search_mode,
                     )
                     return cached_outcome
 
@@ -205,17 +188,14 @@ async def retrieve(
             result_count=len(results),
             timings=timings,
         )
-        _safe_create_task(
-            log_query(
-                collection_name=collection_name,
-                query=query,
-                top_k=top_k,
-                result_count=len(results),
-                avg_score=avg_score,
-                latency_ms=round(total_ms, 2),
-                search_mode=search_mode,
-            ),
-            name="log_query",
+        log_query(
+            collection_name=collection_name,
+            query=query,
+            top_k=top_k,
+            result_count=len(results),
+            avg_score=avg_score,
+            latency_ms=round(total_ms, 2),
+            search_mode=search_mode,
         )
 
         outcome = RetrievalOutcome(

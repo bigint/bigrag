@@ -16,6 +16,7 @@ from bigrag.services.audit import start_audit_flusher, stop_audit_flusher
 from bigrag.services.conversion import get_conversion_executor, shutdown_conversion_executor
 from bigrag.services.event_bus import event_bus
 from bigrag.services.queue import ingestion_queue
+from bigrag.services.retrieval.log import start_query_log_flusher, stop_query_log_flusher
 from bigrag.services.staged_files import cleanup_terminal_staged_files
 from bigrag.services.storage import init_storage_from_runtime
 from bigrag.services.vector_store import vector_store
@@ -94,6 +95,7 @@ async def lifespan(app: FastAPI):
 
     await start_access_log_flusher()
     await start_audit_flusher()
+    await start_query_log_flusher()
 
     mcp_session_manager = getattr(app.state, "mcp_session_manager", None)
     mcp_cm = mcp_session_manager.run() if mcp_session_manager is not None else None
@@ -129,6 +131,10 @@ async def lifespan(app: FastAPI):
             await stop_access_log_flusher()
         except Exception as exc:
             logger.warning("shutdown close failed", target="access_log_flusher", error=repr(exc))
+        try:
+            await stop_query_log_flusher()
+        except Exception as exc:
+            logger.warning("shutdown close failed", target="query_log_flusher", error=repr(exc))
         await db_module.close()
         logger.info("shut down")
 
