@@ -21,8 +21,6 @@ RUN pnpm --filter @bigrag/app build
 
 FROM nginx:1.29-alpine AS runtime
 
-ENV BIGRAG_URL=http://localhost:4000
-
 COPY app/nginx.conf /etc/nginx/conf.d/default.conf
 COPY app/docker-entrypoint.sh /docker-entrypoint.d/40-bigrag-config.sh
 COPY --from=build /workspace/app/dist /usr/share/nginx/html

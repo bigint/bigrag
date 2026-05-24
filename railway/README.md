@@ -23,3 +23,5 @@ Fill these required values before the first deploy:
 | `BIGRAG_EMBEDDING_API_KEY` | `API`, `Worker` | OpenAI, Cohere, Voyage, or OpenAI-compatible embedding key |
 
 Enable public HTTP networking for `API` and `App`. Leave `Worker`, `Postgres`, and `Redis` private. Ingestion staging is local-only, so the API and worker need the same mounted upload directory when they run as separate services.
+
+The managed `Redis` serves both the job broker and the response cache. At higher load, add a second Railway Redis (e.g. `RedisCache`) and set `BIGRAG_CACHE_REDIS_URL=${{RedisCache.REDIS_URL}}` on `API` and `Worker` so cache eviction can never drop queued jobs.

@@ -47,7 +47,7 @@ services:
       retries: 3
 
   bigrag-worker:
-    image: "${BIGRAG_WORKER_IMAGE:-bigrag-api:local}"
+    image: "${BIGRAG_API_IMAGE:-bigrag-api:local}"
     container_name: bigrag-worker
     restart: unless-stopped
     command: ["bigrag-worker", "--processes", "${BIGRAG_WORKER_PROCESSES:-5}", "--threads", "${BIGRAG_WORKER_THREADS:-8}"]
@@ -55,7 +55,6 @@ services:
       - bigrag_data:/data
     environment:
       <<: *bigrag-env
-      BIGRAG_WORKER_HEALTHCHECK_KEY: "${BIGRAG_WORKER_HEALTHCHECK_KEY:-bigrag:dramatiq:worker:heartbeat}"
     deploy:
       resources:
         limits:
@@ -72,7 +71,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c 'import os, sys, redis; client = redis.Redis.from_url(os.environ.get(\"BIGRAG_REDIS_URL\", \"redis://redis:6379/0\")); key = os.environ.get(\"BIGRAG_WORKER_HEALTHCHECK_KEY\", \"bigrag:dramatiq:worker:heartbeat\"); sys.exit(0 if client.ttl(key) > 0 else 1)'",
+          "python -c 'import os, sys, redis; client = redis.Redis.from_url(os.environ.get(\"BIGRAG_REDIS_URL\", \"redis://redis:6379/0\")); sys.exit(0 if client.ttl(\"bigrag:dramatiq:worker:heartbeat\") > 0 else 1)'",
         ]
       interval: 30s
       timeout: 10s
