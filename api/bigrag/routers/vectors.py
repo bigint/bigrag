@@ -13,6 +13,7 @@ from bigrag.models.query import (
 )
 from bigrag.routers import get_collection_or_404
 from bigrag.services import access_log
+from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.tenant_enforcement import enforce_tenant_metadata
@@ -101,7 +102,10 @@ async def upsert_vectors(
             metadata=metadata,
         )
     except VectorStoreDimensionMismatchError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise HTTPException(
+            status_code=409,
+            detail=safe_error_detail(e, "Vector dimensions do not match the collection."),
+        ) from e
     await invalidate_collection_query_cache(collection_name)
     logger.info("vector upsert complete", collection=collection_name, upserted=count)
     access_log.set_context(request, metadata={"upserted": count})
