@@ -32,6 +32,119 @@ MAX_TOP_K = 200
 _MULTI_SEARCH_CONCURRENCY = 8
 
 
+async def _serve_from_cache(
+    *,
+    collection_name: str,
+    query: str,
+    embedding_model: EmbeddingModel,
+    top_k: int,
+    filters: dict | None,
+    min_score: float | None,
+    search_mode: str,
+    reranking_config: dict | None,
+    rerank_override: bool | None,
+    skip_cache: bool,
+    retrieve_start: float,
+) -> tuple[str | None, RetrievalOutcome | None]:
+    if skip_cache:
+        return None, None
+    cache_settings = await get_values(["query_result_cache_ttl"])
+    if cache_settings["query_result_cache_ttl"] <= 0:
+        return None, None
+    cache_t0 = time.monotonic()
+    result_cache_key = await query_result_cache_key(
+        collection_name=collection_name,
+        query=query,
+        embedding_model=embedding_model,
+        top_k=top_k,
+        filters=filters,
+        min_score=min_score,
+        search_mode=search_mode,
+        reranking_config=reranking_config,
+        rerank_override=rerank_override,
+    )
+    cached_outcome = await cached_query_result(result_cache_key)
+    if cached_outcome is None:
+        return result_cache_key, None
+    cache_ms = (time.monotonic() - cache_t0) * 1000
+    total_ms = (time.monotonic() - retrieve_start) * 1000
+    cached_outcome.cache_ms = round(cache_ms, 2)
+    cached_outcome.total_ms = round(total_ms, 2)
+    avg_score = (
+        sum(r.get("score", 0) for r in cached_outcome.results) / len(cached_outcome.results)
+        if cached_outcome.results
+        else None
+    )
+    log_retrieval_cache_hit(
+        collection_name=collection_name,
+        result_count=len(cached_outcome.results),
+        total_ms=total_ms,
+    )
+    log_query(
+        collection_name=collection_name,
+        query=query,
+        top_k=top_k,
+        result_count=len(cached_outcome.results),
+        avg_score=avg_score,
+        latency_ms=cached_outcome.total_ms,
+        search_mode=search_mode,
+    )
+    return result_cache_key, cached_outcome
+
+
+def _finalize_outcome(
+    *,
+    results: list[dict],
+    timings: dict[str, float],
+    retrieve_start: float,
+    collection_name: str,
+    query: str,
+    top_k: int,
+    search_mode: str,
+) -> RetrievalOutcome:
+    total_ms = (time.monotonic() - retrieve_start) * 1000
+    timings["total_ms"] = total_ms
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
+
+    event_bus.publish(
+        IngestionEvent(
+            document_id="",
+            step="search_complete",
+            status="complete",
+            message=f"{len(results)} results in {total_ms:.0f}ms",
+            detail={
+                "results": len(results),
+                "latency_ms": round(total_ms, 1),
+                "avg_score": round(avg_score, 4) if avg_score else 0,
+                "mode": search_mode,
+            },
+            collection_name=collection_name,
+        )
+    )
+    log_retrieval_complete(
+        collection_name=collection_name,
+        result_count=len(results),
+        timings=timings,
+    )
+    log_query(
+        collection_name=collection_name,
+        query=query,
+        top_k=top_k,
+        result_count=len(results),
+        avg_score=avg_score,
+        latency_ms=round(total_ms, 2),
+        search_mode=search_mode,
+    )
+
+    return RetrievalOutcome(
+        results=results,
+        embed_ms=round(timings["embed_ms"], 2),
+        search_ms=round(timings["search_ms"], 2),
+        rerank_ms=round(timings["rerank_ms"], 2),
+        total_ms=round(total_ms, 2),
+    )
+
+
 async def retrieve(
     collection_name: str,
     query: str,
@@ -71,49 +184,21 @@ async def retrieve(
             raise ValidationError(str(exc)) from exc
         query_terms = tokenize_query(query)
 
-        result_cache_key: str | None = None
-        if not skip_cache:
-            cache_settings = await get_values(["query_result_cache_ttl"])
-            if cache_settings["query_result_cache_ttl"] > 0:
-                cache_t0 = time.monotonic()
-                result_cache_key = await query_result_cache_key(
-                    collection_name=collection_name,
-                    query=query,
-                    embedding_model=embedding_model,
-                    top_k=top_k,
-                    filters=filters,
-                    min_score=min_score,
-                    search_mode=search_mode,
-                    reranking_config=reranking_config,
-                    rerank_override=rerank_override,
-                )
-                cached_outcome = await cached_query_result(result_cache_key)
-                if cached_outcome is not None:
-                    cache_ms = (time.monotonic() - cache_t0) * 1000
-                    total_ms = (time.monotonic() - _retrieve_start) * 1000
-                    cached_outcome.cache_ms = round(cache_ms, 2)
-                    cached_outcome.total_ms = round(total_ms, 2)
-                    avg_score = (
-                        sum(r.get("score", 0) for r in cached_outcome.results)
-                        / len(cached_outcome.results)
-                        if cached_outcome.results
-                        else None
-                    )
-                    log_retrieval_cache_hit(
-                        collection_name=collection_name,
-                        result_count=len(cached_outcome.results),
-                        total_ms=total_ms,
-                    )
-                    log_query(
-                        collection_name=collection_name,
-                        query=query,
-                        top_k=top_k,
-                        result_count=len(cached_outcome.results),
-                        avg_score=avg_score,
-                        latency_ms=cached_outcome.total_ms,
-                        search_mode=search_mode,
-                    )
-                    return cached_outcome
+        result_cache_key, cached_outcome = await _serve_from_cache(
+            collection_name=collection_name,
+            query=query,
+            embedding_model=embedding_model,
+            top_k=top_k,
+            filters=filters,
+            min_score=min_score,
+            search_mode=search_mode,
+            reranking_config=reranking_config,
+            rerank_override=rerank_override,
+            skip_cache=skip_cache,
+            retrieve_start=_retrieve_start,
+        )
+        if cached_outcome is not None:
+            return cached_outcome
 
         if search_mode == "keyword":
             results = await keyword_search(
@@ -165,46 +250,14 @@ async def retrieve(
         if min_score is not None:
             results = [r for r in results if r.get("score", 0) >= min_score]
 
-        total_ms = (time.monotonic() - _retrieve_start) * 1000
-        timings["total_ms"] = total_ms
-        avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else None
-
-        event_bus.publish(
-            IngestionEvent(
-                document_id="",
-                step="search_complete",
-                status="complete",
-                message=f"{len(results)} results in {total_ms:.0f}ms",
-                detail={
-                    "results": len(results),
-                    "latency_ms": round(total_ms, 1),
-                    "avg_score": round(avg_score, 4) if avg_score else 0,
-                    "mode": search_mode,
-                },
-                collection_name=collection_name,
-            )
-        )
-        log_retrieval_complete(
-            collection_name=collection_name,
-            result_count=len(results),
+        outcome = _finalize_outcome(
+            results=results,
             timings=timings,
-        )
-        log_query(
+            retrieve_start=_retrieve_start,
             collection_name=collection_name,
             query=query,
             top_k=top_k,
-            result_count=len(results),
-            avg_score=avg_score,
-            latency_ms=round(total_ms, 2),
             search_mode=search_mode,
-        )
-
-        outcome = RetrievalOutcome(
-            results=results,
-            embed_ms=round(timings["embed_ms"], 2),
-            search_ms=round(timings["search_ms"], 2),
-            rerank_ms=round(timings["rerank_ms"], 2),
-            total_ms=round(total_ms, 2),
         )
         if result_cache_key is not None:
             await store_query_result(result_cache_key, outcome)
