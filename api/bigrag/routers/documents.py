@@ -81,7 +81,9 @@ async def upload_document(
         file, file_ext, max_size=max_size
     )
     try:
-        meta = metadata_or_400(collection, metadata, prepare_document_metadata, parse_form_metadata)
+        meta = metadata_or_400(
+            collection, metadata, prepare_document_metadata, parse_form_metadata, user
+        )
 
         existing = await session.scalar(content_hash_match(collection, content_hash, meta))
         if existing is not None:

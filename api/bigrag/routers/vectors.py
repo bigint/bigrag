@@ -15,7 +15,7 @@ from bigrag.routers import get_collection_or_404
 from bigrag.services import access_log
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.tenant_enforcement import require_tenant_metadata
+from bigrag.services.tenant_enforcement import enforce_tenant_metadata
 from bigrag.services.vector_store import vector_store
 from bigrag.services.vector_store.dimensions import VectorStoreDimensionMismatchError
 
@@ -32,7 +32,7 @@ async def upsert_vectors(
     collection_name: str,
     body: VectorUpsertRequest,
     request: Request,
-    _: dict = Depends(get_current_user),
+    principal: dict = Depends(get_current_user),
 ):
     access_log.set_context(
         request,
@@ -82,8 +82,10 @@ async def upsert_vectors(
                 status_code=413,
                 detail=f"vectors[{index}].metadata is too large",
             )
-    for index, meta in enumerate(metadata):
-        require_tenant_metadata(collection, meta, label=f"vectors[{index}].metadata")
+    metadata = [
+        enforce_tenant_metadata(collection, meta, principal, label=f"vectors[{index}].metadata")
+        for index, meta in enumerate(metadata)
+    ]
 
     try:
         await vector_store.create_collection(

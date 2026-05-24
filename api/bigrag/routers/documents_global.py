@@ -21,9 +21,7 @@ async def get_document_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await get_document_with_collection(
-        session, document_id, pinned_collection=user.get("collection")
-    )
+    doc, collection_name = await get_document_with_collection(session, document_id, principal=user)
     collection = await get_collection_or_404(collection_name)
     check_document_tenant(user, doc, collection)
     return document_response(doc, progress=await document_progress(doc, collection_name))
@@ -37,9 +35,7 @@ async def get_document_chunks_global(
     user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    doc, collection_name = await get_document_with_collection(
-        session, document_id, pinned_collection=user.get("collection")
-    )
+    doc, collection_name = await get_document_with_collection(session, document_id, principal=user)
     collection = await get_collection_or_404(collection_name)
     check_document_tenant(user, doc, collection)
     chunks = await vector_store.get_chunks(

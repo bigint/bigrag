@@ -215,12 +215,13 @@ async def get_document_with_collection(
     session: AsyncSession,
     document_id: str,
     *,
-    pinned_collection: str | None = None,
+    principal: dict,
 ) -> tuple[Document, str]:
     try:
         target_id = uuid.UUID(document_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Document not found") from exc
+    pinned_collection = principal.get("collection")
     stmt = (
         sa.select(Document, Collection.name)
         .join(Collection, Collection.id == Document.collection_id)

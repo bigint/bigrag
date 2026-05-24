@@ -24,7 +24,7 @@ from bigrag.services.collection_scope import assert_collection_matches_pin
 from bigrag.services.retrieval import retrieve
 from bigrag.services.retrieval.fusion import tokenize_query
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.tenant_enforcement import require_tenant_filters
+from bigrag.services.tenant_enforcement import enforce_tenant_filters
 
 _IDENTIFIER_TOKEN_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{11,}$", re.IGNORECASE)
 
@@ -56,7 +56,7 @@ async def _prepare_chat_turn(
     if pinned:
         assert_collection_matches_pin(pinned, collection_name)
     collection = await get_collection_or_404(collection_name)
-    require_tenant_filters(collection, body.filters)
+    chat_filters = enforce_tenant_filters(collection, body.filters, user)
     provider = _resolve_provider(body.model_provider, runtime["chat_provider"])
     model = body.model or runtime["chat_model"]
     system_prompt = body.system_prompt or DEFAULT_SYSTEM_PROMPT
@@ -87,7 +87,7 @@ async def _prepare_chat_turn(
         query=body.message,
         embedding_model=embedding_model,
         top_k=top_k,
-        filters=body.filters,
+        filters=chat_filters,
         min_score=min_score,
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
@@ -97,7 +97,7 @@ async def _prepare_chat_turn(
         session,
         collection=collection,
         message=body.message,
-        filters=body.filters,
+        filters=chat_filters,
         results=outcome.results,
     )
     timings = ChatTimings(
@@ -117,7 +117,7 @@ async def _prepare_chat_turn(
         "min_score": min_score,
         "rerank": rerank,
         "multimodal": multimodal,
-        "filters": body.filters or {},
+        "filters": chat_filters or {},
         "sources": [source.model_dump(mode="json") for source in sources],
         "timings": timings.model_dump(mode="json"),
     }

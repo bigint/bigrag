@@ -11,6 +11,7 @@ from bigrag.services.documents import (
     stream_upload_to_temp,
 )
 from bigrag.services.file_validation import InvalidFileContentError, validate_upload
+from bigrag.services.tenant_enforcement import enforce_tenant_metadata
 
 __all__ = [
     "metadata_or_400",
@@ -75,8 +76,9 @@ async def validated_upload_to_temp(
     return tmp_path, content_hash, size
 
 
-def metadata_or_400(collection: dict, metadata: str, prepare, parse) -> dict:
+def metadata_or_400(collection: dict, metadata: str, prepare, parse, principal: dict) -> dict:
     try:
-        return prepare(collection, parse(metadata))
+        prepared = prepare(collection, parse(metadata))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+    return enforce_tenant_metadata(collection, prepared, principal, label="metadata")

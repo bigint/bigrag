@@ -54,7 +54,23 @@ def _serialize(user: User, *, auth: str, api_key_id: str | None = None) -> dict:
         "api_key_name": None,
         "scopes": None,
         "collection": None,
+        "tenant_id": None,
+        "active": True,
+        "expires_at": None,
     }
+
+
+def _is_api_key_principal(principal: dict) -> bool:
+    return principal.get("auth_method") == "api_key"
+
+
+def _principal_revoked(principal: dict) -> bool:
+    if not _is_api_key_principal(principal):
+        return False
+    if principal.get("active") is False:
+        return True
+    expires_at = _parse_iso(principal.get("expires_at"))
+    return expires_at is not None and expires_at <= datetime.now(UTC)
 
 
 async def _user_from_session(request: Request, session: AsyncSession) -> dict | None:
@@ -113,10 +129,15 @@ async def _user_from_api_key(request: Request, session: AsyncSession) -> dict | 
     scopes = permissions.get("scopes") if isinstance(permissions, dict) else None
     raw_collection = permissions.get("collection") if isinstance(permissions, dict) else None
     collection = raw_collection if isinstance(raw_collection, str) and raw_collection else None
+    raw_tenant = permissions.get("tenant") if isinstance(permissions, dict) else None
+    tenant_id = raw_tenant if isinstance(raw_tenant, str) and raw_tenant else None
     principal = _serialize(user, auth="api_key", api_key_id=str(api_key.id))
     principal["api_key_name"] = api_key.name
     principal["scopes"] = scopes if isinstance(scopes, list) else None
     principal["collection"] = collection
+    principal["tenant_id"] = tenant_id
+    principal["active"] = bool(api_key.active)
+    principal["expires_at"] = api_key.expires_at.isoformat() if api_key.expires_at else None
     principal["last_used_at"] = api_key.last_used_at.isoformat() if api_key.last_used_at else None
     ttl = _ttl_until(api_key.expires_at)
     if ttl > 0:
@@ -179,8 +200,8 @@ async def invalidate_api_key_principal(key_hash: str) -> None:
             redis_cache.delete_pattern("auth:api_key:*"),
             timeout=REDIS_AUTH_TIMEOUT_SECONDS,
         )
-    except TimeoutError:
-        logger.debug("auth api-key cache pattern invalidation timed out")
+    except Exception as exc:
+        logger.debug("auth api-key cache pattern invalidation unavailable", error=str(exc))
 
 
 async def invalidate_auth_principals() -> None:
@@ -189,8 +210,8 @@ async def invalidate_auth_principals() -> None:
             redis_cache.delete_pattern("auth:*"),
             timeout=REDIS_AUTH_TIMEOUT_SECONDS,
         )
-    except TimeoutError:
-        logger.debug("auth principal cache invalidation timed out")
+    except Exception as exc:
+        logger.debug("auth principal cache invalidation unavailable", error=str(exc))
 
 
 async def _principal_from_cache(request: Request) -> dict | None:
@@ -207,6 +228,9 @@ async def _principal_from_cache(request: Request) -> dict | None:
             for key_hash in api_key_hashes_for_lookup(token):
                 cached = await _cache_get(_api_key_cache_key(key_hash))
                 if isinstance(cached, dict):
+                    if _principal_revoked(cached):
+                        await _cache_delete(_api_key_cache_key(key_hash))
+                        return None
                     await _touch_api_key_last_used(
                         cached.get("api_key_id"),
                         last_used_at=_parse_iso(cached.get("last_used_at")),
@@ -231,12 +255,13 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Authentication required")
     request.state.user = principal
 
-    scope = required_scope(request.method, request.url.path)
-    if scope and not has_scope(principal.get("scopes"), scope):
-        raise HTTPException(
-            status_code=403,
-            detail=f"API key missing required scope: {scope}",
-        )
+    if _is_api_key_principal(principal):
+        scope = required_scope(request.method, request.url.path)
+        if scope and not has_scope(principal.get("scopes"), scope):
+            raise HTTPException(
+                status_code=403,
+                detail=f"API key missing required scope: {scope}",
+            )
 
     pinned = principal.get("collection")
     if pinned:
@@ -266,8 +291,8 @@ def session_expiry() -> datetime:
 async def _cache_get(key: str) -> dict | list | None:
     try:
         return await asyncio.wait_for(redis_cache.get(key), timeout=REDIS_AUTH_TIMEOUT_SECONDS)
-    except TimeoutError:
-        logger.debug("auth principal cache get timed out")
+    except Exception as exc:
+        logger.debug("auth principal cache get unavailable", error=str(exc))
         return None
 
 
@@ -277,12 +302,12 @@ async def _cache_set(key: str, value: dict | list, ttl: int) -> None:
             redis_cache.set(key, value, ttl=ttl),
             timeout=REDIS_AUTH_TIMEOUT_SECONDS,
         )
-    except TimeoutError:
-        logger.debug("auth principal cache set timed out")
+    except Exception as exc:
+        logger.debug("auth principal cache set unavailable", error=str(exc))
 
 
 async def _cache_delete(key: str) -> None:
     try:
         await asyncio.wait_for(redis_cache.delete(key), timeout=REDIS_AUTH_TIMEOUT_SECONDS)
-    except TimeoutError:
-        logger.debug("auth principal cache delete timed out")
+    except Exception as exc:
+        logger.debug("auth principal cache delete unavailable", error=str(exc))

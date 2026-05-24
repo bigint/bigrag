@@ -36,6 +36,7 @@ from bigrag.services.documents import prepare_document_metadata
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import get_values
 from bigrag.services.staged_files import delete_staged_file_path
+from bigrag.services.tenant_enforcement import enforce_tenant_metadata
 
 logger = get_logger("bigrag.routers.upload_sessions")
 
@@ -72,6 +73,7 @@ async def create_upload_session(
         meta = prepare_document_metadata(collection, body.metadata)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"metadata: {exc}") from exc
+    meta = enforce_tenant_metadata(collection, meta, user, label="metadata")
     upload_session = UploadSession(
         collection_id=collection["id"],
         collection_name=collection_name,

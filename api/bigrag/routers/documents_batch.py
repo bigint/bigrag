@@ -48,6 +48,7 @@ from bigrag.services.documents import (
 )
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
+from bigrag.services.tenant_enforcement import document_tenant_allowed, is_admin_org_global
 
 logger = get_logger("bigrag.routers.documents.batch")
 
@@ -55,6 +56,33 @@ logger = get_logger("bigrag.routers.documents.batch")
 def _validate_batch_delete_ids(document_ids: list[str]) -> None:
     for document_id in document_ids:
         uuid_or_404(document_id, "Document")
+
+
+async def _tenant_filter_delete_ids(
+    session: AsyncSession,
+    user: dict,
+    collection: dict,
+    document_ids: list[str],
+) -> tuple[list[str], list[dict[str, str]]]:
+    if is_admin_org_global(user) or not collection.get("tenant_field"):
+        return document_ids, []
+    uuids = [uuid_or_404(d, "Document") for d in document_ids]
+    docs = (
+        await session.scalars(
+            sa.select(Document)
+            .where(Document.collection_id == collection["id"])
+            .where(Document.id.in_(uuids))
+        )
+    ).all()
+    allowed = {str(d.id) for d in docs if document_tenant_allowed(user, collection, d.meta)}
+    permitted: list[str] = []
+    denied: list[dict[str, str]] = []
+    for document_id, document_uuid in zip(document_ids, uuids, strict=True):
+        if str(document_uuid) in allowed:
+            permitted.append(document_id)
+        else:
+            denied.append({"document_id": document_id, "error": "Document not found"})
+    return permitted, denied
 
 
 def _batch_delete_chunks(document_ids: list[str]) -> Iterator[tuple[list[str], list[uuid.UUID]]]:
@@ -106,6 +134,7 @@ async def batch_upload_documents(
         metadata,
         prepare_document_metadata,
         parse_form_metadata,
+        user,
     )
 
     pending: list[tuple[UploadFile, str, Path, str, int]] = []
@@ -178,6 +207,7 @@ async def batch_get_status(
             .where(Document.id.in_(uuids))
         )
     ).all()
+    docs = [d for d in docs if document_tenant_allowed(user, collection, d.meta)]
 
     progresses = await document_progress_map(list(docs), collection_name)
     documents = []
@@ -217,6 +247,7 @@ async def batch_get_documents(
             .where(Document.id.in_(uuids))
         )
     ).all()
+    docs = [d for d in docs if document_tenant_allowed(user, collection, d.meta)]
 
     progresses = await document_progress_map(list(docs), collection_name)
     documents = [document_response(d, progress=progresses[str(d.id)]) for d in docs]
@@ -242,9 +273,11 @@ async def batch_delete_documents(
 
     _validate_batch_delete_ids(body.document_ids)
     deleted = 0
-    errors: list[dict[str, str]] = []
+    permitted_ids, errors = await _tenant_filter_delete_ids(
+        session, user, collection, body.document_ids
+    )
     try:
-        for document_ids, document_uuids in _batch_delete_chunks(body.document_ids):
+        for document_ids, document_uuids in _batch_delete_chunks(permitted_ids):
             result = await delete_document_batch_chunk(
                 session=session,
                 collection_name=collection_name,

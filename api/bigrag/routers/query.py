@@ -31,7 +31,7 @@ from bigrag.routers import (
 )
 from bigrag.services import access_log
 from bigrag.services.retrieval import retrieve, retrieve_multi
-from bigrag.services.tenant_enforcement import require_tenant_filters
+from bigrag.services.tenant_enforcement import enforce_tenant_filters
 
 logger = get_logger("bigrag.routers.query")
 
@@ -45,7 +45,7 @@ async def query_collection(
     collection_name: str,
     body: QueryRequest,
     request: Request,
-    _: dict = Depends(get_current_user),
+    principal: dict = Depends(get_current_user),
 ):
     access_log.set_context(
         request,
@@ -62,7 +62,7 @@ async def query_collection(
         },
     )
     collection = await get_collection_or_404(collection_name)
-    require_tenant_filters(collection, body.filters)
+    body_filters = enforce_tenant_filters(collection, body.filters, principal)
     logger.debug(
         "query collection",
         collection=collection_name,
@@ -93,7 +93,7 @@ async def query_collection(
         query=body.query,
         embedding_model=embedding_model,
         top_k=top_k,
-        filters=body.filters,
+        filters=body_filters,
         min_score=min_score,
         search_mode=search_mode,
         reranking_config=get_reranking_config(collection),
@@ -195,7 +195,7 @@ async def _results_with_document_filenames(rows: list[dict]) -> list[dict]:
 async def multi_collection_query(
     body: MultiQueryRequest,
     request: Request,
-    _: dict = Depends(get_current_user),
+    principal: dict = Depends(get_current_user),
 ):
     access_log.set_context(
         request,
@@ -229,8 +229,9 @@ async def multi_collection_query(
     resolved_collections = await asyncio.gather(
         *[_resolve(col_name) for col_name in body.collections]
     )
+    multi_filters = body.filters
     for col_name, collection in zip(body.collections, resolved_collections, strict=True):
-        require_tenant_filters(collection, body.filters)
+        multi_filters = enforce_tenant_filters(collection, multi_filters, principal)
         try:
             embedding_models[col_name] = get_embedding_model_for(collection)
         except (ImportError, ValueError) as e:
@@ -246,7 +247,7 @@ async def multi_collection_query(
         query=body.query,
         embedding_models=embedding_models,
         top_k=body.top_k,
-        filters=body.filters,
+        filters=multi_filters,
         min_score=body.min_score,
         search_mode=body.search_mode,
         reranking_configs=reranking_configs,
@@ -286,7 +287,7 @@ async def multi_collection_query(
 async def batch_query(
     body: BatchQueryRequest,
     request: Request,
-    _: dict = Depends(get_current_user),
+    principal: dict = Depends(get_current_user),
 ):
     access_log.set_context(
         request,
@@ -308,7 +309,7 @@ async def batch_query(
     async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int, bool]:
         async with batch_semaphore:
             collection = await get_collection_or_404(item.collection)
-            require_tenant_filters(collection, item.filters)
+            item_filters = enforce_tenant_filters(collection, item.filters, principal)
             try:
                 embedding_model = get_embedding_model_for(collection)
             except (ImportError, ValueError) as e:
@@ -320,7 +321,7 @@ async def batch_query(
                 query=item.query,
                 embedding_model=embedding_model,
                 top_k=item.top_k,
-                filters=item.filters,
+                filters=item_filters,
                 min_score=item.min_score,
                 search_mode=item.search_mode,
                 reranking_config=get_reranking_config(collection),

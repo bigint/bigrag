@@ -100,8 +100,6 @@ def scope_matches(granted: str, required: str) -> bool:
 
 def has_scope(granted_scopes: list[str] | None, required: str) -> bool:
 
-    if granted_scopes is None:
-        return True
     if not granted_scopes:
         return False
     return any(scope_matches(g, required) for g in granted_scopes)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
 
@@ -94,15 +95,24 @@ async def _lock_setup(session: AsyncSession) -> None:
     )
 
 
+def _resolve_cookie_security(cookie: dict) -> tuple[bool, str]:
+    samesite = cookie["session_cookie_samesite"] or "lax"
+    secure = bool(cookie["session_cookie_secure"])
+    if samesite.lower() == "none":
+        secure = True
+    return secure, samesite
+
+
 async def _set_session_cookie(response: Response, token: str) -> None:
     cookie = await _session_cookie_options()
+    secure, samesite = _resolve_cookie_security(cookie)
     response.set_cookie(
         key=_config.settings.session_cookie_name,
         value=token,
         max_age=_config.settings.session_expiry_hours * 3600,
         httponly=True,
-        secure=bool(cookie["session_cookie_secure"]),
-        samesite=cookie["session_cookie_samesite"] or "lax",
+        secure=secure,
+        samesite=samesite,
         domain=cookie["session_cookie_domain"],
         path="/",
     )
@@ -110,11 +120,12 @@ async def _set_session_cookie(response: Response, token: str) -> None:
 
 async def _clear_session_cookie(response: Response) -> None:
     cookie = await _session_cookie_options()
+    secure, samesite = _resolve_cookie_security(cookie)
     response.delete_cookie(
         key=_config.settings.session_cookie_name,
         httponly=True,
-        secure=bool(cookie["session_cookie_secure"]),
-        samesite=cookie["session_cookie_samesite"] or "lax",
+        secure=secure,
+        samesite=samesite,
         domain=cookie["session_cookie_domain"],
         path="/",
     )
@@ -156,7 +167,7 @@ async def setup(
     user = User(
         id=uuid7(),
         email=body.email.lower(),
-        password_hash=hash_password(body.password),
+        password_hash=await asyncio.to_thread(hash_password, body.password),
         display_name=body.display_name,
         role="admin",
         last_login_at=sa.func.now(),
@@ -191,10 +202,10 @@ async def login(
     await _enforce_login_rate_limit(request, email)
     user = await session.scalar(sa.select(User).where(User.email == email))
     if user is None:
-        verify_password(body.password, DUMMY_PASSWORD_HASH)
+        await asyncio.to_thread(verify_password, body.password, DUMMY_PASSWORD_HASH)
         password_ok = False
     else:
-        password_ok = verify_password(body.password, user.password_hash)
+        password_ok = await asyncio.to_thread(verify_password, body.password, user.password_hash)
     if user is None or not password_ok:
         audit.record(
             request,
@@ -207,7 +218,7 @@ async def login(
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if needs_rehash(user.password_hash):
-        user.password_hash = hash_password(body.password)
+        user.password_hash = await asyncio.to_thread(hash_password, body.password)
 
     user.last_login_at = sa.func.now()
     token = await _issue_session(session, user.id)
@@ -319,10 +330,12 @@ async def change_password(
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
     target = await session.get(User, uuid.UUID(user["id"]))
-    if target is None or not verify_password(body.current_password, target.password_hash):
+    if target is None or not await asyncio.to_thread(
+        verify_password, body.current_password, target.password_hash
+    ):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
 
-    target.password_hash = hash_password(body.new_password)
+    target.password_hash = await asyncio.to_thread(hash_password, body.new_password)
     await session.execute(sa.delete(UserSession).where(UserSession.user_id == target.id))
     await session.commit()
     await invalidate_auth_principals()
