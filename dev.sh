@@ -194,7 +194,7 @@ if [ "$START_BACKEND" = true ]; then
     --log-level info 2>&1 | prefix_logs backend &
   PIDS+=($!)
 
-  wait_for "Backend" "curl -sf http://localhost:4000/health" 120
+  wait_for "Backend" "curl -sf --connect-timeout 1 --max-time 2 http://127.0.0.1:4000/health" 120
 
   echo -e "${CYAN}Starting Python worker (Dramatiq)...${NC}"
   uv run --directory "$ROOT_DIR/api" bigrag-worker --processes "${BIGRAG_WORKER_PROCESSES:-5}" --threads "${BIGRAG_WORKER_THREADS:-8}" \

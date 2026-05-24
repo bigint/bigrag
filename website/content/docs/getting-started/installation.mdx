@@ -91,7 +91,7 @@ This script:
 2. Validates required commands (`docker`, `curl`, `uv`).
 3. Starts Docker services (Postgres and Redis) and waits for readiness.
 4. Installs Python dependencies with `uv`.
-5. Starts the backend with auto-reload.
+5. Starts the backend with auto-reload and a bounded `/health` startup probe.
 6. Starts `bigrag-worker` with five Dramatiq processes on Redis.
 7. Gracefully stops everything on Ctrl+C.
 
