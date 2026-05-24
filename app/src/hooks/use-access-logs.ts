@@ -2,19 +2,9 @@ import { useMemo } from "react";
 import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
+import type { AccessLogFilters, AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
 
-export type AccessLogFilters = {
-  action?: string;
-  actor_id?: string;
-  collection?: string;
-  method?: string;
-  path?: string;
-  status_family?: "2xx" | "3xx" | "4xx" | "5xx";
-  success?: boolean;
-  limit?: number;
-  offset?: number;
-};
+export type { AccessLogFilters };
 
 const compactFilters = (filters: AccessLogFilters & { include_total?: boolean }) =>
   Object.fromEntries(

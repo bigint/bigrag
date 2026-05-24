@@ -83,3 +83,32 @@ export type S3SyncJobList = {
   jobs: S3SyncJob[];
   total: number;
 };
+
+export type CreateS3SourceBody = {
+  collection_name: string;
+  bucket: string;
+  prefix?: string;
+  region?: string | null;
+  endpoint_url?: string | null;
+  force_path_style?: boolean;
+  access_key_id: string;
+  secret_access_key: string;
+  session_token?: string | null;
+  schedule_enabled?: boolean;
+  sync_interval_hours?: number;
+  metadata?: Record<string, unknown>;
+};
+
+export type UpdateS3SourceBody = {
+  bucket?: string | null;
+  prefix?: string | null;
+  region?: string | null;
+  endpoint_url?: string | null;
+  force_path_style?: boolean | null;
+  access_key_id?: string | null;
+  secret_access_key?: string | null;
+  session_token?: string | null;
+  schedule_enabled?: boolean | null;
+  sync_interval_hours?: number | null;
+  metadata?: Record<string, unknown> | null;
+};

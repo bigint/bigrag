@@ -1,3 +1,4 @@
+import type { User as CurrentUser, SessionResponse } from "@bigrag/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HTTPError } from "ky";
 import { toast } from "sonner";
@@ -5,17 +6,7 @@ import { closeAllRealtimeStreams } from "@/hooks/use-realtime-snapshot-query";
 import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type CurrentUser = {
-  id: string;
-  email: string;
-  display_name: string;
-  role: string;
-  last_login_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type SessionResponse = { user: CurrentUser };
+export type { CurrentUser };
 
 type UpdateCurrentUserProfileBody = {
   id: string;

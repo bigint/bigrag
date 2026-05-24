@@ -5,7 +5,7 @@ import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { Collection, CollectionStats } from "@/types/bigrag";
+import type { Collection, CollectionStats, CreateCollectionBody } from "@/types/bigrag";
 import type { Paginated } from "@/types/pagination";
 
 type ListResponse = Paginated<"collections", Collection>;
@@ -42,27 +42,6 @@ export const useCollectionStats = (name: string) => {
     topic: "admin.collections.stats",
     params: { collection: name },
   });
-};
-
-type CreateCollectionBody = {
-  name: string;
-  description?: string;
-  embedding_preset_id?: string | null;
-  embedding_provider?: "openai" | "openai_compatible" | "cohere" | "voyage";
-  embedding_model?: string;
-  embedding_api_key?: string | null;
-  embedding_base_url?: string | null;
-  dimension?: number;
-  chunk_size?: number;
-  chunk_overlap?: number;
-  reranking_enabled?: boolean;
-  reranking_model?: string;
-  reranking_api_key?: string | null;
-  multimodal_enabled?: boolean;
-  multimodal_enrichment_enabled?: boolean;
-  default_top_k?: number;
-  default_search_mode?: "semantic" | "keyword" | "hybrid";
-  metadata?: Record<string, unknown>;
 };
 
 export const useCreateCollection = () => {

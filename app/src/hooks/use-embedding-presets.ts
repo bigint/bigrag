@@ -3,7 +3,9 @@ import { toast } from "sonner";
 import { apiClient, SEARCH_TIMEOUT_MS } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { EmbeddingPreset } from "@/types/bigrag";
+import type { EmbeddingPreset, EmbeddingPresetBody } from "@/types/bigrag";
+
+export type { EmbeddingPresetBody };
 
 const KEY = queryKeys.embeddingPresets();
 type EmbeddingPresetsOptions = { readonly enabled?: boolean };
@@ -15,15 +17,6 @@ export const useEmbeddingPresets = ({ enabled = true }: EmbeddingPresetsOptions 
       apiClient.get<{ presets: EmbeddingPreset[]; total: number }>("v1/admin/embedding-presets"),
     enabled,
   });
-
-export type EmbeddingPresetBody = {
-  name: string;
-  provider: "openai" | "openai_compatible" | "cohere" | "voyage";
-  model: string;
-  api_key: string;
-  base_url?: string | null;
-  dimension: number;
-};
 
 export const useCreateEmbeddingPreset = () => {
   const qc = useQueryClient();

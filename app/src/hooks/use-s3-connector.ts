@@ -5,36 +5,14 @@ import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { S3Source, S3SourceList, S3SyncJob, S3SyncJobList } from "@/types/bigrag";
-
-type CreateS3SourceBody = {
-  collection_name: string;
-  bucket: string;
-  prefix?: string;
-  region?: string | null;
-  endpoint_url?: string | null;
-  force_path_style?: boolean;
-  access_key_id: string;
-  secret_access_key: string;
-  session_token?: string | null;
-  schedule_enabled?: boolean;
-  sync_interval_hours?: number;
-  metadata?: Record<string, unknown>;
-};
-
-type UpdateS3SourceBody = {
-  bucket?: string | null;
-  prefix?: string | null;
-  region?: string | null;
-  endpoint_url?: string | null;
-  force_path_style?: boolean | null;
-  access_key_id?: string | null;
-  secret_access_key?: string | null;
-  session_token?: string | null;
-  schedule_enabled?: boolean | null;
-  sync_interval_hours?: number | null;
-  metadata?: Record<string, unknown> | null;
-};
+import type {
+  CreateS3SourceBody,
+  S3Source,
+  S3SourceList,
+  S3SyncJob,
+  S3SyncJobList,
+  UpdateS3SourceBody,
+} from "@/types/bigrag";
 
 const updateS3SourcesCache = (
   queryClient: QueryClient,

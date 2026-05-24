@@ -15,26 +15,20 @@ import {
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
-import type { Chunk, Document, UploadSession, UploadSessionFileResponse } from "@/types/bigrag";
+import type {
+  Chunk,
+  Document,
+  DocumentListFilters,
+  DocumentListOrder,
+  DocumentListSort,
+  UploadSession,
+  UploadSessionFileResponse,
+} from "@/types/bigrag";
 import type { Paginated } from "@/types/pagination";
 
+export type { DocumentListFilters, DocumentListOrder, DocumentListSort };
+
 type DocListResponse = Paginated<"documents", Document>;
-export type DocumentListSort =
-  | "created_at"
-  | "updated_at"
-  | "filename"
-  | "file_size"
-  | "chunk_count"
-  | "status";
-export type DocumentListOrder = "asc" | "desc";
-export type DocumentListFilters = {
-  q?: string;
-  status?: string;
-  sort?: DocumentListSort;
-  order?: DocumentListOrder;
-  limit?: number;
-  offset?: number;
-};
 type DocumentPageParam = {
   cursor: string | null;
   offset: number;

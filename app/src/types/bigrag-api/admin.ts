@@ -12,6 +12,15 @@ export type EmbeddingPreset = {
   updated_at: string;
 };
 
+export type EmbeddingPresetBody = {
+  name: string;
+  provider: "openai" | "openai_compatible" | "cohere" | "voyage";
+  model: string;
+  api_key: string;
+  base_url?: string | null;
+  dimension: number;
+};
+
 export type ApiKey = {
   id: string;
   name: string;
@@ -164,3 +173,15 @@ export type AccessLogOverview = {
 };
 
 export type AccessLogListResponse = Paginated<"entries", AccessLogEntry>;
+
+export type AccessLogFilters = {
+  action?: string;
+  actor_id?: string;
+  collection?: string;
+  method?: string;
+  path?: string;
+  status_family?: "2xx" | "3xx" | "4xx" | "5xx";
+  success?: boolean;
+  limit?: number;
+  offset?: number;
+};
