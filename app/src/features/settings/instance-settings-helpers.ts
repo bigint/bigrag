@@ -66,6 +66,16 @@ export const settingPlaceholder = (
   return undefined;
 };
 
+export type SettingControlKind = "bool" | "select" | "turbopuffer_region" | "textarea" | "input";
+
+export const settingControlKind = (spec: InstanceSettingSpec): SettingControlKind => {
+  if (spec.kind === "bool") return "bool";
+  if (spec.kind === "select") return "select";
+  if (spec.key === "turbopuffer_region") return "turbopuffer_region";
+  if (spec.kind === "string_list" || spec.kind === "int_list") return "textarea";
+  return "input";
+};
+
 export const inputType = (spec: InstanceSettingSpec): "number" | "password" | "text" => {
   if (spec.kind === "int" || spec.kind === "float") return "number";
   if (spec.kind === "secret") return "password";
