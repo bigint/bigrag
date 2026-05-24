@@ -52,6 +52,7 @@ async def configure(database_url: str, pool_min: int = 5, pool_max: int = 50) ->
         max_overflow=overflow,
         pool_pre_ping=True,
         pool_recycle=300,
+        pool_timeout=10,
         connect_args=connect_args,
         future=True,
     )
