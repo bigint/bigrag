@@ -6,6 +6,8 @@ import httpx
 
 from bigrag.services.url_security.pin import PinnedOutbound
 
+_DEFAULT_LIMITS = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+
 
 def _bracket_ipv6(ip_str: str) -> str:
     try:
@@ -63,6 +65,7 @@ def pinned_async_client(
         pinned_ip=pinned.pinned_ip,
         verify=verify,
         http2=http2,
+        limits=_DEFAULT_LIMITS,
     )
     return httpx.AsyncClient(
         transport=transport,
