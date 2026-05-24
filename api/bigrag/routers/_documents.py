@@ -2,11 +2,25 @@ from __future__ import annotations
 
 import json
 
+from fastapi import HTTPException
+
 from bigrag.db.models import Document
 from bigrag.logging import get_logger
 from bigrag.models.document import DocumentProgressResponse, DocumentResponse
 
 logger = get_logger("bigrag.routers.documents")
+
+
+def check_document_tenant(user: dict, doc: Document, collection: dict) -> None:
+    tenant_field = collection.get("tenant_field")
+    if not tenant_field:
+        return
+    user_tenant = user.get("tenant_id")
+    if user_tenant is None and user.get("role") == "admin" and not user.get("collection"):
+        return
+    doc_tenant = (doc.meta or {}).get(tenant_field) if doc.meta else None
+    if user_tenant is None or user_tenant != doc_tenant:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 
 def document_progress_response(

@@ -17,6 +17,7 @@ from bigrag.models.document import (
 from bigrag.models.multimodal import DocumentElementListResponse, DocumentElementResponse
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
+    check_document_tenant,
     document_response,
     parse_form_metadata,
 )
@@ -247,6 +248,7 @@ async def get_document(
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    check_document_tenant(user, doc, collection)
     return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
@@ -360,13 +362,14 @@ async def get_document_chunks(
 ) -> dict[str, object]:
     enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
-    total = await session.scalar(
-        sa.select(Document.chunk_count)
+    doc = await session.scalar(
+        sa.select(Document)
         .where(Document.id == uuid_or_404(document_id, "Document"))
         .where(Document.collection_id == collection["id"])
     )
-    if total is None:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    check_document_tenant(user, doc, collection)
 
     chunks = await vector_store.get_chunks(
         collection_name,
@@ -374,7 +377,7 @@ async def get_document_chunks(
         limit=limit,
         offset=offset,
     )
-    return {"chunks": chunks, "total": total}
+    return {"chunks": chunks, "total": doc.chunk_count}
 
 
 def _document_element_response(row: DocumentElement) -> DocumentElementResponse:
