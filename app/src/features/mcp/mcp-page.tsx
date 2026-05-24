@@ -53,8 +53,6 @@ const TOOLS_SCOPED = [
   { name: "get_document_chunks", description: "Every chunk of a document (pinned collection)." },
 ] as const;
 
-const getOrigin = () => (typeof window === "undefined" ? "" : window.location.origin);
-
 const trimSlash = (s: string) => s.replace(/\/+$/, "");
 
 const buildRemoteUrl = (origin: string) => `${trimSlash(origin)}/mcp`;
@@ -85,15 +83,12 @@ const buildShellSnippet = (origin: string, plaintext: string) =>
   BIGRAG_API_KEY=${shellQuote(plaintext)} \\
   bigrag-mcp`;
 
-const buildSnippets = (serverName: string, keyValue: string) => {
-  const origin = getOrigin();
-  return {
-    remoteUrl: buildRemoteUrl(origin),
-    authHeader: buildAuthHeader(keyValue),
-    jsonSnippet: buildClaudeDesktopJson(serverName, origin, keyValue),
-    shellSnippet: buildShellSnippet(origin, keyValue),
-  };
-};
+const buildSnippets = (serverName: string, keyValue: string) => ({
+  remoteUrl: buildRemoteUrl(bigragApiUrl),
+  authHeader: buildAuthHeader(keyValue),
+  jsonSnippet: buildClaudeDesktopJson(serverName, bigragApiUrl, keyValue),
+  shellSnippet: buildShellSnippet(bigragApiUrl, keyValue),
+});
 
 const CopyButton = ({ code, label }: { code: string; label: string }) => {
   const [copied, setCopied] = useState(false);
