@@ -58,12 +58,22 @@ class RuntimeCorsMiddleware(BaseHTTPMiddleware):
         return response
 
 
-async def _allowed_origin(origin: str, request: Request) -> tuple[bool, bool]:
+async def resolve_cors_origins(request: Request) -> list[str]:
+    cached = getattr(request.state, "cors_origins", None)
+    if cached is not None:
+        return cached
     try:
-        cors_origins = await runtime_settings.get_value("cors_origins")
+        value = await runtime_settings.get_value("cors_origins")
+        origins = value if isinstance(value, list) else []
     except Exception as exc:
         logger.warning("cors: runtime_settings lookup failed; using static", error=str(exc))
-        cors_origins = request.app.state.settings.cors_origins
+        origins = request.app.state.settings.cors_origins
+    request.state.cors_origins = origins
+    return origins
+
+
+async def _allowed_origin(origin: str, request: Request) -> tuple[bool, bool]:
+    cors_origins = await resolve_cors_origins(request)
     if "*" in cors_origins:
         return True, True
     if origin in cors_origins:

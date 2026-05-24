@@ -6,10 +6,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from bigrag.logging import get_logger
-from bigrag.services import runtime_settings
-
-logger = get_logger("bigrag.middleware.csrf")
+from bigrag.middleware.cors import resolve_cors_origins
 
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -30,19 +27,10 @@ class SessionCsrfMiddleware(BaseHTTPMiddleware):
                 {"detail": "Missing Origin header on session-authenticated mutating request"},
                 status_code=403,
             )
-        cors_origins = await _cors_origins(request)
+        cors_origins = await resolve_cors_origins(request)
         if _allowed_origin(origin, request, cors_origins):
             return await call_next(request)
         return JSONResponse({"detail": "Cross-origin request rejected"}, status_code=403)
-
-
-async def _cors_origins(request: Request) -> list[str]:
-    try:
-        value = await runtime_settings.get_value("cors_origins")
-        return value if isinstance(value, list) else []
-    except Exception as exc:
-        logger.warning("csrf: runtime_settings lookup failed; using static", error=str(exc))
-        return request.app.state.settings.cors_origins
 
 
 def _allowed_origin(origin: str, request: Request, cors_origins: list[str]) -> bool:
