@@ -37,6 +37,8 @@ logger = get_logger("bigrag.routers.query")
 
 router = APIRouter(tags=["query"])
 
+_FANOUT_LIMIT = 8
+
 
 @router.post("/v1/collections/{collection_name}/query", response_model=QueryResponse)
 async def query_collection(
@@ -216,8 +218,14 @@ async def multi_collection_query(
 
     embedding_models = {}
     reranking_configs = {}
+    resolve_semaphore = asyncio.Semaphore(_FANOUT_LIMIT)
+
+    async def _resolve(col_name: str):
+        async with resolve_semaphore:
+            return await get_collection_or_404(col_name)
+
     resolved_collections = await asyncio.gather(
-        *[get_collection_or_404(col_name) for col_name in body.collections]
+        *[_resolve(col_name) for col_name in body.collections]
     )
     for col_name, collection in zip(body.collections, resolved_collections, strict=True):
         require_tenant_filters(collection, body.filters)
@@ -293,7 +301,7 @@ async def batch_query(
     )
     logger.debug("batch-query", queries=len(body.queries))
 
-    batch_semaphore = asyncio.Semaphore(8)
+    batch_semaphore = asyncio.Semaphore(_FANOUT_LIMIT)
 
     async def run_one(item: BatchQueryItem) -> tuple[BatchQueryItem, list[dict], int, bool]:
         async with batch_semaphore:
