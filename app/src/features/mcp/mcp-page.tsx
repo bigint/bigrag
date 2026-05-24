@@ -27,6 +27,7 @@ import {
   useMcpServers,
   useRotateMcpServer,
 } from "@/hooks/use-mcp-servers";
+import { useVerifyCredential } from "@/hooks/use-verify-credential";
 import { errorText, submitWith } from "@/lib/form";
 import { formatRelativeOrNever } from "@/lib/format";
 import type { CreatedMcpServer, McpServer } from "@/types/bigrag";
@@ -230,27 +231,18 @@ interface CredentialDialogProps {
 }
 
 const CredentialDialog = ({ open, onClose, created, kind }: CredentialDialogProps) => {
-  const [testing, setTesting] = useState(false);
+  const { verifying: testing, verify } = useVerifyCredential();
   if (!created) return null;
   const { remoteUrl, authHeader, jsonSnippet, shellSnippet } = buildSnippets(
     created.server_name,
     created.api_key,
   );
   const isScoped = !!created.collection;
-  const testCredential = async () => {
-    setTesting(true);
-    try {
-      const response = await fetch(`${bigragApiUrl}/v1/auth/whoami`, {
-        headers: { Authorization: `Bearer ${created.api_key}` },
-      });
-      if (!response.ok) throw new Error(await response.text());
-      toast.success("MCP key connected");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "MCP key test failed");
-    } finally {
-      setTesting(false);
-    }
-  };
+  const testCredential = () =>
+    verify(created.api_key, {
+      successMessage: "MCP key connected",
+      errorMessage: "MCP key test failed",
+    });
 
   return (
     <Modal

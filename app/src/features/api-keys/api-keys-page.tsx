@@ -13,7 +13,6 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
-import { bigragApiUrl } from "@/config/runtime";
 import {
   API_KEY_UNSCOPED,
   apiKeyBodyFromValues,
@@ -29,6 +28,7 @@ import {
 } from "@/hooks/use-api-keys";
 import { useCollections } from "@/hooks/use-collections";
 import { useCopy } from "@/hooks/use-copy";
+import { useVerifyCredential } from "@/hooks/use-verify-credential";
 import { errorText, firstString, submitWith } from "@/lib/form";
 import { formatRelativeOrNever } from "@/lib/format";
 import type { ApiKey, CreatedApiKey } from "@/types/bigrag";
@@ -47,7 +47,7 @@ export const ApiKeysPage = () => {
   const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
   const { copied, copy } = useCopy();
   const [deleteFor, setDeleteFor] = useState<ApiKey | null>(null);
-  const [testingKey, setTestingKey] = useState(false);
+  const { verifying: testingKey, verify } = useVerifyCredential();
   const form = useForm({
     defaultValues: defaultApiKeyFormValues(),
     validators: {
@@ -65,22 +65,9 @@ export const ApiKeysPage = () => {
     },
   });
 
-  const testNewKey = async () => {
+  const testNewKey = () => {
     if (!newKey) return;
-    setTestingKey(true);
-    try {
-      const response = await fetch(`${bigragApiUrl}/v1/auth/whoami`, {
-        headers: { Authorization: `Bearer ${newKey.key}` },
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      toast.success("Key connected");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Key test failed");
-    } finally {
-      setTestingKey(false);
-    }
+    void verify(newKey.key, { successMessage: "Key connected", errorMessage: "Key test failed" });
   };
 
   const columns: Column<ApiKey>[] = [
