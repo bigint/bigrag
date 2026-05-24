@@ -153,7 +153,7 @@ curl -X POST http://localhost:4000/v1/collections/docs/documents/batch/delete \
 ```
 
 <Callout type="info">
-Batch operations support up to 100 items per request. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. Partial success is supported for batch delete — failed items are reported in the `errors` array.
+Batch upload, status, and get support up to 100 items per request. Batch delete accepts larger document ID lists and processes them in internal chunks. API clients can poll batch status after upload to read each document's latest progress snapshot until every document is ready or failed. Partial success is supported for batch delete — failed items are reported in the `errors` array.
 </Callout>
 
 ## Large Upload Sessions

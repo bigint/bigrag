@@ -204,6 +204,8 @@ docs = await client.documents.batch_get("docs", ["id1", "id2"])
 result = await client.documents.batch_delete("docs", ["id1", "id2"])
 ```
 
+`batch_delete` accepts large document ID lists; the API chunks the delete work server-side.
+
 </Accordion>
 
 <Accordion title="Global document access (without collection scope)">

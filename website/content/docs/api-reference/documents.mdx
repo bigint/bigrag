@@ -356,7 +356,7 @@ Unlike Batch Status (which returns only `id`, `status`, `error_message`, `chunk_
 
 <Accordion title="POST /v1/collections/{collection_name}/documents/batch/delete — Batch delete">
 
-Delete up to 100 documents. Partial success is supported — missing or failed deletes are returned in `errors` rather than aborting the whole batch.
+Delete any number of documents in one request. The server processes the request in internal chunks, so large deletes avoid oversized database predicates, unbounded vector-store calls, and unbounded cleanup fan-out. Partial success is supported — missing or failed deletes are returned in `errors` rather than aborting the whole batch.
 
 ```json
 { "document_ids": ["doc-id-1", "doc-id-2"] }

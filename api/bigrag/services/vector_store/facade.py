@@ -178,6 +178,14 @@ class VectorStore:
         async with self._backend() as backend:
             await backend.delete_by_document(collection, document_id)
 
+    async def delete_by_documents(
+        self,
+        collection: str,
+        document_ids: list[str],
+    ) -> None:
+        async with self._backend() as backend:
+            await backend.delete_by_documents(collection, document_ids)
+
     async def delete_by_ids(
         self,
         collection: str,

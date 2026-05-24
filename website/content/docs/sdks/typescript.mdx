@@ -145,6 +145,8 @@ client.documents.batchGet(collection, documentIds)
 client.documents.batchDelete(collection, documentIds)
 ```
 
+`batchDelete` accepts large document ID lists; the API chunks the delete work server-side.
+
 </Accordion>
 
 <Accordion title="Global document access (without collection scope)">

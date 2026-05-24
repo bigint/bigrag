@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import batched
 from typing import Any
 
 from turbopuffer import AsyncTurbopuffer
@@ -30,6 +31,7 @@ logger = get_logger("bigrag.vector_store")
 
 _PUBLIC_ID_FIELD = "bigrag_id"
 _EXPORT_PAGE_SIZE = 10000
+_DELETE_DOCUMENT_FILTER_SIZE = 1000
 
 
 def _to_turbopuffer_filter(filters: FilterExpression | None) -> tuple | None:
@@ -291,6 +293,17 @@ class TurbopufferVectorStore:
     async def delete_by_document(self, collection: str, document_id: str) -> None:
         try:
             await self._write(collection, {"delete_by_filter": ["document_id", "Eq", document_id]})
+        except TurbopufferNotFoundError:
+            return
+
+    async def delete_by_documents(self, collection: str, document_ids: list[str]) -> None:
+        try:
+            for document_id_batch in batched(document_ids, _DELETE_DOCUMENT_FILTER_SIZE):
+                if len(document_id_batch) == 1:
+                    delete_filter = ["document_id", "Eq", document_id_batch[0]]
+                else:
+                    delete_filter = ["document_id", "In", list(document_id_batch)]
+                await self._write(collection, {"delete_by_filter": delete_filter})
         except TurbopufferNotFoundError:
             return
 

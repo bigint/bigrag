@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-import asyncio
+import uuid
+from collections.abc import Iterator
+from itertools import batched
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -36,19 +38,40 @@ from bigrag.routers.documents_uploads import (
 )
 from bigrag.services import audit, collection_cache
 from bigrag.services.batch_upload import persist_batch_upload_documents
+from bigrag.services.document_deletion import (
+    DOCUMENT_DELETE_CHUNK_SIZE,
+    delete_document_batch_chunk,
+)
 from bigrag.services.documents import (
     UploadBudget,
     prepare_document_metadata,
-    recount_collection_documents,
 )
-from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
-from bigrag.services.staged_files import delete_staged_file_path
-from bigrag.services.vector_store import vector_store
-from bigrag.services.webhook import enqueue_webhook_event
 
 logger = get_logger("bigrag.routers.documents.batch")
+
+
+def _validate_batch_delete_ids(document_ids: list[str]) -> None:
+    for document_id in document_ids:
+        uuid_or_404(document_id, "Document")
+
+
+def _batch_delete_chunks(document_ids: list[str]) -> Iterator[tuple[list[str], list[uuid.UUID]]]:
+    seen: set[str] = set()
+    for document_id_batch in batched(document_ids, DOCUMENT_DELETE_CHUNK_SIZE):
+        raw_ids = []
+        parsed_ids = []
+        for document_id in document_id_batch:
+            document_uuid = uuid_or_404(document_id, "Document")
+            canonical_id = str(document_uuid)
+            if canonical_id in seen:
+                continue
+            seen.add(canonical_id)
+            raw_ids.append(document_id)
+            parsed_ids.append(document_uuid)
+        if raw_ids:
+            yield raw_ids, parsed_ids
 
 
 @router.post("/batch/upload", response_model=DocumentListResponse, status_code=201)
@@ -217,66 +240,24 @@ async def batch_delete_documents(
     enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
 
-    if len(body.document_ids) > 100:
-        raise HTTPException(status_code=400, detail="Maximum 100 documents per batch delete")
-
-    uuids = [uuid_or_404(d, "Document") for d in body.document_ids]
-    docs = (
-        await session.scalars(
-            sa.select(Document)
-            .where(Document.collection_id == collection["id"])
-            .where(Document.id.in_(uuids))
-        )
-    ).all()
-    by_id = {str(d.id): d for d in docs}
-
-    errors = [
-        {"document_id": d, "error": "Document not found"}
-        for d in body.document_ids
-        if d not in by_id
-    ]
-
-    async def _delete_one(doc_id: str, doc: Document) -> bool:
-        try:
-            await delete_staged_file_path(doc.file_path, raise_on_failure=True)
-            await vector_store.delete_by_document(
-                collection_name,
-                doc_id,
+    _validate_batch_delete_ids(body.document_ids)
+    deleted = 0
+    errors: list[dict[str, str]] = []
+    try:
+        for document_ids, document_uuids in _batch_delete_chunks(body.document_ids):
+            result = await delete_document_batch_chunk(
+                session=session,
+                collection_name=collection_name,
+                collection_id=collection["id"],
+                document_ids=document_ids,
+                document_uuids=document_uuids,
             )
-            return True
-        except Exception as exc:
-            logger.error("batch delete failed", document_id=doc_id, error=repr(exc))
-            errors.append({"document_id": doc_id, "error": str(exc)})
-            return False
-
-    await ingestion_queue.cancel_documents(list(by_id))
-    results = await asyncio.gather(*[_delete_one(doc_id, doc) for doc_id, doc in by_id.items()])
-    deleted = sum(1 for r in results if r)
-
-    deleted_ids = [
-        uuid_or_404(d, "Document") for d, ok in zip(by_id.keys(), results, strict=True) if ok
-    ]
-    deleted_payloads = [
-        {
-            "document_id": doc_id,
-            "collection": collection_name,
-            "filename": by_id[doc_id].filename,
-        }
-        for doc_id, ok in zip(by_id.keys(), results, strict=True)
-        if ok
-    ]
-    if deleted_ids:
-        await session.execute(sa.delete(Document).where(Document.id.in_(deleted_ids)))
-    await recount_collection_documents(session, collection["id"])
-    await session.commit()
-    await collection_cache.invalidate(collection_name)
-    await invalidate_collection_query_cache(collection_name)
-    for payload in deleted_payloads:
-        await enqueue_webhook_event(
-            "document.deleted",
-            collection=collection_name,
-            data=payload,
-        )
+            deleted += result.deleted
+            errors.extend(result.errors)
+    finally:
+        if deleted:
+            await collection_cache.invalidate(collection_name)
+            await invalidate_collection_query_cache(collection_name)
 
     logger.info("batch delete", collection=collection_name, deleted=deleted, errors=len(errors))
     audit.record(

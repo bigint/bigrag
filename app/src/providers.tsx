@@ -29,6 +29,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
               background: "var(--color-card)",
               color: "var(--color-foreground)",
               border: "1px solid var(--color-border)",
+              fontFamily: "var(--font-sans)",
             },
           }}
         />

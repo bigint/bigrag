@@ -68,6 +68,28 @@ class WebhookDispatcher:
         await self._enqueue_deliveries(matching_webhooks, event, payload)
         return len(matching_webhooks)
 
+    async def enqueue_events(
+        self,
+        event: str,
+        *,
+        collection: str | None = None,
+        data: list[dict] | None = None,
+    ) -> int:
+        if event not in VALID_EVENTS:
+            raise ValueError(f"Invalid webhook event: {event}")
+        items = data or []
+        if not items:
+            return 0
+        webhooks = await self._get_webhooks()
+        matching_webhooks = [
+            webhook for webhook in webhooks if matches_webhook(webhook, event, collection)
+        ]
+        if not matching_webhooks:
+            return 0
+        payloads = [build_event_payload(event, collection, item) for item in items]
+        await self._enqueue_deliveries_for_payloads(matching_webhooks, event, payloads)
+        return len(matching_webhooks) * len(payloads)
+
     async def _get_webhooks(self) -> list[dict]:
         import sqlalchemy as sa
 
@@ -107,7 +129,14 @@ class WebhookDispatcher:
         return name
 
     async def _enqueue_deliveries(self, webhooks: list[dict], event: str, payload: str) -> None:
+        await self._enqueue_deliveries_for_payloads(webhooks, event, [payload])
+
+    async def _enqueue_deliveries_for_payloads(
+        self, webhooks: list[dict], event: str, payloads: list[str]
+    ) -> None:
         if not webhooks:
+            return
+        if not payloads:
             return
         import orjson
 
@@ -116,24 +145,27 @@ class WebhookDispatcher:
         from bigrag.ids import uuid7
         from bigrag.services.jobs.actors import enqueue_webhook_outbox
 
-        payload_data = orjson.loads(payload)
         delivery_ids = []
 
         async with session_factory()() as session:
-            for webhook in webhooks:
-                webhook_id = webhook["id"]
-                wh_id_uuid = uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
-                delivery_id = uuid7()
-                delivery_ids.append(str(delivery_id))
-                session.add(
-                    WebhookDelivery(
-                        id=delivery_id,
-                        webhook_id=wh_id_uuid,
-                        event=event,
-                        payload=dict(payload_data),
-                        status="pending",
+            for payload in payloads:
+                payload_data = orjson.loads(payload)
+                for webhook in webhooks:
+                    webhook_id = webhook["id"]
+                    wh_id_uuid = (
+                        uuid.UUID(webhook_id) if isinstance(webhook_id, str) else webhook_id
                     )
-                )
+                    delivery_id = uuid7()
+                    delivery_ids.append(str(delivery_id))
+                    session.add(
+                        WebhookDelivery(
+                            id=delivery_id,
+                            webhook_id=wh_id_uuid,
+                            event=event,
+                            payload=dict(payload_data),
+                            status="pending",
+                        )
+                    )
             await session.commit()
 
         for delivery_id in delivery_ids:
