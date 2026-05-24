@@ -4,7 +4,7 @@ import asyncio
 import tempfile
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -12,10 +12,15 @@ import orjson
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob
+from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob, MaintenanceLock
 from bigrag.logging import get_logger
 from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.maintenance import acquire_backup_lock, active_lock, release_backup_lock
+from bigrag.services.maintenance import (
+    MAINTENANCE_LOCK_NAME,
+    acquire_backup_lock,
+    active_lock,
+    release_backup_lock,
+)
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import all_runtime_values
 from bigrag.services.webhook import enqueue_webhook_event
@@ -26,6 +31,10 @@ from .manifest import _manifest
 from .target import BackupConfigError, BackupUploadStats, S3BackupTarget, build_backup_target
 
 logger = get_logger("bigrag.backup")
+
+_BACKUP_LOCK_TTL_SECONDS = 1800
+_BACKUP_LOCK_RENEW_SECONDS = 300
+_VECTOR_EXPORT_TIMEOUT_SECONDS = 3600
 
 
 async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> BackupJob:
@@ -51,11 +60,14 @@ async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> Back
 
 async def run_backup_job(job_id: str) -> None:
     owner_id = uuid.UUID(job_id)
+    renewer: asyncio.Task[None] | None = None
     try:
         acquired = await acquire_backup_lock(owner_id)
         if not acquired:
             await _fail_job(owner_id, "Another maintenance lock is active")
             return
+        await _set_lock_ttl(owner_id, _BACKUP_LOCK_TTL_SECONDS)
+        renewer = asyncio.create_task(_renew_lock_forever(owner_id))
         await _mark_job_running(owner_id)
         await _wait_for_connector_sync_drain(owner_id)
         await _wait_for_ingestion_drain(owner_id)
@@ -64,7 +76,31 @@ async def run_backup_job(job_id: str) -> None:
         logger.exception("backup failed", job_id=job_id, error=str(exc))
         await _fail_job(owner_id, str(exc))
     finally:
+        if renewer is not None:
+            renewer.cancel()
+            try:
+                await renewer
+            except (asyncio.CancelledError, Exception):
+                pass
         await release_backup_lock(owner_id)
+
+
+async def _set_lock_ttl(owner_id: uuid.UUID, ttl_seconds: int) -> None:
+    expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+    async with session_factory()() as session:
+        await session.execute(
+            sa.update(MaintenanceLock)
+            .where(MaintenanceLock.name == MAINTENANCE_LOCK_NAME)
+            .where(MaintenanceLock.owner_id == owner_id)
+            .values(expires_at=expires_at)
+        )
+        await session.commit()
+
+
+async def _renew_lock_forever(owner_id: uuid.UUID) -> None:
+    while True:
+        await asyncio.sleep(_BACKUP_LOCK_RENEW_SECONDS)
+        await _set_lock_ttl(owner_id, _BACKUP_LOCK_TTL_SECONDS)
 
 
 async def _run_locked_backup(job_id: uuid.UUID) -> None:
@@ -76,6 +112,7 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
     table_counts: dict[str, int] = {}
     vector_counts: dict[str, int] = {}
     db_revision = await _read_alembic_revision()
+    snapshot_ts = datetime.now(UTC)
 
     with tempfile.TemporaryDirectory(prefix=f"bigrag-backup-{job_id}-") as raw_dir:
         temp_dir = Path(raw_dir)
@@ -108,7 +145,7 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
                 byte_count=stats.bytes,
             )
 
-            table_counts = await _export_tables(temp_dir)
+            table_counts = await _export_tables(temp_dir, snapshot_ts)
             for table_name in sorted(table_counts):
                 source = temp_dir / "postgres" / "tables" / f"{table_name}.jsonl"
                 await upload(f"postgres/tables/{table_name}.jsonl", source)
@@ -119,7 +156,10 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
                 byte_count=stats.bytes,
             )
 
-            vector_counts = await _export_vector_store(temp_dir)
+            vector_counts = await asyncio.wait_for(
+                _export_vector_store(temp_dir, snapshot_ts),
+                timeout=_VECTOR_EXPORT_TIMEOUT_SECONDS,
+            )
             await upload(
                 "vector_store/collections.json",
                 temp_dir / "vector_store" / "collections.json",
@@ -145,6 +185,7 @@ async def _run_locked_backup(job_id: uuid.UUID) -> None:
             vector_counts=vector_counts,
             stats=stats,
             db_revision=db_revision,
+            snapshot_ts=snapshot_ts,
         )
         manifest_path = temp_dir / "manifest.json"
         _write_json(manifest_path, manifest)
