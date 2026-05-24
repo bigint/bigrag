@@ -12,13 +12,14 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from time import perf_counter
-from urllib.parse import quote
+from typing import Any
 from uuid import uuid4
 
-import httpx
+from bigrag import APIError, BigRAG
 
 PAYLOAD_BYTES = 1 * 1024
 PAYLOAD_BODY_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789 "
+UPLOAD_STATUS_CODE = 201
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,7 @@ class Config:
     base_url: str
     api_key: str
     collection: str
-    metadata_text: str
+    metadata: dict[str, Any]
     max_in_flight: int
     report_interval: float
 
@@ -98,7 +99,7 @@ def env_float(name: str, default: float, *, min_value: float) -> float:
     return parsed
 
 
-def metadata_text_from_env() -> str:
+def metadata_from_env() -> dict[str, Any]:
     raw = os.environ.get("BIGRAG_METADATA_JSON") or '{"source":"tests-load-streaming"}'
     try:
         parsed = json.loads(raw)
@@ -106,7 +107,7 @@ def metadata_text_from_env() -> str:
         raise ValueError("BIGRAG_METADATA_JSON must be valid JSON") from exc
     if not isinstance(parsed, dict):
         raise ValueError("BIGRAG_METADATA_JSON must be a JSON object")
-    return json.dumps(parsed, separators=(",", ":"), sort_keys=True)
+    return parsed
 
 
 def read_config(rps: float) -> Config:
@@ -118,7 +119,7 @@ def read_config(rps: float) -> Config:
         base_url=(os.environ.get("BIGRAG_URL") or "http://localhost:4000").rstrip("/"),
         api_key=api_key,
         collection=os.environ.get("BIGRAG_COLLECTION") or "docs",
-        metadata_text=metadata_text_from_env(),
+        metadata=metadata_from_env(),
         max_in_flight=env_int(
             "BIGRAG_STREAMING_MAX_IN_FLIGHT",
             max(1, math.ceil(rps * 2)),
@@ -194,7 +195,7 @@ def report(stats: Stats, *, final: bool) -> None:
 
 
 async def upload_one(
-    client: httpx.AsyncClient,
+    client: BigRAG,
     config: Config,
     stats: Stats,
     semaphore: asyncio.Semaphore,
@@ -204,15 +205,14 @@ async def upload_one(
     started_at = perf_counter()
     try:
         filename = f"streaming-{int(time.time() * 1000)}-{sequence}-{uuid4().hex}.json"
-        files = {"file": (filename, build_payload(sequence), "application/json")}
-        data = {"metadata": config.metadata_text}
-        response = await client.post(
-            f"/v1/collections/{quote(config.collection, safe='')}/documents",
-            files=files,
-            data=data,
-            headers={"Idempotency-Key": uuid4().hex},
+        await client.documents.upload(
+            config.collection,
+            (filename, build_payload(sequence)),
+            metadata=config.metadata,
         )
-        stats.record_response(response.status_code, perf_counter() - started_at)
+        stats.record_response(UPLOAD_STATUS_CODE, perf_counter() - started_at)
+    except APIError as exc:
+        stats.record_response(exc.status, perf_counter() - started_at)
     except Exception as exc:
         stats.record_error(type(exc).__name__, perf_counter() - started_at)
     finally:
@@ -264,12 +264,11 @@ async def run(config: Config) -> int:
     next_at = loop.time()
     sequence = 0
 
-    timeout = httpx.Timeout(60.0, connect=10.0)
-    headers = {"Authorization": f"Bearer {config.api_key}"}
-    async with httpx.AsyncClient(
+    async with BigRAG(
+        api_key=config.api_key,
         base_url=config.base_url,
-        headers=headers,
-        timeout=timeout,
+        timeout=60.0,
+        max_retries=0,
     ) as client:
         while not stop.is_set():
             delay = next_at - loop.time()
