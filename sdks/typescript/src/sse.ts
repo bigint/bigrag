@@ -1,19 +1,9 @@
 export interface SSEFrame {
   event: string;
   data: string;
-  id?: string;
-  retry?: number;
 }
 
-export interface SSEState {
-  lastEventId?: string;
-  retryMs?: number;
-}
-
-export async function* parseSSEFrames(
-  response: Response,
-  state?: SSEState,
-): AsyncGenerator<SSEFrame> {
+export async function* parseSSEFrames(response: Response): AsyncGenerator<SSEFrame> {
   const body = response.body;
   if (!body) return;
 
@@ -22,14 +12,11 @@ export async function* parseSSEFrames(
   let buffer = "";
   let event = "message";
   let dataLines: string[] = [];
-  let id: string | undefined;
 
   const flush = (): SSEFrame | null => {
     const payload = dataLines.join("\n");
     if (!payload || payload === "[DONE]") return null;
-    const frame: SSEFrame = { event, data: payload };
-    if (id !== undefined) frame.id = id;
-    return frame;
+    return { event, data: payload };
   };
 
   const consumeLine = (rawLine: string): SSEFrame | null => {
@@ -45,12 +32,6 @@ export async function* parseSSEFrames(
       event = line.slice(6).replace(/^ /, "");
     } else if (line.startsWith("data:")) {
       dataLines.push(line.slice(5).replace(/^ /, ""));
-    } else if (line.startsWith("id:")) {
-      id = line.slice(3).replace(/^ /, "");
-      if (state) state.lastEventId = id;
-    } else if (line.startsWith("retry:")) {
-      const ms = Number(line.slice(6).replace(/^ /, ""));
-      if (Number.isFinite(ms) && ms >= 0 && state) state.retryMs = ms;
     }
     return null;
   };
