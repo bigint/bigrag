@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-const trimSlash = (value: string) => value.replace(/\/+$/, "");
+export const trimSlash = (value: string) => value.replace(/\/+$/, "");
 
 const runtimeUrl =
   typeof window === "undefined" ? undefined : window.__BIGRAG_APP_CONFIG__?.BIGRAG_URL;

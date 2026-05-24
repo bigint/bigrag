@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_BIGRAG_URL?: string;
+  readonly VITE_SHOW_ROUTER_DEVTOOLS?: string;
 }
 
 interface ImportMeta {

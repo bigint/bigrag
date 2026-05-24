@@ -1,6 +1,4 @@
-import { bigragApiUrl } from "@/config/runtime";
-
-const trimSlash = (s: string) => s.replace(/\/+$/, "");
+import { bigragApiUrl, trimSlash } from "@/config/runtime";
 
 const buildRemoteUrl = (origin: string) => `${trimSlash(origin)}/mcp`;
 
