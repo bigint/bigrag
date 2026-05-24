@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -8,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bigrag.db.models import Collection, Document, EmbeddingPreset
+from bigrag.db.models import Collection, EmbeddingPreset
 from bigrag.db.session import get_session
 from bigrag.logging import get_logger
 from bigrag.middleware.auth import get_current_user
@@ -21,11 +20,12 @@ from bigrag.models.collection import (
     UpdateCollectionRequest,
 )
 from bigrag.routers import enforce_collection_pin
-from bigrag.services import audit, collection_cache, redis_cache
+from bigrag.services import audit, collection_cache
 from bigrag.services.collection_provision import (
     create_vector_store_collection,
     verify_embedding_credentials,
 )
+from bigrag.services.collection_stats import collection_stats_payload
 from bigrag.services.collections import (
     delete_collection as service_delete_collection,
 )
@@ -35,7 +35,7 @@ from bigrag.services.collections import (
 from bigrag.services.error_sanitize import safe_error_detail
 from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.retrieval import invalidate_collection_query_cache
-from bigrag.services.runtime_settings import get_value, get_values
+from bigrag.services.runtime_settings import get_values
 from bigrag.services.vector_store import vector_store
 from bigrag.services.webhook import enqueue_webhook_event
 
@@ -322,46 +322,7 @@ async def get_collection_stats(
 ):
     enforce_collection_pin(user, name)
     logger.info("collection stats", collection=name)
-    collection = await collection_cache.get_or_404(name)
-    cache_key = f"collection_stats:{collection['id']}"
-    cached = await redis_cache.get(cache_key)
-    if isinstance(cached, dict):
-        return CollectionStatsResponse(**cached)
-
-    stats = (
-        await session.execute(
-            sa.select(
-                sa.func.coalesce(sa.func.sum(Document.chunk_count), 0).label("total_chunks"),
-                sa.func.coalesce(sa.func.sum(Document.token_count), 0).label("total_tokens"),
-                sa.func.coalesce(sa.func.sum(Document.file_size), 0).label("total_size"),
-                sa.func.count().label("document_count"),
-                sa.func.count().filter(Document.status == "ready").label("ready"),
-                sa.func.count().filter(Document.status == "pending").label("pending"),
-                sa.func.count().filter(Document.status == "processing").label("processing"),
-                sa.func.count().filter(Document.status == "failed").label("failed"),
-            ).where(Document.collection_id == collection["id"])
-        )
-    ).one()
-
-    response = CollectionStatsResponse(
-        collection=name,
-        document_count=stats.document_count,
-        total_chunks=int(stats.total_chunks),
-        total_tokens=int(stats.total_tokens),
-        total_size_bytes=int(stats.total_size),
-        status_counts={
-            "ready": stats.ready,
-            "pending": stats.pending,
-            "processing": stats.processing,
-            "failed": stats.failed,
-        },
-    )
-    ttl = await get_value("collection_cache_ttl")
-    if ttl > 0:
-        await redis_cache.set(
-            cache_key, response.model_dump(), ttl=ttl + random.randint(0, max(1, ttl // 10))
-        )
-    return response
+    return await collection_stats_payload(session, name=name)
 
 
 @router.put("/{name}", response_model=CollectionResponse)

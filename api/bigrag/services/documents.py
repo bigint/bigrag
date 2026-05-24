@@ -17,14 +17,22 @@ from bigrag.db.models import Collection, Document
 from bigrag.exceptions import ValidationError
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
+from bigrag.models.document import DocumentListResponse, DocumentProgressResponse, DocumentResponse
 from bigrag.services import collection_cache, metadata_schema
+from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
+from bigrag.services.document_progress import document_progress, document_progress_map
 from bigrag.services.error_sanitize import sanitize_message_text
 from bigrag.services.ingestion_job import create_ingestion_job
+from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import sync_value
 from bigrag.services.staged_files import clear_document_staged_file
 from bigrag.services.storage import get_storage
-from bigrag.services.tenant_enforcement import require_tenant_metadata, tenant_field
+from bigrag.services.tenant_enforcement import (
+    enforce_document_tenant_access,
+    require_tenant_metadata,
+    tenant_field,
+)
 
 _COLLECTION_SLUG_RE = re.compile(r"[a-zA-Z0-9_-]{1,128}")
 
@@ -71,6 +79,147 @@ def prepare_document_metadata(collection: dict, metadata: dict) -> dict:
     metadata_schema.validate(metadata, collection.get("metadata_schema"))
     require_tenant_metadata(collection, metadata)
     return metadata
+
+
+def check_document_tenant(user: dict, doc: Document, collection: dict) -> None:
+    enforce_document_tenant_access(user, collection, doc.meta)
+
+
+def document_response(
+    doc: Document,
+    *,
+    deduped: bool = False,
+    progress: DocumentProgressResponse | None = None,
+) -> DocumentResponse:
+    return DocumentResponse(
+        id=str(doc.id),
+        collection_id=str(doc.collection_id),
+        filename=doc.filename,
+        file_type=doc.file_type,
+        file_size=doc.file_size,
+        chunk_count=doc.chunk_count,
+        multimodal_element_count=doc.multimodal_element_count,
+        status=doc.status,
+        error_message=doc.error_message,
+        metadata=doc.meta or {},
+        content_hash=doc.content_hash,
+        deduped=deduped,
+        progress=progress,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+    )
+
+
+_DOCUMENT_SORT_COLUMNS = {
+    "created_at": Document.created_at,
+    "updated_at": Document.updated_at,
+    "filename": Document.filename,
+    "file_size": Document.file_size,
+    "chunk_count": Document.chunk_count,
+    "status": Document.status,
+}
+
+
+async def list_documents_payload(
+    session: AsyncSession,
+    *,
+    collection_name: str,
+    q: str | None,
+    status: str | None,
+    sort: str,
+    order: str,
+    limit: int,
+    offset: int,
+    cursor: str | None,
+    include_total: bool,
+) -> DocumentListResponse:
+    collection = await get_collection_or_404(collection_name)
+    sort_column = _DOCUMENT_SORT_COLUMNS.get(sort)
+    if sort_column is None:
+        raise HTTPException(status_code=400, detail="Invalid document sort")
+    if order not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="Invalid document order")
+
+    stmt = (
+        sa.select(Document)
+        .where(Document.collection_id == collection["id"])
+        .order_by(
+            sort_column.asc() if order == "asc" else sort_column.desc(),
+            Document.id.asc() if order == "asc" else Document.id.desc(),
+        )
+    )
+    count_stmt = (
+        sa.select(sa.func.count())
+        .select_from(Document)
+        .where(Document.collection_id == collection["id"])
+    )
+    search_term = q.strip() if q else ""
+    if search_term:
+        pattern = f"%{search_term}%"
+        search_filter = sa.or_(
+            Document.filename.ilike(pattern),
+            Document.file_type.ilike(pattern),
+            Document.error_message.ilike(pattern),
+            sa.cast(Document.id, sa.Text).ilike(pattern),
+        )
+        stmt = stmt.where(search_filter)
+        count_stmt = count_stmt.where(search_filter)
+    if status:
+        stmt = stmt.where(Document.status == status)
+        count_stmt = count_stmt.where(Document.status == status)
+
+    if cursor and sort != "created_at":
+        raise HTTPException(
+            status_code=400,
+            detail="cursor pagination requires sort=created_at",
+        )
+    cursor_tuple = decode_cursor_or_400(cursor)
+
+    if cursor_tuple is not None:
+        stmt = apply_cursor(
+            stmt,
+            Document.created_at,
+            Document.id,
+            cursor_tuple,
+            direction=order,
+        ).limit(limit + 1)
+    else:
+        stmt = stmt.limit(limit + 1).offset(offset)
+
+    rows = (await session.scalars(stmt)).all()
+    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
+
+    total: int | None = None
+    if include_total:
+        total = (await session.scalar(count_stmt)) or 0
+    progresses = await document_progress_map(page, collection_name)
+
+    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in page]
+
+    return DocumentListResponse(documents=documents, total=total, next_cursor=next_cursor)
+
+
+async def get_document_payload(
+    session: AsyncSession,
+    *,
+    user: dict,
+    collection_name: str,
+    document_id: str,
+) -> DocumentResponse:
+    collection = await get_collection_or_404(collection_name)
+    try:
+        target_id = uuid.UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Document not found") from exc
+    doc = await session.scalar(
+        sa.select(Document)
+        .where(Document.id == target_id)
+        .where(Document.collection_id == collection["id"])
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    check_document_tenant(user, doc, collection)
+    return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
 def content_hash_match(

@@ -21,7 +21,6 @@ from bigrag.models.document import (
     BatchStatusRequest,
     BatchStatusResponse,
     DocumentListResponse,
-    DocumentStatusResponse,
 )
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
 from bigrag.routers._documents import (
@@ -29,7 +28,6 @@ from bigrag.routers._documents import (
     parse_form_metadata,
 )
 from bigrag.routers.documents import router
-from bigrag.routers.documents_progress import document_progress_map, publish_queued_progress
 from bigrag.routers.documents_uploads import (
     metadata_or_400,
     upload_extension_or_400,
@@ -38,10 +36,12 @@ from bigrag.routers.documents_uploads import (
 )
 from bigrag.services import audit, collection_cache
 from bigrag.services.batch_upload import persist_batch_upload_documents
+from bigrag.services.document_batch import batch_status_payload
 from bigrag.services.document_deletion import (
     DOCUMENT_DELETE_CHUNK_SIZE,
     delete_document_batch_chunk,
 )
+from bigrag.services.document_progress import document_progress_map, publish_queued_progress
 from bigrag.services.documents import (
     UploadBudget,
     prepare_document_metadata,
@@ -194,36 +194,12 @@ async def batch_get_status(
     session: AsyncSession = Depends(get_session),
 ):
     enforce_collection_pin(user, collection_name)
-    collection = await get_collection_or_404(collection_name)
-
-    if len(body.document_ids) > 100:
-        raise HTTPException(status_code=400, detail="Maximum 100 documents per batch status")
-
-    uuids = [uuid_or_404(d, "Document") for d in body.document_ids]
-    docs = (
-        await session.scalars(
-            sa.select(Document)
-            .where(Document.collection_id == collection["id"])
-            .where(Document.id.in_(uuids))
-        )
-    ).all()
-    docs = [d for d in docs if document_tenant_allowed(user, collection, d.meta)]
-
-    progresses = await document_progress_map(list(docs), collection_name)
-    documents = []
-    for doc in docs:
-        documents.append(
-            DocumentStatusResponse(
-                id=str(doc.id),
-                status=doc.status,
-                error_message=doc.error_message,
-                chunk_count=doc.chunk_count,
-                multimodal_element_count=doc.multimodal_element_count,
-                progress=progresses[str(doc.id)],
-            )
-        )
-
-    return BatchStatusResponse(documents=documents, total=len(documents))
+    return await batch_status_payload(
+        session,
+        user=user,
+        collection_name=collection_name,
+        document_ids=body.document_ids,
+    )
 
 
 @router.post("/batch/get", response_model=BatchGetResponse)

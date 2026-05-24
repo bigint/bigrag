@@ -1,70 +1,48 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import WebSocket
 
 from bigrag.db.engine import session_factory
-from bigrag.models.document import BatchStatusRequest
-from bigrag.routers.admin_access import access_overview, list_access_logs
-from bigrag.routers.admin_audit import list_audit_log
-from bigrag.routers.admin_backups import list_backup_jobs
-from bigrag.routers.collections import get_collection_stats
-from bigrag.routers.connectors import connector_sources, connector_sync_jobs
-from bigrag.routers.documents import get_document, list_documents
-from bigrag.routers.documents_batch import batch_get_status
-from bigrag.routers.documents_progress import TERMINAL_DOCUMENT_STATUSES
-from bigrag.routers.health import readiness
-from bigrag.routers.upload_sessions import get_upload_session as upload_session_detail
-from bigrag.routers.usage import get_usage
+from bigrag.services.access_log.queries import access_logs_payload, access_overview_payload
+from bigrag.services.audit import audit_log_payload
+from bigrag.services.backup.views import backup_jobs_payload
+from bigrag.services.collection_stats import collection_stats_payload
 from bigrag.services.connectors.realtime import (
     connector_sources_event_key,
     connector_sync_jobs_event_key,
 )
+from bigrag.services.connectors.views import (
+    connector_sources_payload,
+    connector_sync_jobs_payload,
+)
+from bigrag.services.document_batch import batch_status_payload
+from bigrag.services.document_progress import TERMINAL_DOCUMENT_STATUSES
+from bigrag.services.documents import get_document_payload, list_documents_payload
 from bigrag.services.event_bus import INGESTION_EVENTS_KEY
+from bigrag.services.health import readiness_payload
 from bigrag.services.platform_stats import platform_stats_payload
 from bigrag.services.realtime.params import boolean, document_ids, integer, string
 from bigrag.services.realtime.specs import SnapshotTopic, TopicError, fixed
+from bigrag.services.upload_sessions import upload_session_payload
+from bigrag.services.usage import usage_payload
 
 ACTIVE_SYNC_JOB_STATUSES = {"pending", "running"}
 ACTIVE_BACKUP_JOB_STATUSES = {"pending", "running"}
 
+TopicBuilder = Callable[[WebSocket, dict, dict[str, Any]], SnapshotTopic]
+
 
 def admin_topic(websocket: WebSocket, user: dict, topic: str, params: dict[str, Any]):
-    if topic == "admin.collections.documents":
-        return _documents_topic(user, params)
-    if topic == "admin.collections.documents.batch_status":
-        return _batch_status_topic(user, params)
-    if topic == "admin.collections.documents.detail":
-        return _document_topic(user, params)
-    if topic == "admin.collections.upload_session":
-        return _upload_session_topic(user, params)
-    if topic == "admin.collections.stats":
-        return _collection_stats_topic(user, params)
-    if topic == "admin.connectors.sources":
-        return _connector_sources_topic(user, params)
-    if topic == "admin.connectors.sync_jobs":
-        return _connector_jobs_topic(user, params)
-    if topic == "admin.backups":
-        return _backups_topic(user, params)
-    if topic == "admin.access.overview":
-        return _access_overview_topic(user, params)
-    if topic == "admin.access.logs":
-        return _access_logs_topic(user, params)
-    if topic == "admin.audit":
-        return _audit_topic(user, params)
-    if topic == "admin.usage":
-        return _usage_topic(user, params)
-    if topic == "admin.platform.stats":
-        return _platform_stats_topic(websocket, user)
-    if topic == "admin.platform.readiness":
-        return _platform_readiness_topic(websocket)
-    raise TopicError("Unknown realtime topic")
+    builder = _TOPIC_BUILDERS.get(topic)
+    if builder is None:
+        raise TopicError("Unknown realtime topic")
+    return builder(websocket, user, params)
 
 
-def _documents_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _documents_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     collection = string(params, "collection", required=True, max_length=120)
     q = string(params, "q", max_length=200)
     status = string(params, "status")
@@ -77,7 +55,8 @@ def _documents_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
 
     async def load():
         return await with_session(
-            lambda session: list_documents(
+            lambda session: list_documents_payload(
+                session,
                 collection_name=collection,
                 q=q,
                 status=status,
@@ -87,26 +66,24 @@ def _documents_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
                 offset=offset,
                 cursor=None,
                 include_total=include_total,
-                _=user,
-                session=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(5.0), f"collection:{collection}")
 
 
-def _batch_status_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _batch_status_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     collection = string(params, "collection", required=True, max_length=120)
     ids = document_ids(params.get("document_ids"))
     snapshot_topic = f"documents:batch:{collection}:{','.join(ids)}"
 
     async def load():
         return await with_session(
-            lambda session: batch_get_status(
-                collection_name=collection,
-                body=BatchStatusRequest(document_ids=ids),
+            lambda session: batch_status_payload(
+                session,
                 user=user,
-                session=session,
+                collection_name=collection,
+                document_ids=ids,
             )
         )
 
@@ -119,66 +96,71 @@ def _batch_status_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
     )
 
 
-def _document_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _document_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     collection = string(params, "collection", required=True, max_length=120)
     document_id = string(params, "document_id", required=True, max_length=120)
     snapshot_topic = f"documents:detail:{collection}:{document_id}"
 
     async def load():
         return await with_session(
-            lambda session: get_document(
+            lambda session: get_document_payload(
+                session,
+                user=user,
                 collection_name=collection,
                 document_id=document_id,
-                user=user,
-                session=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(2.0), document_id, _document_done)
 
 
-def _upload_session_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _upload_session_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     collection = string(params, "collection", required=True, max_length=120)
     session_id = string(params, "session_id", required=True, max_length=120)
     snapshot_topic = f"upload-session:{collection}:{session_id}"
 
     async def load():
         return await with_session(
-            lambda session: upload_session_detail(
+            lambda session: upload_session_payload(
+                session,
+                user=user,
                 collection_name=collection,
                 session_id=session_id,
-                user=user,
-                db=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(2.0), None, _upload_session_done)
 
 
-def _collection_stats_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _collection_stats_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     collection = string(params, "collection", required=True, max_length=120)
     snapshot_topic = f"collections:stats:{collection}"
 
     async def load():
         return await with_session(
-            lambda session: get_collection_stats(name=collection, user=user, session=session)
+            lambda session: collection_stats_payload(session, name=collection)
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(10.0), f"collection:{collection}")
 
 
-def _connector_sources_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _connector_sources_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     provider = string(params, "provider", required=True, max_length=80)
     collection = string(params, "collection", max_length=120)
     snapshot_topic = f"{provider}:sources:{collection or 'all'}"
 
     async def load():
         return await with_session(
-            lambda session: connector_sources(
+            lambda session: connector_sources_payload(
+                session,
                 provider_slug=provider,
                 collection=collection,
-                user=user,
-                session=session,
             )
         )
 
@@ -190,7 +172,9 @@ def _connector_sources_topic(user: dict, params: dict[str, Any]) -> SnapshotTopi
     )
 
 
-def _connector_jobs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _connector_jobs_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     provider = string(params, "provider", required=True, max_length=80)
     collection = string(params, "collection", max_length=120)
     source_id = string(params, "source_id", max_length=120)
@@ -199,13 +183,12 @@ def _connector_jobs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
 
     async def load():
         return await with_session(
-            lambda session: connector_sync_jobs(
+            lambda session: connector_sync_jobs_payload(
+                session,
                 provider_slug=provider,
                 collection=collection,
                 source_id=source_id,
                 limit=limit,
-                user=user,
-                session=session,
             )
         )
 
@@ -217,39 +200,40 @@ def _connector_jobs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
     )
 
 
-def _backups_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _backups_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     limit = integer(params, "limit", default=20, minimum=1, maximum=100)
     offset = integer(params, "offset", default=0, minimum=0)
     snapshot_topic = f"backups:{limit}:{offset}"
 
     async def load():
         return await with_session(
-            lambda session: list_backup_jobs(
+            lambda session: backup_jobs_payload(
+                session,
                 limit=limit,
                 offset=offset,
                 cursor=None,
                 include_total=False,
-                _=user,
-                session=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, _backup_jobs_interval)
 
 
-def _access_overview_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _access_overview_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     window_days = integer(params, "window_days", default=7, minimum=1, maximum=90)
     snapshot_topic = f"access:overview:{window_days}"
 
     async def load():
         return await with_session(
-            lambda session: access_overview(window_days=window_days, _=user, session=session)
+            lambda session: access_overview_payload(session, window_days=window_days)
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(20.0))
 
 
-def _access_logs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _access_logs_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     action = string(params, "action", max_length=100)
     actor_id = string(params, "actor_id", max_length=120)
     collection = string(params, "collection", max_length=120)
@@ -278,7 +262,8 @@ def _access_logs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
 
     async def load():
         return await with_session(
-            lambda session: list_access_logs(
+            lambda session: access_logs_payload(
+                session,
                 action=action,
                 actor_id=actor_id,
                 collection=collection,
@@ -290,15 +275,13 @@ def _access_logs_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
                 offset=offset,
                 cursor=None,
                 include_total=False,
-                _=user,
-                session=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(20.0))
 
 
-def _audit_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _audit_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     action = string(params, "action", max_length=100)
     actor_id = string(params, "actor_id", max_length=120)
     resource_type = string(params, "resource_type", max_length=50)
@@ -310,7 +293,8 @@ def _audit_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
 
     async def load():
         return await with_session(
-            lambda session: list_audit_log(
+            lambda session: audit_log_payload(
+                session,
                 action=action,
                 actor_id=actor_id,
                 resource_type=resource_type,
@@ -318,27 +302,25 @@ def _audit_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
                 offset=offset,
                 cursor=None,
                 include_total=False,
-                _=user,
-                session=session,
             )
         )
 
     return SnapshotTopic(snapshot_topic, load, fixed(60.0))
 
 
-def _usage_topic(user: dict, params: dict[str, Any]) -> SnapshotTopic:
+def _usage_topic(websocket: WebSocket, user: dict, params: dict[str, Any]) -> SnapshotTopic:
     window_days = integer(params, "window_days", default=30, minimum=1, maximum=365)
     snapshot_topic = f"usage:{window_days}"
 
     async def load():
-        return await with_session(
-            lambda session: get_usage(window_days=window_days, _=user, session=session)
-        )
+        return await with_session(lambda session: usage_payload(session, window_days=window_days))
 
     return SnapshotTopic(snapshot_topic, load, fixed(60.0))
 
 
-def _platform_stats_topic(websocket: WebSocket, _user: dict) -> SnapshotTopic:
+def _platform_stats_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     async def load():
         return await with_session(
             lambda session: platform_stats_payload(
@@ -351,12 +333,34 @@ def _platform_stats_topic(websocket: WebSocket, _user: dict) -> SnapshotTopic:
     return SnapshotTopic("platform:stats", load, fixed(5.0), INGESTION_EVENTS_KEY)
 
 
-def _platform_readiness_topic(websocket: WebSocket) -> SnapshotTopic:
+def _platform_readiness_topic(
+    websocket: WebSocket, user: dict, params: dict[str, Any]
+) -> SnapshotTopic:
     async def load():
-        response = await readiness(websocket)
-        return json.loads(response.body)
+        return await readiness_payload(
+            websocket.app.state.vector_store,
+            websocket.app.state.queue,
+        )
 
     return SnapshotTopic("platform:readiness", load, fixed(10.0))
+
+
+_TOPIC_BUILDERS: dict[str, TopicBuilder] = {
+    "admin.collections.documents": _documents_topic,
+    "admin.collections.documents.batch_status": _batch_status_topic,
+    "admin.collections.documents.detail": _document_topic,
+    "admin.collections.upload_session": _upload_session_topic,
+    "admin.collections.stats": _collection_stats_topic,
+    "admin.connectors.sources": _connector_sources_topic,
+    "admin.connectors.sync_jobs": _connector_jobs_topic,
+    "admin.backups": _backups_topic,
+    "admin.access.overview": _access_overview_topic,
+    "admin.access.logs": _access_logs_topic,
+    "admin.audit": _audit_topic,
+    "admin.usage": _usage_topic,
+    "admin.platform.stats": _platform_stats_topic,
+    "admin.platform.readiness": _platform_readiness_topic,
+}
 
 
 def _document_done(payload: Any) -> bool:

@@ -2,11 +2,31 @@ from __future__ import annotations
 
 from bigrag.db.models import Document
 from bigrag.models.document import DocumentProgressResponse
-from bigrag.routers._documents import document_progress_response
 from bigrag.services.event_bus import IngestionEvent, event_bus
 
 TERMINAL_DOCUMENT_STATUSES = {"ready", "failed"}
 TERMINAL_PROGRESS_STATUSES = {"complete", "failed"}
+
+
+def document_progress_response(
+    *,
+    document_id: str,
+    collection_name: str,
+    step: str,
+    status: str,
+    message: str,
+    progress: float,
+    detail: dict | None = None,
+) -> DocumentProgressResponse:
+    return DocumentProgressResponse(
+        document_id=document_id,
+        collection_name=collection_name,
+        step=step,
+        status=status,
+        message=message,
+        progress=max(0.0, min(1.0, progress)),
+        detail=detail or {},
+    )
 
 
 def fallback_progress(doc: Document, collection_name: str) -> DocumentProgressResponse:

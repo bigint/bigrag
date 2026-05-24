@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,18 +15,14 @@ from bigrag.models.connector import (
     UpdateConnectorSourceRequest,
 )
 from bigrag.services import audit
-from bigrag.services.connector_registry import ConnectorRuntime, connector_runtime
-from bigrag.services.connectors.sources import list_sync_jobs as list_connector_sync_jobs
+from bigrag.services.connectors.views import (
+    connector_sources_payload,
+    connector_sync_jobs_payload,
+    route_or_404,
+)
 from bigrag.services.error_sanitize import safe_error_detail
 
 router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
-
-
-def _route_or_404(provider_slug: str) -> ConnectorRuntime:
-    route = connector_runtime(provider_slug)
-    if route is None:
-        raise HTTPException(status_code=404, detail="Connector provider not found")
-    return route
 
 
 @router.get("/{provider_slug}/sources", response_model=ConnectorSourceListResponse)
@@ -39,14 +33,10 @@ async def connector_sources(
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceListResponse:
     _ = user
-    route = _route_or_404(provider_slug)
-    sources, total = await route.list_sources(
+    return await connector_sources_payload(
         session,
-        collection_name=collection,
-    )
-    return ConnectorSourceListResponse(
-        sources=[ConnectorSourceResponse(**s) for s in sources],
-        total=total,
+        provider_slug=provider_slug,
+        collection=collection,
     )
 
 
@@ -58,7 +48,7 @@ async def connector_source_create(
     user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceResponse:
-    route = _route_or_404(provider_slug)
+    route = route_or_404(provider_slug)
     try:
         source, job = await route.create_source(
             session,
@@ -107,7 +97,7 @@ async def connector_source_update(
     user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSourceResponse:
-    route = _route_or_404(provider_slug)
+    route = route_or_404(provider_slug)
     try:
         source = await route.update_source(
             session,
@@ -147,7 +137,7 @@ async def connector_source_delete(
     user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> StatusResponse:
-    route = _route_or_404(provider_slug)
+    route = route_or_404(provider_slug)
     try:
         await route.delete_source(session, source_id=source_id)
     except ValueError as exc:
@@ -174,7 +164,7 @@ async def connector_source_sync(
     user: dict = Depends(require_admin_session),
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSyncJobResponse:
-    route = _route_or_404(provider_slug)
+    route = route_or_404(provider_slug)
     try:
         job = await route.trigger_sync(
             session,
@@ -208,20 +198,10 @@ async def connector_sync_jobs(
     session: AsyncSession = Depends(get_session),
 ) -> ConnectorSyncJobListResponse:
     _ = user
-    route = _route_or_404(provider_slug)
-    if source_id:
-        try:
-            uuid.UUID(source_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid id") from exc
-    jobs, total = await list_connector_sync_jobs(
+    return await connector_sync_jobs_payload(
         session,
-        provider=route.provider,
-        collection_name=collection,
+        provider_slug=provider_slug,
+        collection=collection,
         source_id=source_id,
         limit=limit,
-    )
-    return ConnectorSyncJobListResponse(
-        jobs=[ConnectorSyncJobResponse(**job) for job in jobs],
-        total=total,
     )

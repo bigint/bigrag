@@ -16,16 +16,7 @@ from bigrag.models.document import (
 )
 from bigrag.models.multimodal import DocumentElementListResponse, DocumentElementResponse
 from bigrag.routers import enforce_collection_pin, ensure_embedding_or_400, get_collection_or_404
-from bigrag.routers._documents import (
-    check_document_tenant,
-    document_response,
-    parse_form_metadata,
-)
-from bigrag.routers.documents_progress import (
-    document_progress,
-    document_progress_map,
-    publish_queued_progress,
-)
+from bigrag.routers._documents import parse_form_metadata
 from bigrag.routers.documents_uploads import (
     metadata_or_400,
     upload_extension_or_400,
@@ -33,13 +24,17 @@ from bigrag.routers.documents_uploads import (
     validated_upload_to_temp,
 )
 from bigrag.services import audit, collection_cache
+from bigrag.services.document_progress import document_progress, publish_queued_progress
 from bigrag.services.documents import (
+    check_document_tenant,
     content_hash_match,
+    document_response,
+    get_document_payload,
+    list_documents_payload,
     persist_document,
     prepare_document_metadata,
     recount_collection_documents,
 )
-from bigrag.services.pagination import apply_cursor, build_response_cursor, decode_cursor_or_400
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.retrieval import invalidate_collection_query_cache
 from bigrag.services.runtime_settings import get_values
@@ -160,78 +155,18 @@ async def list_documents(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    collection = await get_collection_or_404(collection_name)
-    sort_columns = {
-        "created_at": Document.created_at,
-        "updated_at": Document.updated_at,
-        "filename": Document.filename,
-        "file_size": Document.file_size,
-        "chunk_count": Document.chunk_count,
-        "status": Document.status,
-    }
-    sort_column = sort_columns.get(sort)
-    if sort_column is None:
-        raise HTTPException(status_code=400, detail="Invalid document sort")
-    if order not in {"asc", "desc"}:
-        raise HTTPException(status_code=400, detail="Invalid document order")
-
-    stmt = (
-        sa.select(Document)
-        .where(Document.collection_id == collection["id"])
-        .order_by(
-            sort_column.asc() if order == "asc" else sort_column.desc(),
-            Document.id.asc() if order == "asc" else Document.id.desc(),
-        )
+    return await list_documents_payload(
+        session,
+        collection_name=collection_name,
+        q=q,
+        status=status,
+        sort=sort,
+        order=order,
+        limit=limit,
+        offset=offset,
+        cursor=cursor,
+        include_total=include_total,
     )
-    count_stmt = (
-        sa.select(sa.func.count())
-        .select_from(Document)
-        .where(Document.collection_id == collection["id"])
-    )
-    search_term = q.strip() if q else ""
-    if search_term:
-        pattern = f"%{search_term}%"
-        search_filter = sa.or_(
-            Document.filename.ilike(pattern),
-            Document.file_type.ilike(pattern),
-            Document.error_message.ilike(pattern),
-            sa.cast(Document.id, sa.Text).ilike(pattern),
-        )
-        stmt = stmt.where(search_filter)
-        count_stmt = count_stmt.where(search_filter)
-    if status:
-        stmt = stmt.where(Document.status == status)
-        count_stmt = count_stmt.where(Document.status == status)
-
-    if cursor and sort != "created_at":
-        raise HTTPException(
-            status_code=400,
-            detail="cursor pagination requires sort=created_at",
-        )
-    cursor_tuple = decode_cursor_or_400(cursor)
-
-    if cursor_tuple is not None:
-        stmt = apply_cursor(
-            stmt,
-            Document.created_at,
-            Document.id,
-            cursor_tuple,
-            direction=order,
-        ).limit(limit + 1)
-    else:
-        stmt = stmt.limit(limit + 1).offset(offset)
-
-    rows = (await session.scalars(stmt)).all()
-    page, next_cursor = build_response_cursor(list(rows), "created_at", "id", limit)
-
-    total: int | None = None
-    if include_total:
-        total = (await session.scalar(count_stmt)) or 0
-    progresses = await document_progress_map(page, collection_name)
-
-    documents = [document_response(doc, progress=progresses[str(doc.id)]) for doc in page]
-
-    return DocumentListResponse(documents=documents, total=total, next_cursor=next_cursor)
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -242,16 +177,12 @@ async def get_document(
     session: AsyncSession = Depends(get_session),
 ):
     enforce_collection_pin(user, collection_name)
-    collection = await get_collection_or_404(collection_name)
-    doc = await session.scalar(
-        sa.select(Document)
-        .where(Document.id == uuid_or_404(document_id, "Document"))
-        .where(Document.collection_id == collection["id"])
+    return await get_document_payload(
+        session,
+        user=user,
+        collection_name=collection_name,
+        document_id=document_id,
     )
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-    check_document_tenant(user, doc, collection)
-    return document_response(doc, progress=await document_progress(doc, collection_name))
 
 
 @router.delete("/{document_id}", response_model=StatusResponse)
