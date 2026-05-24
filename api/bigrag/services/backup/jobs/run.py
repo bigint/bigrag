@@ -4,58 +4,42 @@ import asyncio
 import tempfile
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import orjson
 import sqlalchemy as sa
 
 from bigrag.db.engine import session_factory
-from bigrag.db.models import AuditLog, BackupJob, ConnectorSyncJob, MaintenanceLock
+from bigrag.db.models import ConnectorSyncJob
 from bigrag.logging import get_logger
-from bigrag.services.error_sanitize import sanitize_message_text
-from bigrag.services.maintenance import (
-    MAINTENANCE_LOCK_NAME,
-    acquire_backup_lock,
-    active_lock,
-    release_backup_lock,
+from bigrag.services.backup.exporters import _export_tables, _export_vector_store
+from bigrag.services.backup.filesystem import _backup_prefix, _write_json, _write_schema
+from bigrag.services.backup.jobs.events import (
+    _complete_job,
+    _fail_job,
+    _mark_job_running,
+    _update_job,
 )
+from bigrag.services.backup.jobs.lock import (
+    _BACKUP_LOCK_TTL_SECONDS,
+    _renew_lock_until_cancelled,
+    _set_lock_ttl,
+)
+from bigrag.services.backup.manifest import _manifest
+from bigrag.services.backup.target import (
+    BackupConfigError,
+    BackupUploadStats,
+    S3BackupTarget,
+    build_backup_target,
+)
+from bigrag.services.maintenance import acquire_backup_lock, release_backup_lock
 from bigrag.services.queue import ingestion_queue
 from bigrag.services.runtime_settings import all_runtime_values
-from bigrag.services.webhook import enqueue_webhook_event
-
-from .exporters import _export_tables, _export_vector_store
-from .filesystem import _backup_prefix, _write_json, _write_schema
-from .manifest import _manifest
-from .target import BackupConfigError, BackupUploadStats, S3BackupTarget, build_backup_target
 
 logger = get_logger("bigrag.backup")
 
-_BACKUP_LOCK_TTL_SECONDS = 1800
-_BACKUP_LOCK_RENEW_SECONDS = 300
 _VECTOR_EXPORT_TIMEOUT_SECONDS = 3600
-
-
-async def create_backup_job(*, label: str, created_by: uuid.UUID | None) -> BackupJob:
-    lock = await active_lock()
-    if lock is not None:
-        raise BackupConfigError(f"Instance maintenance active: {lock.reason}")
-    async with session_factory()() as session:
-        async with session.begin():
-            active = await session.scalar(
-                sa.select(BackupJob)
-                .where(BackupJob.status.in_(("pending", "running")))
-                .order_by(BackupJob.created_at.desc())
-                .limit(1)
-                .with_for_update()
-            )
-            if active is not None:
-                raise BackupConfigError("A backup is already pending or running")
-            job = BackupJob(label=label.strip(), created_by=created_by)
-            session.add(job)
-        await session.refresh(job)
-        return job
 
 
 async def run_backup_job(job_id: str) -> None:
@@ -67,7 +51,7 @@ async def run_backup_job(job_id: str) -> None:
             await _fail_job(owner_id, "Another maintenance lock is active")
             return
         await _set_lock_ttl(owner_id, _BACKUP_LOCK_TTL_SECONDS)
-        renewer = asyncio.create_task(_renew_lock_forever(owner_id))
+        renewer = asyncio.create_task(_renew_lock_until_cancelled(owner_id))
         await _mark_job_running(owner_id)
         await _wait_for_connector_sync_drain(owner_id)
         await _wait_for_ingestion_drain(owner_id)
@@ -83,24 +67,6 @@ async def run_backup_job(job_id: str) -> None:
             except (asyncio.CancelledError, Exception):
                 pass
         await release_backup_lock(owner_id)
-
-
-async def _set_lock_ttl(owner_id: uuid.UUID, ttl_seconds: int) -> None:
-    expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
-    async with session_factory()() as session:
-        await session.execute(
-            sa.update(MaintenanceLock)
-            .where(MaintenanceLock.name == MAINTENANCE_LOCK_NAME)
-            .where(MaintenanceLock.owner_id == owner_id)
-            .values(expires_at=expires_at)
-        )
-        await session.commit()
-
-
-async def _renew_lock_forever(owner_id: uuid.UUID) -> None:
-    while True:
-        await asyncio.sleep(_BACKUP_LOCK_RENEW_SECONDS)
-        await _set_lock_ttl(owner_id, _BACKUP_LOCK_TTL_SECONDS)
 
 
 async def _run_locked_backup(job_id: uuid.UUID) -> None:
@@ -252,91 +218,3 @@ async def _wait_for_connector_sync_drain(job_id: uuid.UUID, max_wait_seconds: in
             )
         await _update_job(job_id, progress=0.06)
         await asyncio.sleep(1)
-
-
-async def _mark_job_running(job_id: uuid.UUID) -> None:
-    await _update_job(job_id, status="running", progress=0.03, started_at=datetime.now(UTC))
-    await _insert_audit(job_id, "backup.start", {})
-    await _enqueue_backup_event(job_id, "backup.started")
-
-
-async def _complete_job(
-    job_id: uuid.UUID,
-    *,
-    destination_prefix: str,
-    object_count: int,
-    byte_count: int,
-    manifest: dict[str, Any],
-) -> None:
-    await _update_job(
-        job_id,
-        status="succeeded",
-        progress=1.0,
-        destination_prefix=destination_prefix,
-        object_count=object_count,
-        byte_count=byte_count,
-        manifest=manifest,
-        completed_at=datetime.now(UTC),
-    )
-    await _insert_audit(job_id, "backup.succeeded", {"destination_prefix": destination_prefix})
-    await _enqueue_backup_event(job_id, "backup.succeeded")
-
-
-async def _fail_job(job_id: uuid.UUID, message: str) -> None:
-    await _update_job(
-        job_id,
-        status="failed",
-        error_message=message,
-        completed_at=datetime.now(UTC),
-    )
-    await _insert_audit(job_id, "backup.failed", {"error": message})
-    await _enqueue_backup_event(job_id, "backup.failed")
-
-
-async def _update_job(job_id: uuid.UUID, **values: Any) -> None:
-    async with session_factory()() as session:
-        values["updated_at"] = sa.func.now()
-        await session.execute(sa.update(BackupJob).where(BackupJob.id == job_id).values(**values))
-        await session.commit()
-
-
-async def _insert_audit(job_id: uuid.UUID, action: str, metadata: dict[str, Any]) -> None:
-    async with session_factory()() as session:
-        job = await session.get(BackupJob, job_id)
-        session.add(
-            AuditLog(
-                actor_id=job.created_by if job else None,
-                actor_email=None,
-                api_key_id=None,
-                action=action,
-                resource_type="backup_job",
-                resource_id=str(job_id),
-                meta=metadata,
-                ip=None,
-                user_agent=None,
-            )
-        )
-        await session.commit()
-
-
-async def _enqueue_backup_event(job_id: uuid.UUID, event: str) -> None:
-    data = await _backup_event_data(job_id)
-    await enqueue_webhook_event(event, data=data)
-
-
-async def _backup_event_data(job_id: uuid.UUID) -> dict[str, Any]:
-    async with session_factory()() as session:
-        job = await session.get(BackupJob, job_id)
-    if job is None:
-        return {"job_id": str(job_id)}
-    error_message = sanitize_message_text(job.error_message or "") if job.error_message else None
-    return {
-        "job_id": str(job.id),
-        "label": job.label,
-        "status": job.status,
-        "progress": job.progress,
-        "destination_prefix": job.destination_prefix,
-        "object_count": job.object_count,
-        "byte_count": job.byte_count,
-        "error_message": error_message,
-    }
