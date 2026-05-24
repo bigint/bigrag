@@ -151,7 +151,7 @@ async def list_documents(
     sort: str = Query(default="created_at"),
     order: str = Query(default="desc"),
     limit: int = Query(default=100, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10000),
     cursor: str | None = Query(default=None),
     include_total: bool = Query(default=False),
     _: dict = Depends(get_current_user),

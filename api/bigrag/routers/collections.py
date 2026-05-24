@@ -78,7 +78,7 @@ def _collection_response(c: Collection) -> CollectionResponse:
 async def list_collections(
     name: str | None = Query(default=None, description="Filter by name prefix"),
     limit: int = Query(default=100, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10000),
     cursor: str | None = Query(default=None),
     include_total: bool = Query(default=False),
     _: dict = Depends(get_current_user),
