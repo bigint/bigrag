@@ -225,7 +225,7 @@ upload_dir = "./data/uploads"
 
 ## Readable backups
 
-The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups.
+The admin UI creates backup-only full-instance exports from `/settings?tab=backups`. The destination is S3-compatible — AWS S3, Cloudflare R2, and MinIO all work. Use a bucket or prefix dedicated to backups. The endpoint URL should be the provider root, such as `https://ACCOUNT.r2.cloudflarestorage.com` for Cloudflare R2; bucket names and backup prefixes stay in their own fields. Saving backup settings probes bucket listing permissions before persisting the destination.
 
 **What's included:**
 

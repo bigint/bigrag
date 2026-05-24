@@ -1,5 +1,5 @@
 import { errorForStatus } from "@bigrag/client";
-import ky, { HTTPError, type KyInstance, type Options } from "ky";
+import ky, { type KyInstance, type Options } from "ky";
 import { bigragApiUrl } from "@/config/runtime";
 
 type SearchParams = Record<string, string | number | boolean | null | undefined>;
@@ -26,8 +26,11 @@ const idempotencyHeaders = (): Record<string, string> => ({
   "Idempotency-Key": crypto.randomUUID(),
 });
 
+const isHttpError = (error: unknown): error is { message: string; response: Response } =>
+  error instanceof Error && "response" in error && error.response instanceof Response;
+
 const toTypedError = async (error: unknown): Promise<never> => {
-  if (error instanceof HTTPError) {
+  if (isHttpError(error)) {
     let message = error.message;
     try {
       const body = (await error.response.clone().json()) as { detail?: string };

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,9 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bigrag.db.models import Document, DocumentElement
 from bigrag.services.document_elements.types import (
     ELEMENT_TEXT_LIMIT,
+    ENRICHABLE_KINDS,
     DocumentElementPayload,
     _valid_kind,
 )
+
+
+@dataclass(frozen=True)
+class DocumentElementCounts:
+    total: int
+    pending_enrichment: int
 
 
 async def replace_document_elements(
@@ -19,10 +27,10 @@ async def replace_document_elements(
     document_id: uuid.UUID,
     elements: list[DocumentElementPayload],
     enrichment_enabled: bool,
-) -> int:
+) -> DocumentElementCounts:
     document = await session.get(Document, document_id)
     if document is None:
-        return 0
+        return DocumentElementCounts(total=0, pending_enrichment=0)
     await session.execute(
         sa.delete(DocumentElement).where(DocumentElement.document_id == document_id)
     )
@@ -50,10 +58,13 @@ async def replace_document_elements(
     session.add_all(rows)
     document.multimodal_element_count = len(rows)
     await session.flush()
-    return len(rows)
+    return DocumentElementCounts(
+        total=len(rows),
+        pending_enrichment=sum(1 for row in rows if row.enrichment_status == "pending"),
+    )
 
 
 def _enrichment_status(element: DocumentElementPayload, enrichment_enabled: bool) -> str:
-    if enrichment_enabled and element.kind in {"image", "table", "equation"}:
+    if enrichment_enabled and element.kind in ENRICHABLE_KINDS:
         return "pending"
     return "not_requested"

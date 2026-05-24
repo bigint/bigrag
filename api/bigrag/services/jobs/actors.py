@@ -126,7 +126,10 @@ async def _process_multimodal_enrichment(document_id: str, attempt: int = 0) -> 
 
     try:
         enriched = await enrich_document_elements(document_id)
-        logger.info(f"multimodal enrichment complete | {enriched} elements")
+        if enriched:
+            logger.info("multimodal enrichment complete", doc=document_id, elements=enriched)
+        else:
+            logger.debug("multimodal enrichment skipped", doc=document_id)
     except Exception as exc:
         if attempt < 3:
             delay = min(2 ** (attempt + 1), 30)

@@ -17,7 +17,7 @@ BACKUPS_SPECS: tuple[SettingSpec, ...] = (
         label="Backup endpoint URL",
         kind="string",
         default=None,
-        description="Optional S3-compatible endpoint URL for Cloudflare R2 or MinIO.",
+        description="Optional S3-compatible root endpoint URL for Cloudflare R2 or MinIO.",
     ),
     SettingSpec(
         key="backup_s3_region",

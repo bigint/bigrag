@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bigrag.exceptions import ValidationError
+
 from .filesystem import _file_stats
+
+S3_BACKUP_CONNECT_TIMEOUT_SECONDS = 5
+S3_BACKUP_READ_TIMEOUT_SECONDS = 10
+S3_BACKUP_RETRY_ATTEMPTS = 1
 
 
 @dataclass
@@ -30,7 +36,7 @@ class BackupUploadStats:
         self.byte_count += obj.bytes
 
 
-class BackupConfigError(RuntimeError):
+class BackupConfigError(ValidationError):
     pass
 
 
@@ -48,7 +54,12 @@ class S3BackupTarget:
         kwargs: dict[str, Any] = {
             "endpoint_url": values.get("backup_s3_endpoint_url"),
             "region_name": values.get("backup_s3_region") or "us-east-1",
-            "config": Config(s3={"addressing_style": "path" if force_path_style else "auto"}),
+            "config": Config(
+                connect_timeout=S3_BACKUP_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=S3_BACKUP_READ_TIMEOUT_SECONDS,
+                retries={"max_attempts": S3_BACKUP_RETRY_ATTEMPTS, "mode": "standard"},
+                s3={"addressing_style": "path" if force_path_style else "auto"},
+            ),
         }
         access_key_id = values.get("backup_s3_access_key_id")
         secret_access_key = values.get("backup_s3_secret_access_key")
@@ -66,12 +77,19 @@ class S3BackupTarget:
         return f"{backup_prefix}/{clean}"
 
     async def probe(self) -> None:
-        await asyncio.to_thread(
-            self.client.list_objects_v2,
-            Bucket=self.bucket,
-            Prefix=self.prefix,
-            MaxKeys=1,
-        )
+        await asyncio.to_thread(self._probe)
+
+    def _probe(self) -> None:
+        try:
+            self.client.list_objects_v2(
+                Bucket=self.bucket,
+                Prefix=self.prefix,
+                MaxKeys=1,
+            )
+        except self.client.exceptions.ClientError as exc:
+            raise BackupConfigError(_probe_error_detail(exc)) from exc
+        except Exception as exc:
+            raise BackupConfigError("Backup S3 target could not be reached") from exc
 
     async def upload_file(self, source: Path, *, backup_prefix: str, path: str) -> UploadedObject:
         object_key = self.object_key(backup_prefix, path)
@@ -112,3 +130,14 @@ def build_backup_target(values: dict[str, Any]) -> S3BackupTarget:
 async def test_backup_target(values: dict[str, Any]) -> None:
     target = build_backup_target(values)
     await target.probe()
+
+
+def _probe_error_detail(exc: Any) -> str:
+    code = str((exc.response.get("Error") or {}).get("Code") or "unknown")
+    if code in {"AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch"}:
+        return "Backup S3 credentials could not list the bucket"
+    if code in {"404", "NoSuchBucket", "NotFound"}:
+        return "Backup S3 bucket was not found"
+    if code == "NoSuchKey":
+        return "Backup S3 target prefix could not be listed"
+    return f"Backup S3 target could not be listed ({code})"

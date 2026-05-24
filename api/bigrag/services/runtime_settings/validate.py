@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 from bigrag.services.runtime_setting_specs import REGISTRY, SettingSpec
 
@@ -31,6 +32,28 @@ def _coerce_int_list(value: Any) -> list[int]:
         except (TypeError, ValueError) as exc:
             raise ValueError("Expected integer values") from exc
     return out
+
+
+def _is_cloudflare_r2_host(hostname: str | None) -> bool:
+    host = (hostname or "").lower().rstrip(".")
+    return host == "r2.cloudflarestorage.com" or host.endswith(".r2.cloudflarestorage.com")
+
+
+def _normalize_backup_s3_endpoint_url(raw_url: str) -> str:
+    from bigrag.services.url_security import UnsafeOutboundUrlError, normalize_url_root
+
+    try:
+        normalized = normalize_url_root(raw_url)
+    except UnsafeOutboundUrlError as exc:
+        raise ValueError(str(exc)) from exc
+    parsed = urlparse(normalized)
+    if not parsed.path.strip("/"):
+        return normalized
+    if _is_cloudflare_r2_host(parsed.hostname):
+        return urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+    raise ValueError(
+        "Backup S3 endpoint URL must not include a path. Use bucket and prefix instead."
+    )
 
 
 def validate_setting_value(key: str, value: Any) -> Any:
@@ -72,7 +95,9 @@ def validate_setting_value(key: str, value: Any) -> Any:
         if value is None:
             return None
         coerced_str = str(value)
-        url_keys = {"backup_s3_endpoint_url", "turbopuffer_base_url"}
+        if key == "backup_s3_endpoint_url" and coerced_str.strip():
+            return _normalize_backup_s3_endpoint_url(coerced_str.strip())
+        url_keys = {"turbopuffer_base_url"}
         if key in url_keys and coerced_str.strip():
             from bigrag.services.url_security import UnsafeOutboundUrlError, normalize_url_root
 

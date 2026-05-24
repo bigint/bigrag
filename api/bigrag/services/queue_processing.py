@@ -80,7 +80,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         parsed = await queue._convert_document(job, prefix)
         await queue._ensure_job_current(job)
         async with session_factory()() as session:
-            element_count = await replace_document_elements(
+            element_counts = await replace_document_elements(
                 session,
                 document_id=doc_uuid,
                 elements=parsed.elements,
@@ -110,7 +110,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
                     status="ready",
                     chunk_count=total_inserted,
                     token_count=token_count,
-                    multimodal_element_count=element_count,
+                    multimodal_element_count=element_counts.total,
                     error_message=partial_msg,
                 )
             )
@@ -124,7 +124,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
             prefix=prefix,
             start_time=start_time,
             total_inserted=total_inserted,
-            element_count=element_count,
+            pending_enrichment_count=element_counts.pending_enrichment,
         )
 
     except Exception as e:

@@ -27,14 +27,14 @@ async def finalize_success(
     prefix: str,
     start_time: float,
     total_inserted: int,
-    element_count: int,
+    pending_enrichment_count: int,
 ) -> None:
     await clear_document_staged_file(doc_uuid, job.file_path)
 
     from bigrag.services.retrieval import invalidate_collection_query_cache
 
     await invalidate_collection_query_cache(job.collection_name)
-    if job.should_enrich_multimodal and element_count > 0:
+    if job.should_enrich_multimodal and pending_enrichment_count > 0:
         from bigrag.services.jobs.actors import enqueue_multimodal_enrichment
 
         enqueue_multimodal_enrichment(job.document_id)

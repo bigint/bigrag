@@ -10,6 +10,7 @@ The admin UI is the Vite + TanStack Router single-page app packaged with bigRAG.
 Key UI behaviors:
 - Supports light, dark, and system themes; selection is stored in the browser and applies before the React app loads.
 - Operator forms use TanStack Form for client-side draft state, validation, resets, and submit handling with existing Base UI controls. This covers setup, login, collection creation and search, eval runs, API keys, MCP servers, account password changes, runtime settings, embedding presets, webhook creation, and connector credential forms.
+- Runtime settings save failures surface the backend validation detail returned by the settings API, including backup and provider probe failures.
 - Collection creation keeps customer/tenant filter enforcement and JSON metadata-schema validation inside Advanced safeguards. Most collections can leave these disabled; enable customer separation only when one collection holds data for multiple customers, and enable metadata validation only when uploads need a fixed metadata shape.
 
 ## Running the Admin UI
