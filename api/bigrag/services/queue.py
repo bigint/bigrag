@@ -215,7 +215,7 @@ class IngestionQueue:
             await self._redis.lrem(PROCESSING_KEY, 1, raw)
             await self._redis.delete(lease_key)
 
-    def _emit(
+    def _publish_progress(
         self,
         doc_id: str,
         step: str,
@@ -259,7 +259,7 @@ class IngestionQueue:
         return await queue_conversion.convert_document(
             job,
             prefix,
-            emit=self._emit,
+            emit=self._publish_progress,
             ensure_job_current=self._ensure_job_current,
         )
 
@@ -274,7 +274,7 @@ class IngestionQueue:
             parsed,
             prefix,
             vector_store=self._vector_store,
-            emit=self._emit,
+            emit=self._publish_progress,
             ensure_job_current=self._ensure_job_current,
         )
 

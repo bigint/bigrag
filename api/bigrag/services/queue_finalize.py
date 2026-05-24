@@ -49,7 +49,7 @@ async def finalize_success(
         elapsed=round(total_elapsed, 2),
     )
     await queue._fanout_webhook_event(
-        queue._emit(
+        queue._publish_progress(
             doc,
             "complete",
             "complete",
@@ -85,7 +85,7 @@ async def finalize_cancelled(
     await update_doc(status="failed", error_message=safe_message)
     await clear_document_staged_file(doc_uuid, job.file_path)
     await queue._release_job()
-    queue._emit(
+    queue._publish_progress(
         doc,
         "cancelled",
         "failed",
@@ -126,7 +126,7 @@ async def finalize_retry(
             error_message=f"Attempt {job.attempt} failed: {safe_error}. Queue full, not retried.",
         )
         await clear_document_staged_file(doc_uuid, job.file_path)
-        queue._emit(
+        queue._publish_progress(
             doc,
             "failed",
             "failed",
@@ -137,7 +137,7 @@ async def finalize_retry(
         )
         event_bus.complete(doc)
         return
-    queue._emit(
+    queue._publish_progress(
         doc,
         "retrying",
         "processing",
@@ -189,7 +189,7 @@ async def finalize_permanent(
         error_type=type(error).__name__,
     )
     await queue._fanout_webhook_event(
-        queue._emit(
+        queue._publish_progress(
             doc,
             "failed",
             "failed",

@@ -50,7 +50,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         attempt=job.attempt,
         max_attempts=job.max_attempts,
     )
-    queue._emit(
+    queue._publish_progress(
         doc,
         "queued",
         "processing",
@@ -67,7 +67,7 @@ async def process_job(queue: Any, worker_id: int | str, job: IngestionJob) -> No
         await queue._ensure_job_current(job)
         await _update_doc(status="processing")
         await queue._fanout_webhook_event(
-            queue._emit(
+            queue._publish_progress(
                 doc,
                 "processing",
                 "processing",
