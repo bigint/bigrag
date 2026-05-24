@@ -7,7 +7,7 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from . import scoped, unscoped
+from .register import register, shared_client_provider
 from .tools import (
     discover_scope,
     make_client,
@@ -28,10 +28,7 @@ def create_server(
         port=port,
     )
     client = make_client(base_url, api_key)
-    if collection is None:
-        unscoped.register(mcp, client)
-    else:
-        scoped.register(mcp, client, collection)
+    register(mcp, shared_client_provider(client), collection)
     return mcp
 
 
