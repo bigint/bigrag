@@ -11,6 +11,7 @@ logger = get_logger("bigrag.retrieval")
 
 _cohere_clients: dict[tuple[str, str | None], object] = {}
 _cohere_lock = asyncio.Lock()
+_rerank_semaphore = asyncio.Semaphore(8)
 
 
 async def _get_cohere_client(api_key: str, base_url: str | None):
@@ -24,7 +25,7 @@ async def _get_cohere_client(api_key: str, base_url: str | None):
         client = _cohere_clients.get(key)
         if client is not None:
             return client
-        kwargs: dict = {"api_key": api_key}
+        kwargs: dict = {"api_key": api_key, "timeout": 30}
         if base_url:
             kwargs["base_url"] = base_url
         client = cohere.AsyncClientV2(**kwargs)
@@ -76,15 +77,16 @@ async def rerank_results(
             inputs=len(texts),
             **query_fingerprint(query),
         )
-        response = await asyncio.wait_for(
-            client.rerank(
-                query=query,
-                documents=texts,
-                model=model,
-                top_n=len(results),
-            ),
-            timeout=30,
-        )
+        async with _rerank_semaphore:
+            response = await asyncio.wait_for(
+                client.rerank(
+                    query=query,
+                    documents=texts,
+                    model=model,
+                    top_n=len(results),
+                ),
+                timeout=30,
+            )
 
         reranked = []
         for item in response.results:
