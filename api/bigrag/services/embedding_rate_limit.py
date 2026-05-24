@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import random
 import re
 import time
 from collections.abc import Mapping
@@ -16,7 +17,7 @@ logger = get_logger("bigrag.embedding_rate_limit")
 MAX_RATE_LIMIT_RETRIES = 60
 MAX_RATE_LIMIT_DELAY_SECONDS = 60.0
 RATE_LIMIT_COOLDOWN_PADDING_SECONDS = 0.1
-RATE_LIMIT_COOLDOWN_JITTER_SECONDS = 0.05
+RATE_LIMIT_COOLDOWN_JITTER_SECONDS = 0.25
 RATE_LIMIT_COOLDOWN_KEY_PREFIX = "bigrag:embedding:rate-limit:"
 RATE_LIMIT_DELAY_RE = re.compile(
     r"try again in ([0-9]+(?:\.[0-9]+)?)\s*(ms|milliseconds?|s|sec|secs|seconds?)",
@@ -115,7 +116,7 @@ async def wait_for_rate_limit_cooldown(key: str, provider: str, model_name: str)
         if delay <= 0:
             return
         wait = min(
-            delay + (time.monotonic() % RATE_LIMIT_COOLDOWN_JITTER_SECONDS),
+            delay + random.uniform(0, RATE_LIMIT_COOLDOWN_JITTER_SECONDS),
             MAX_RATE_LIMIT_DELAY_SECONDS,
         )
         logger.warning(
