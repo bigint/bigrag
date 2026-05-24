@@ -55,6 +55,7 @@ client = BigRAG(
     base_url="http://localhost:4000",  # API server URL
     timeout=120.0,                  # request timeout in seconds
     max_retries=2,                  # retries on infrastructure 429/5xx/connection errors
+    auto_idempotency_key=True,      # auto-add an Idempotency-Key to mutating requests
 )
 ```
 

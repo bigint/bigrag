@@ -72,6 +72,7 @@ class BigRAGCore:
     base_url: str
     timeout: float
     max_retries: int
+    auto_idempotency_key: bool
     _client: httpx.AsyncClient
     _owns_client: bool
 
@@ -82,12 +83,14 @@ class BigRAGCore:
         base_url: str = _DEFAULT_BASE_URL,
         timeout: float = _DEFAULT_TIMEOUT,
         max_retries: int = _DEFAULT_MAX_RETRIES,
+        auto_idempotency_key: bool = True,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.api_key = api_key if api_key is not None else (os.environ.get("BIGRAG_API_KEY") or "")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
+        self.auto_idempotency_key = auto_idempotency_key
 
         if http_client is not None:
             self._client = http_client
@@ -146,6 +149,15 @@ class BigRAGCore:
 
         raise APIConnectionError(str(last_error) if last_error else "Request failed")
 
+    def _resolve_idempotency_key(self, method: str, explicit: str | None) -> str | None:
+        if explicit:
+            return explicit
+        if not self.auto_idempotency_key:
+            return None
+        if method in _MUTATING_METHODS:
+            return str(uuid4())
+        return None
+
     async def _request(
         self,
         method: str,
@@ -161,9 +173,7 @@ class BigRAGCore:
             headers["Content-Type"] = "application/json"
 
         method_upper = method.upper()
-        idem_key = idempotency_key
-        if idem_key is None and method_upper in _MUTATING_METHODS:
-            idem_key = uuid4().hex
+        idem_key = self._resolve_idempotency_key(method_upper, idempotency_key)
         if idem_key is not None:
             headers["Idempotency-Key"] = idem_key
 
@@ -204,8 +214,9 @@ class BigRAGCore:
         url = f"{self.base_url}{path}"
         headers = self._headers()
 
-        idem_key = idempotency_key if idempotency_key is not None else uuid4().hex
-        headers["Idempotency-Key"] = idem_key
+        idem_key = self._resolve_idempotency_key("POST", idempotency_key)
+        if idem_key is not None:
+            headers["Idempotency-Key"] = idem_key
 
         buffered_files = _buffer_files(files)
 
@@ -219,7 +230,7 @@ class BigRAGCore:
                 timeout=self.timeout,
             )
 
-        response = await self._execute_with_retry(_send, safe_to_retry=True)
+        response = await self._execute_with_retry(_send, safe_to_retry=idem_key is not None)
 
         if response.status_code >= 400:
             await self._throw_for_status(response)
