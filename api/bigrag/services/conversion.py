@@ -256,23 +256,6 @@ async def convert_document_path_isolated(
     timeout: int,
     include_elements: bool = False,
 ) -> ParsedDocument:
-    return await _convert_document_path_isolated(
-        path,
-        suffix,
-        pdf_ocr_enabled=pdf_ocr_enabled,
-        timeout=timeout,
-        include_elements=include_elements,
-    )
-
-
-async def _convert_document_path_isolated(
-    path: str,
-    suffix: str,
-    *,
-    pdf_ocr_enabled: bool,
-    timeout: int,
-    include_elements: bool,
-) -> ParsedDocument:
     executor = await get_conversion_executor()
     semaphore = await _get_conversion_semaphore()
     loop = asyncio.get_running_loop()
