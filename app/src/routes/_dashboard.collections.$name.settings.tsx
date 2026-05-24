@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { QueryError } from "@/components/ui/query-error";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -69,17 +70,12 @@ const CollectionSettings = () => {
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-        <h2 className="text-sm font-semibold text-destructive">
-          Couldn't load collection settings
-        </h2>
-        <p className="mt-1 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Unknown error"}
-        </p>
-        <Button className="mt-3" onClick={() => refetch()} variant="secondary">
-          Retry
-        </Button>
-      </div>
+      <QueryError
+        className="p-4"
+        error={error}
+        onRetry={() => refetch()}
+        title="Couldn't load collection settings"
+      />
     );
   }
 
