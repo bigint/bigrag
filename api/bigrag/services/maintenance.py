@@ -76,7 +76,7 @@ async def acquire_maintenance_lock(
             "owner_id": stmt.excluded.owner_id,
             "reason": stmt.excluded.reason,
             "expires_at": stmt.excluded.expires_at,
-            "meta": stmt.excluded.meta,
+            "metadata": stmt.excluded["metadata"],
         },
         where=MaintenanceLock.expires_at <= now,
     ).returning(MaintenanceLock.owner_id)
