@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import sqlalchemy as sa
 
+from bigrag.db.engine import session_factory
 from bigrag.db.models import (
     Collection,
     ConnectorDocument,
@@ -25,6 +27,7 @@ from bigrag.services.queue import QueueFullError
 logger = get_logger("bigrag.connectors")
 
 DEFAULT_DOWNLOAD_CONCURRENCY = 4
+ProgressCallback = Callable[[], Awaitable[None]]
 
 
 async def sync_page(
@@ -37,9 +40,11 @@ async def sync_page(
     manifests: dict[str, ConnectorDocument],
     counters: ConnectorSyncCounters,
     download_concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY,
+    progress_callback: ProgressCallback | None = None,
 ) -> None:
     async def _download(remote: RemoteConnectorFile):
-        return await adapter.download(session, source=source, remote=remote)
+        async with session_factory()() as download_session:
+            return await adapter.download(download_session, source=source, remote=remote)
 
     batch_size = max(1, download_concurrency)
     for batch_start in range(0, len(remotes), batch_size):
@@ -120,3 +125,5 @@ async def sync_page(
                         downloaded.path.unlink()
                     except OSError:
                         pass
+        if progress_callback is not None:
+            await progress_callback()

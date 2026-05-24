@@ -45,6 +45,20 @@ async def scan_pages(
         counters.found += len(page)
         page_ids = [remote.id for remote in page]
         page_manifests = await _load_page_manifests(session, source.id, page_ids)
+
+        async def report_progress() -> None:
+            processed = _processed_count(counters)
+            await update_sync_progress(
+                session,
+                job=job,
+                source=source,
+                counters=counters,
+                phase="syncing",
+                message=f"Synced {processed} of {counters.found} remote files",
+                processed_items=processed,
+                total_items=counters.found,
+            )
+
         await sync_page(
             session,
             adapter=adapter,
@@ -54,6 +68,7 @@ async def scan_pages(
             manifests=page_manifests,
             counters=counters,
             download_concurrency=download_concurrency,
+            progress_callback=report_progress,
         )
         await session.execute(
             sa.update(ConnectorDocument)
@@ -64,14 +79,4 @@ async def scan_pages(
             .values(last_seen_job_id=job_uuid)
         )
         await session.commit()
-        processed = _processed_count(counters)
-        await update_sync_progress(
-            session,
-            job=job,
-            source=source,
-            counters=counters,
-            phase="syncing",
-            message=f"Synced {processed} of {counters.found} remote files",
-            processed_items=processed,
-            total_items=counters.found,
-        )
+        await report_progress()
