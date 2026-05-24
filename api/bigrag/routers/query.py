@@ -165,6 +165,8 @@ def _result_to_dict(row: dict, *, include_multimodal: bool) -> dict:
 async def _results_with_document_filenames(rows: list[dict]) -> list[dict]:
     document_ids = []
     for row in rows:
+        if row.get("document_filename"):
+            continue
         raw = row.get("document_id")
         if raw is None:
             continue
