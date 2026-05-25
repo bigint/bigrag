@@ -11,18 +11,6 @@ type ListResponse = Paginated<"collections", Collection>;
 
 const statusPollMs = 5_000;
 
-export type CollectionsStatus = {
-  collections_total: number;
-  documents_total: number;
-  documents_ready: number;
-  documents_pending: number;
-  documents_processing: number;
-  documents_failed: number;
-  total_chunks: number;
-  total_tokens: number;
-  total_size_bytes: number;
-};
-
 const invalidateCollectionData = (queryClient: QueryClient, name: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.one({ name }) });
@@ -55,13 +43,6 @@ export const useCollectionStats = (name: string) => {
     refetchInterval: statusPollMs,
   });
 };
-
-export const useCollectionsStatus = () =>
-  useQuery({
-    queryKey: queryKeys.platform.collectionsStatus(),
-    queryFn: () => apiClient.get<CollectionsStatus>("v1/status/collections"),
-    refetchInterval: statusPollMs,
-  });
 
 export const useCreateCollection = () => {
   const qc = useQueryClient();

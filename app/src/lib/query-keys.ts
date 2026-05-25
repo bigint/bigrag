@@ -127,7 +127,6 @@ export const queryKeys = {
   },
   platform: {
     overviewStatus: () => ["status", "overview"] as const,
-    collectionsStatus: () => ["status", "collections"] as const,
     stats: () => ["platform", "stats"] as const,
     readiness: () => ["platform", "readiness"] as const,
     embeddingModels: () => ["platform", "embedding-models"] as const,
