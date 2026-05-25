@@ -1,6 +1,5 @@
 import type { BigRAGOptions } from "./core.js";
 import { BigRAGCore } from "./core.js";
-import { RealtimeResource } from "./realtime.js";
 import {
   AdminResource,
   AuthResource,
@@ -14,8 +13,11 @@ import {
   WebhooksResource,
 } from "./resources/index.js";
 import type {
+  AccessLogOverviewResponse,
+  CollectionsStatusResponse,
   EmbeddingModelListResponse,
   HealthResponse,
+  OverviewStatusResponse,
   PlatformStatsResponse,
   ReadinessResponse,
   UsageResponse,
@@ -30,7 +32,6 @@ export class BigRAG extends BigRAGCore {
   readonly documents: DocumentsResource;
   readonly evaluations: EvaluationsResource;
   readonly queries: QueryResource;
-  readonly realtime: RealtimeResource;
   readonly vectors: VectorsResource;
   readonly webhooks: WebhooksResource;
 
@@ -44,7 +45,6 @@ export class BigRAG extends BigRAGCore {
     this.documents = new DocumentsResource(this);
     this.evaluations = new EvaluationsResource(this);
     this.queries = new QueryResource(this);
-    this.realtime = new RealtimeResource(this);
     this.vectors = new VectorsResource(this);
     this.webhooks = new WebhooksResource(this);
   }
@@ -69,5 +69,25 @@ export class BigRAG extends BigRAGCore {
     const params: Record<string, string> = {};
     if (options.windowDays !== undefined) params.window_days = String(options.windowDays);
     return this._request("GET", "/v1/usage", { params });
+  }
+
+  getOverviewStatus(): Promise<OverviewStatusResponse> {
+    return this._request("GET", "/v1/status/overview");
+  }
+
+  getCollectionsStatus(): Promise<CollectionsStatusResponse> {
+    return this._request("GET", "/v1/status/collections");
+  }
+
+  getUsageStatus(options: { windowDays?: number } = {}): Promise<UsageResponse> {
+    const params: Record<string, string> = {};
+    if (options.windowDays !== undefined) params.window_days = String(options.windowDays);
+    return this._request("GET", "/v1/status/usage", { params });
+  }
+
+  getAccessStatus(options: { windowDays?: number } = {}): Promise<AccessLogOverviewResponse> {
+    const params: Record<string, string> = {};
+    if (options.windowDays !== undefined) params.window_days = String(options.windowDays);
+    return this._request("GET", "/v1/admin/status/access", { params });
   }
 }

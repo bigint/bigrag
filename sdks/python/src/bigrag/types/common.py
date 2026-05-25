@@ -59,3 +59,20 @@ class PlatformStatsResponse(TypedDict):
     webhooks: int
     queue: QueueStatsResponse
     workers: NotRequired[WorkerStatsResponse]
+
+
+class OverviewStatusResponse(TypedDict):
+    platform: PlatformStatsResponse
+    readiness: ReadinessResponse
+
+
+class CollectionsStatusResponse(TypedDict):
+    collections_total: int
+    documents_total: int
+    documents_ready: int
+    documents_pending: int
+    documents_processing: int
+    documents_failed: int
+    total_chunks: int
+    total_tokens: int
+    total_size_bytes: int

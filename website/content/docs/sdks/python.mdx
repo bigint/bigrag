@@ -65,15 +65,14 @@ The client reads `BIGRAG_API_KEY` from the environment if `api_key` is not passe
 
 | Namespace | Description |
 |---|---|
-| `client.collections` | Collection CRUD, stats, realtime tokens, and event streams |
+| `client.collections` | Collection CRUD, stats, and analytics |
 | `client.documents` | Document upload, list, delete, batch ops |
 | `client.chat` | Generated answers, question suggestions, and streaming |
 | `client.queries` | Single, multi-collection, and batch queries |
 | `client.vectors` | Raw vector upsert and delete |
 | `client.webhooks` | Webhook management |
 | `client.auth` | Setup, login, logout, identity, password, and preferences |
-| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, vector storage overview, admin realtime helpers, embedding presets, and MCP server keys |
-| `client.realtime` | Explicit WebSocket connect, subscribe, and unsubscribe control |
+| `client.admin` | Users, API keys, access logs, audit logs, runtime settings, vector storage overview, embedding presets, and MCP server keys |
 | `client.connectors.s3` | S3-compatible bucket prefixes, sources, and sync jobs |
 | `client.evaluations` | Golden-set retrieval evaluation runs |
 
@@ -117,11 +116,6 @@ stats = await client.collections.stats("docs")
 
 # Truncate (delete all documents, keep the collection)
 await client.collections.truncate("docs")
-
-# Stream collection realtime events
-token = await client.collections.create_realtime_token("docs")
-async for event in client.collections.stream_events("docs", token=token["token"]):
-    print(event)
 ```
 
 <Callout type="info">
@@ -366,10 +360,6 @@ await client.admin.settings.reset({"keys": ["trusted_proxies"]})
 await client.admin.settings.purge_embedding_cache()
 
 overview = await client.admin.vector_storage.overview()
-
-async for event in client.admin.realtime.platform_readiness():
-    if event["type"] == "snapshot":
-        print(event["payload"])
 ```
 
 ## Platform Endpoints
@@ -386,6 +376,12 @@ stats = await client.get_stats()
 
 # Usage rollup
 usage = await client.get_usage(window_days=30)
+
+# Pollable admin UI status helpers
+overview_status = await client.get_overview_status()
+collections_status = await client.get_collections_status()
+usage_status = await client.get_usage_status(window_days=30)
+access_status = await client.get_access_status(window_days=7)
 
 # Available embedding models
 models = await client.list_embedding_models()

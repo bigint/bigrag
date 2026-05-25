@@ -15,7 +15,6 @@ from bigrag.db.models import (
 )
 from bigrag.services import collection_cache
 from bigrag.services.connectors.progress import sync_progress_details
-from bigrag.services.connectors.realtime import notify_connector_sources, notify_connector_state
 from bigrag.services.connectors.sources.sources_credentials import upsert_source_credential
 from bigrag.services.connectors.sources.sources_queries import source_by_id
 from bigrag.services.connectors.time import next_sync_at, utcnow
@@ -146,7 +145,6 @@ async def create_source(
         )
         await session.commit()
         await session.refresh(existing)
-        notify_connector_state(provider, existing.collection_name, str(existing.id))
         if job.status == "pending" and job.started_at is None:
             start_sync_job(str(job.id))
         return existing, job
@@ -164,7 +162,6 @@ async def create_source(
     await session.commit()
     await session.refresh(source)
     await session.refresh(job)
-    notify_connector_state(provider, source.collection_name, str(source.id))
     if job.status == "pending" and job.started_at is None:
         start_sync_job(str(job.id))
     return source, job
@@ -197,7 +194,6 @@ async def trigger_sync(
     )
     if job.status == "pending" and job.started_at is None:
         start_sync_job(str(job.id))
-    notify_connector_state(provider, source.collection_name, str(source.id))
     return job
 
 
@@ -235,7 +231,6 @@ async def update_source(
     source.next_sync_at = next_sync_at(source)
     await session.commit()
     await session.refresh(source)
-    notify_connector_sources(provider, source.collection_name)
     return source
 
 
@@ -253,7 +248,6 @@ async def delete_source(
         not_found_message=not_found_message,
     )
     collection_name = source.collection_name
-    source_uuid = str(source.id)
     manifests = (
         await session.scalars(
             sa.select(ConnectorDocument).where(ConnectorDocument.source_id == source.id)
@@ -277,7 +271,6 @@ async def delete_source(
     await session.delete(source)
     await session.commit()
     await collection_cache.invalidate(collection_name)
-    notify_connector_state(provider, collection_name, source_uuid)
 
 
 def _tenant_id(collection: Collection, metadata: dict[str, Any]) -> str | None:

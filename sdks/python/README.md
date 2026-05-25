@@ -26,14 +26,14 @@ The SDK is fully typed, ships `py.typed`, and uses CalVer releases like `2026.5.
 
 ## Namespaces
 
-- `client.collections` for collection CRUD, stats, realtime tokens, and event streams.
+- `client.collections` for collection CRUD, stats, and analytics.
 - `client.documents` for uploads, batch operations, chunks, elements, and status polling.
 - `client.queries` for single, multi-collection, and batch retrieval queries.
 - `client.vectors` for raw vector upsert and delete.
 - `client.webhooks` for webhook management and delivery replay.
 - `client.auth` for session login, setup, preferences, and identity.
-- `client.admin` for users, API keys, access logs, audit logs, runtime settings, vector storage overview, admin realtime helpers, connector config, embedding presets, and MCP server keys.
-- `client.realtime` for explicit WebSocket connect, subscribe, and unsubscribe control.
+- `client.admin` for users, API keys, access logs, audit logs, runtime settings, vector storage overview, connector config, embedding presets, and MCP server keys.
+- Top-level status helpers (`get_overview_status`, `get_collections_status`, `get_usage_status`, `get_access_status`) for pollable admin UI aggregates.
 - `client.connectors.s3` for S3-compatible bucket-prefix sources and sync jobs.
 - `client.evaluations` for golden-set retrieval evaluations.
 

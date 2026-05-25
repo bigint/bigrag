@@ -4,7 +4,6 @@ description: Admin accounts with session cookies and minted API keys.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
-import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
 Every request is authenticated as either:
 
@@ -75,24 +74,12 @@ curl -X POST http://localhost:4000/v1/admin/api-keys \
 #     "key": "bigrag_sk_abcd…_XXXXXXXXXXXXXXXXXXXXXXXX"}
 ```
 
-Send the key as a bearer token. For browser WebSocket clients that cannot set bearer headers, mint a short-lived collection realtime token first.
+Send the key as a bearer token:
 
-<Tabs items={["Header", "Realtime token"]}>
-<Tab value="Header">
 ```bash
 curl http://localhost:4000/v1/collections \
   -H "Authorization: Bearer bigrag_sk_…"
 ```
-</Tab>
-<Tab value="Realtime token">
-```bash
-REALTIME_TOKEN=$(curl -s -X POST http://localhost:4000/v1/collections/docs/realtime-token \
-  -H "Authorization: Bearer bigrag_sk_…" | jq -r .token)
-```
-</Tab>
-</Tabs>
-
-The `collection.events` realtime topic accepts bearer headers or short-lived realtime tokens. Long-lived API keys are not accepted in query strings or WebSocket message params.
 
 ### Key fields
 
@@ -124,12 +111,12 @@ Scopes use `resource:action` with `*` as a wildcard.
 | `chat:write` | Generate chat answers and question suggestions |
 | `vector:write` | Direct raw vector upsert |
 | `vector:delete` | Direct raw vector delete |
-| `audit:read` | Read the API-key-capable usage rollup at `/v1/usage` |
+| `audit:read` | Read the API-key-capable usage rollups at `/v1/usage` and `/v1/status/usage` |
 | `*:*` | Full access (equivalent to no `scopes`) |
 
 A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.
 
-If a key is pinned to a single `collection`, that pin is enforced even on the global read helpers like `/v1/documents/{id}` by resolving the document's owning collection before returning it.
+If a key is pinned to a single `collection`, that pin is enforced even on the global read helpers like `/v1/documents/{id}` by resolving the document's owning collection before returning it. Cross-collection status endpoints (`/v1/status/overview`, `/v1/status/collections`, and `/v1/status/usage`) are blocked for pinned keys.
 
 ## Which endpoints accept which auth
 
@@ -139,10 +126,9 @@ If a key is pinned to a single `collection`, that pin is enforced even on the gl
 | `GET /v1/auth/setup-status`, `POST /v1/auth/setup` (first run only) | — | — | ✓ |
 | `POST /v1/auth/login` | — | — | ✓ |
 | `/v1/auth/*` (logout, me, whoami, password) | ✓ | ✓* | — |
-| `/v1/collections`, `/v1/collections/**`, `/v1/query`, `/v1/batch/query`, `/v1/stats`, `/v1/usage`, `/v1/embeddings/models` | ✓ | ✓ | — |
-| `WS /v1/realtime` collection topics, `POST /v1/collections/{name}/realtime-token` | ✓ | ✓ | — |
+| `/v1/collections`, `/v1/collections/**`, `/v1/query`, `/v1/batch/query`, `/v1/stats`, `/v1/usage`, `/v1/status/overview`, `/v1/status/collections`, `/v1/status/usage`, `/v1/embeddings/models` | ✓ | ✓ | — |
 | `/v1/admin/api-keys`, `/v1/admin/users`, `/v1/admin/settings`, `/v1/admin/vector-storage`, `/v1/admin/connectors`, `/v1/admin/webhooks`, `/v1/admin/embedding-presets`, `/v1/admin/mcp-servers` | ✓ | — | — |
-| `/v1/admin/access`, `/v1/admin/audit`, `WS /v1/realtime` admin topics, `/v1/auth/preferences` | ✓ | — | — |
+| `/v1/admin/access`, `/v1/admin/audit`, `/v1/admin/status/access`, `/v1/auth/preferences` | ✓ | — | — |
 
 \* Read-only auth endpoints (`/me`) accept either; state-changing ones (`/password`, `/logout-all`) require a session.
 

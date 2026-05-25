@@ -36,4 +36,4 @@ async def platform_stats(
     _: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, object]:
-    return await platform_stats_payload(request.app.state.queue, session)
+    return await platform_stats_payload(request.app.state.queue, session, use_cache=False)

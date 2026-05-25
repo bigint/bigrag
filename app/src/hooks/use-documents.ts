@@ -1,26 +1,8 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
-import {
-  type RealtimeSnapshotSubscription,
-  useRealtimeSnapshotSubscriptions,
-} from "@/hooks/use-realtime-subscriptions";
 import { apiClient } from "@/lib/api";
-import {
-  type BatchStatusResponse,
-  type DocListResponse,
-  type DocumentPageParam,
-  type InfiniteDocumentsData,
-  mergeDocumentListSnapshot,
-  mergeDocumentStatusUpdates,
-  watchedDocumentIds,
-} from "@/lib/document-cache";
-import {
-  documentListSubscription,
-  documentStatusSubscriptions,
-  subscriptionDocumentIds,
-} from "@/lib/document-subscriptions";
-import { fetchBatchStatus, fetchDocumentList } from "@/lib/documents-api";
+import type { DocumentPageParam } from "@/lib/document-cache";
+import { fetchDocumentList } from "@/lib/documents-api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   Chunk,
@@ -40,6 +22,8 @@ export type { DocumentListFilters, DocumentListOrder, DocumentListSort };
 
 const documentListLimit = 1000;
 const chunkListLimit = 1000;
+const statusPollMs = 5_000;
+const terminalDocumentStatuses = new Set<Document["status"]>(["ready", "failed"]);
 
 export const useDocuments = (collection: string, filters: DocumentListFilters = {}) => {
   const limit = filters.limit ?? documentListLimit;
@@ -52,11 +36,7 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
     () => queryKeys.documents.list({ collection, q, status, sort, order, limit, offset }),
     [collection, limit, offset, order, q, sort, status],
   );
-  const realtimeParams = useMemo(
-    () => ({ collection, limit, offset, order, q, sort, status }),
-    [collection, limit, offset, order, q, sort, status],
-  );
-  return useRealtimeSnapshotQuery<DocListResponse>({
+  return useQuery({
     queryKey,
     queryFn: ({ signal }) =>
       fetchDocumentList(
@@ -65,102 +45,6 @@ export const useDocuments = (collection: string, filters: DocumentListFilters = 
         signal,
       ),
     enabled: !!collection,
-    topic: "admin.collections.documents",
-    params: realtimeParams,
-  });
-};
-
-const useInfiniteDocumentsRealtime = ({
-  collection,
-  initialPageParam,
-  limit,
-  order,
-  q,
-  queryData,
-  queryKey,
-  sort,
-  status,
-}: {
-  collection: string;
-  initialPageParam: DocumentPageParam;
-  limit: number;
-  order: DocumentListOrder;
-  q?: string;
-  queryData: InfiniteDocumentsData | undefined;
-  queryKey: ReturnType<typeof queryKeys.documents.infiniteList>;
-  sort: DocumentListSort;
-  status?: string;
-}) => {
-  const queryClient = useQueryClient();
-  const subscriptions = useMemo(
-    () => documentStatusSubscriptions(collection, watchedDocumentIds(queryData)),
-    [collection, queryData],
-  );
-  const listSubscription = useMemo(
-    () => documentListSubscription({ collection, limit, order, q, sort, status }),
-    [collection, limit, order, q, sort, status],
-  );
-  const applyListPayload = (payload: DocListResponse) => {
-    queryClient.setQueryData<InfiniteDocumentsData>(queryKey, (current) =>
-      mergeDocumentListSnapshot(current, payload, initialPageParam, limit),
-    );
-  };
-  const applyStatusPayload = (
-    payload: BatchStatusResponse,
-    subscription: RealtimeSnapshotSubscription,
-  ) => {
-    const documentIds = subscriptionDocumentIds(subscription);
-    queryClient.setQueryData<InfiniteDocumentsData>(queryKey, (current) =>
-      mergeDocumentStatusUpdates(current, payload.documents),
-    );
-    if (documentIds.length > payload.documents.length) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  };
-
-  useRealtimeSnapshotSubscriptions<BatchStatusResponse>({
-    enabled: !!collection && subscriptions.length > 0,
-    pollIntervalMs: 5_000,
-    subscriptions,
-    onSnapshot: (payload, subscription) => {
-      applyStatusPayload(payload, subscription);
-    },
-    onUnavailable: (subscription) => {
-      const documentIds = subscriptionDocumentIds(subscription);
-      if (documentIds.length === 0) {
-        void queryClient.invalidateQueries({ queryKey });
-        return;
-      }
-      void fetchBatchStatus(collection, documentIds)
-        .then((payload) => {
-          applyStatusPayload(payload, subscription);
-        })
-        .catch(() => {
-          void queryClient.invalidateQueries({ queryKey });
-        });
-    },
-  });
-
-  useRealtimeSnapshotSubscriptions<DocListResponse>({
-    enabled: !!collection,
-    pollIntervalMs: 5_000,
-    subscriptions: [listSubscription],
-    onSnapshot: applyListPayload,
-    onUnavailable: () => {
-      void fetchDocumentList(collection, {
-        include_total: true,
-        limit,
-        offset: 0,
-        order,
-        q,
-        sort,
-        status,
-      })
-        .then(applyListPayload)
-        .catch(() => {
-          void queryClient.invalidateQueries({ queryKey });
-        });
-    },
   });
 };
 
@@ -211,18 +95,6 @@ export const useInfiniteDocuments = (collection: string, filters: DocumentListFi
     retry: false,
   });
 
-  useInfiniteDocumentsRealtime({
-    collection,
-    initialPageParam,
-    limit,
-    order,
-    q,
-    queryData: query.data,
-    queryKey,
-    sort,
-    status,
-  });
-
   return query;
 };
 
@@ -231,7 +103,7 @@ export const useDocument = (collection: string, docId: string) => {
     () => queryKeys.documents.one({ collection, id: docId }),
     [collection, docId],
   );
-  return useRealtimeSnapshotQuery<Document>({
+  return useQuery({
     queryKey,
     queryFn: ({ signal }) =>
       apiClient.get<Document>(
@@ -239,9 +111,10 @@ export const useDocument = (collection: string, docId: string) => {
         { signal },
       ),
     enabled: !!collection && !!docId,
-    topic: "admin.collections.documents.detail",
-    params: { collection, document_id: docId },
-    closeWhen: (doc) => doc.status === "ready" || doc.status === "failed",
+    refetchInterval: (query) => {
+      const doc = query.state.data;
+      return doc && terminalDocumentStatuses.has(doc.status) ? false : statusPollMs;
+    },
   });
 };
 

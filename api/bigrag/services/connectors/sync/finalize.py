@@ -5,7 +5,6 @@ from bigrag.logging import get_logger
 from bigrag.services import collection_cache
 from bigrag.services.connectors.manifest import apply_counters
 from bigrag.services.connectors.progress import sync_counter_details, update_sync_progress
-from bigrag.services.connectors.realtime import notify_connector_sources
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import ConnectorSyncAdapter, ConnectorSyncCounters
 from bigrag.services.documents import recount_collection_documents
@@ -58,7 +57,6 @@ async def finalize_sync(
         processed_items=counters.found + counters.deleted,
         total_items=counters.found + missing_count,
     )
-    notify_connector_sources(adapter.provider, source.collection_name)
     await collection_cache.invalidate(source.collection_name)
     await invalidate_collection_query_cache(source.collection_name)
     webhook_event = (

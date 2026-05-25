@@ -12,7 +12,7 @@ from bigrag.services.health import cache_get, cache_set
 from bigrag.services.jobs.broker import INGESTION_QUEUE, worker_heartbeat_key
 
 PLATFORM_STATS_CACHE_KEY = "stats:platform"
-PLATFORM_STATS_TTL = 15
+PLATFORM_STATS_TTL = 5
 
 
 async def platform_stats_payload(

@@ -18,5 +18,7 @@ export interface UsageResponse {
   storage_bytes_total: number;
   embedding_tokens_total: number;
   embedding_cost_usd_estimate: number;
+  avg_latency_ms: number;
+  timeline: { date: string; queries: number; avg_latency_ms: number }[];
   by_collection: CollectionUsage[];
 }

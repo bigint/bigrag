@@ -126,6 +126,8 @@ export const queryKeys = {
       ["documents", "upload-session", { collection, id }] as const,
   },
   platform: {
+    overviewStatus: () => ["status", "overview"] as const,
+    collectionsStatus: () => ["status", "collections"] as const,
     stats: () => ["platform", "stats"] as const,
     readiness: () => ["platform", "readiness"] as const,
     embeddingModels: () => ["platform", "embedding-models"] as const,

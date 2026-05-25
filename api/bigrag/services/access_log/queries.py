@@ -21,7 +21,7 @@ from bigrag.services.access_log.middleware import RAG_ACCESS_ACTIONS
 from bigrag.services.pagination import paginate
 
 _RAG_ACTION_FILTER = AccessLog.action.in_(tuple(sorted(RAG_ACCESS_ACTIONS)))
-_ACCESS_OVERVIEW_TTL = 15
+_ACCESS_OVERVIEW_TTL = 5
 
 
 def access_log_entry(row: AccessLog) -> AccessLogEntry:

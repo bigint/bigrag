@@ -46,11 +46,6 @@ class CollectionStatsResponse(TypedDict):
     status_counts: dict[str, int]
 
 
-class CollectionRealtimeTokenResponse(TypedDict):
-    token: str
-    expires_in: int
-
-
 class CreateCollectionBody(TypedDict):
     name: str
     description: NotRequired[str]

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from bigrag._realtime import RealtimeResource
 from bigrag.resources.admin import (
     AdminAccessResource,
     AdminApiKeysResource,
     AdminAuditResource,
     AdminEmbeddingPresetsResource,
     AdminMcpServersResource,
-    AdminRealtimeResource,
     AdminResource,
     AdminSettingsResource,
     AdminUsersResource,
@@ -29,7 +27,6 @@ __all__ = [
     "AdminAuditResource",
     "AdminEmbeddingPresetsResource",
     "AdminMcpServersResource",
-    "AdminRealtimeResource",
     "AdminResource",
     "AdminSettingsResource",
     "AdminUsersResource",
@@ -41,7 +38,6 @@ __all__ = [
     "DocumentsResource",
     "EvaluationsResource",
     "QueryResource",
-    "RealtimeResource",
     "S3ConnectorResource",
     "VectorsResource",
     "WebhooksResource",

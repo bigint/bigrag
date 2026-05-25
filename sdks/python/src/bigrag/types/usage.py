@@ -23,4 +23,6 @@ class UsageResponse(TypedDict):
     storage_bytes_total: int
     embedding_tokens_total: int
     embedding_cost_usd_estimate: float
+    avg_latency_ms: float
+    timeline: list[dict[str, int | float | str]]
     by_collection: list[CollectionUsage]

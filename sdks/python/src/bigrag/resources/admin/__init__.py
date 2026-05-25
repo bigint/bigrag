@@ -7,7 +7,6 @@ from bigrag.resources.admin.api_keys import AdminApiKeysResource
 from bigrag.resources.admin.audit import AdminAuditResource
 from bigrag.resources.admin.embedding_presets import AdminEmbeddingPresetsResource
 from bigrag.resources.admin.mcp_servers import AdminMcpServersResource
-from bigrag.resources.admin.realtime import AdminRealtimeResource
 from bigrag.resources.admin.settings import AdminSettingsResource
 from bigrag.resources.admin.users import AdminUsersResource
 from bigrag.resources.admin.vector_storage import AdminVectorStorageResource
@@ -23,7 +22,6 @@ class AdminResource:
     audit: AdminAuditResource
     embedding_presets: AdminEmbeddingPresetsResource
     mcp_servers: AdminMcpServersResource
-    realtime: AdminRealtimeResource
     settings: AdminSettingsResource
     vector_storage: AdminVectorStorageResource
 
@@ -34,7 +32,6 @@ class AdminResource:
         self.audit = AdminAuditResource(client)
         self.embedding_presets = AdminEmbeddingPresetsResource(client)
         self.mcp_servers = AdminMcpServersResource(client)
-        self.realtime = AdminRealtimeResource(client)
         self.settings = AdminSettingsResource(client)
         self.vector_storage = AdminVectorStorageResource(client)
 
@@ -45,7 +42,6 @@ __all__ = [
     "AdminAuditResource",
     "AdminEmbeddingPresetsResource",
     "AdminMcpServersResource",
-    "AdminRealtimeResource",
     "AdminResource",
     "AdminSettingsResource",
     "AdminUsersResource",

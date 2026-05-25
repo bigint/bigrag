@@ -215,7 +215,7 @@ const SearchTab = () => {
                 ) : (
                   <Gauge className="size-3" />
                 )}
-                {run.data.timings.cache_hit ? "cache hit" : "live"}
+                {run.data.timings.cache_hit ? "cache hit" : "uncached"}
               </Badge>
             )}
           </div>

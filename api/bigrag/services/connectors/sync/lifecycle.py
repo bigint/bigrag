@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.services.connectors.manifest import apply_counters
 from bigrag.services.connectors.progress import update_sync_progress
-from bigrag.services.connectors.realtime import notify_connector_sources
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import ConnectorSyncAdapter, ConnectorSyncCounters
 from bigrag.services.webhook import enqueue_webhook_event
@@ -70,4 +69,3 @@ async def mark_sync_deferred_by_queue(
         phase="complete",
         message="Ingestion queue full; remaining files will sync on the next run.",
     )
-    notify_connector_sources(adapter.provider, source.collection_name)

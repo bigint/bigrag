@@ -1,9 +1,11 @@
-import { Search, Trash2 } from "lucide-react";
+import { RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { DocumentListOrder, DocumentListSort } from "@/hooks/use-documents";
 
 const statusOptions = [
@@ -38,6 +40,8 @@ interface DocumentsToolbarProps {
   readonly selectedCount: number;
   readonly onClearSelection: () => void;
   readonly onBulkDelete: () => void;
+  readonly onRefresh: () => void;
+  readonly refreshPending: boolean;
 }
 
 export const DocumentsToolbar = ({
@@ -50,6 +54,8 @@ export const DocumentsToolbar = ({
   selectedCount,
   onClearSelection,
   onBulkDelete,
+  onRefresh,
+  refreshPending,
 }: DocumentsToolbarProps) => {
   const [qDraft, setQDraft] = useState(q);
 
@@ -110,7 +116,20 @@ export const DocumentsToolbar = ({
           </div>
         </form>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>{loadedLabel}</span>
+          <div className="flex items-center gap-2">
+            <span>{loadedLabel}</span>
+            <Tooltip content="Refresh documents">
+              <Button
+                aria-label="Refresh documents"
+                disabled={refreshPending}
+                onClick={onRefresh}
+                size="icon"
+                variant="ghost"
+              >
+                {refreshPending ? <Spinner size="sm" /> : <RefreshCw className="size-4" />}
+              </Button>
+            </Tooltip>
+          </div>
           {selectedCount > 0 && (
             <div className="flex items-center gap-2">
               <span>{selectedCount} selected</span>

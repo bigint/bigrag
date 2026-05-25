@@ -1,9 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Page } from "@/components/ui/page";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -42,11 +42,10 @@ const humanBytes = (n: number): string => {
 export const UsagePage = () => {
   const [windowDays, setWindowDays] = useState(30);
   const queryKey = useMemo(() => queryKeys.usage({ windowDays }), [windowDays]);
-  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<UsageReport>({
+  const { data, isPending, error } = useQuery<UsageReport>({
     queryKey,
-    queryFn: () => apiClient.get<UsageReport>("v1/usage", { window_days: windowDays }),
-    topic: "admin.usage",
-    params: { window_days: windowDays },
+    queryFn: () => apiClient.get<UsageReport>("v1/status/usage", { window_days: windowDays }),
+    refetchInterval: 5_000,
   });
 
   const timelineMax = useMemo(
@@ -87,9 +86,6 @@ export const UsagePage = () => {
                 onChange={(v) => setWindowDays(Number(v))}
               />
             </div>
-            {realtimeUnavailable ? (
-              <span className="text-xs text-muted-foreground">realtime unavailable, polling</span>
-            ) : null}
           </div>
 
           {isPending ? (

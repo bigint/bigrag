@@ -14,16 +14,13 @@ import type { S3SyncJob } from "@/types/bigrag";
 export const SyncMonitor = ({
   isPending,
   job,
-  streaming,
 }: {
   isPending: boolean;
   job: S3SyncJob | undefined;
-  streaming: boolean;
 }) => (
   <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
     <div className="flex items-center justify-between border-border border-b px-4 py-3">
       <h3 className="text-sm font-semibold">Sync monitor</h3>
-      {streaming && <Badge variant="primary">live</Badge>}
     </div>
     {isPending ? (
       <div className="flex h-32 items-center justify-center">

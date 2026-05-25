@@ -1,7 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { runWithConcurrency } from "@/lib/concurrency";
 import { errorToast } from "@/lib/mutation-toast";
@@ -9,6 +8,12 @@ import { queryKeys } from "@/lib/query-keys";
 import type { UploadSession, UploadSessionFileResponse } from "@/types/bigrag";
 
 const uploadConcurrency = 4;
+const uploadSessionPollMs = 2_000;
+const terminalUploadSessionStatuses = new Set<UploadSession["status"]>([
+  "complete",
+  "failed",
+  "canceled",
+]);
 
 const uploadSessionFileName = (file: File) =>
   (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
@@ -22,7 +27,7 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
     [collection, sessionId],
   );
   const enabled = Boolean(collection && sessionId);
-  return useRealtimeSnapshotQuery<UploadSession>({
+  return useQuery({
     queryKey,
     queryFn: ({ signal }) =>
       apiClient.get<UploadSession>(
@@ -30,11 +35,12 @@ export const useUploadSession = (collection: string, sessionId: string | null) =
         { signal },
       ),
     enabled,
-    topic: "admin.collections.upload_session",
-    params: { collection, session_id: sessionId ?? "" },
-    pollIntervalMs: 2_000,
-    closeWhen: (session) =>
-      session.status === "complete" || session.status === "failed" || session.status === "canceled",
+    refetchInterval: (query) => {
+      const session = query.state.data;
+      return session && terminalUploadSessionStatuses.has(session.status)
+        ? false
+        : uploadSessionPollMs;
+    },
   });
 };
 

@@ -4,18 +4,15 @@ from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from bigrag._realtime import RealtimeConnection
 from bigrag.types.analytics import AnalyticsResponse
 from bigrag.types.collections import (
     Collection,
     CollectionListResponse,
-    CollectionRealtimeTokenResponse,
     CollectionStatsResponse,
     CreateCollectionBody,
     UpdateCollectionBody,
 )
 from bigrag.types.common import StatusResponse
-from bigrag.types.realtime import ProgressEvent
 
 if TYPE_CHECKING:
     from bigrag._core import BigRAGCore
@@ -89,25 +86,3 @@ class CollectionsResource:
         return await self._client._request(
             "POST", f"/v1/collections/{quote(name, safe='')}/truncate"
         )
-
-    async def create_realtime_token(self, name: str) -> CollectionRealtimeTokenResponse:
-        return await self._client._request(
-            "POST", f"/v1/collections/{quote(name, safe='')}/realtime-token"
-        )
-
-    async def stream_events(
-        self, name: str, *, token: str | None = None
-    ) -> AsyncGenerator[ProgressEvent, None]:
-        connection = RealtimeConnection(self._client)
-        try:
-            async for message in connection.subscribe(
-                "collection.events", {"collection": name, "token": token}
-            ):
-                if message["type"] == "event":
-                    yield message["payload"]
-                elif message["type"] == "error":
-                    raise RuntimeError(message["message"])
-                elif message["type"] == "complete":
-                    return
-        finally:
-            await connection.close()

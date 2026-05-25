@@ -10,7 +10,6 @@ export * from "./documents.js";
 export * from "./embeddings.js";
 export * from "./evaluations.js";
 export * from "./query.js";
-export * from "./realtime.js";
 export * from "./usage.js";
 export * from "./vectors.js";
 export * from "./webhooks.js";

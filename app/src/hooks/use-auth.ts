@@ -1,7 +1,6 @@
 import { APIError, type User as CurrentUser, type SessionResponse } from "@bigrag/client/browser";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { closeAllRealtimeStreams } from "@/hooks/use-realtime-snapshot-query";
 import { AUTH_TIMEOUT_MS, apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -62,7 +61,6 @@ export const useLogout = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout"),
     onSuccess: () => {
-      closeAllRealtimeStreams();
       qc.clear();
       qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out");
@@ -75,7 +73,6 @@ export const useLogoutAll = () => {
   return useMutation({
     mutationFn: () => apiClient.post<void>("v1/auth/logout-all"),
     onSuccess: () => {
-      closeAllRealtimeStreams();
       qc.clear();
       qc.setQueryData(queryKeys.auth.session(), null);
       toast.success("Signed out of all devices");

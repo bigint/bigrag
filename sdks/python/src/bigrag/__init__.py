@@ -22,7 +22,6 @@ from bigrag._errors import (
     error_for_status,
 )
 from bigrag._files import FileInput, normalize_file_input
-from bigrag._realtime import RealtimeConnection, RealtimeResource
 from bigrag._sse import parse_sse_frames
 from bigrag._version import __version__
 from bigrag.resources import (
@@ -46,8 +45,6 @@ __all__ = [
     "BigRAG",
     "BigRAGCore",
     "CollectionClient",
-    "RealtimeConnection",
-    "RealtimeResource",
     "__version__",
     "APIConnectionError",
     "APIError",
