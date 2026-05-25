@@ -17,7 +17,7 @@ from uuid import uuid4
 
 from bigrag import APIError, BigRAG
 
-PAYLOAD_BYTES = 100 * 1024
+PAYLOAD_BYTES = 1000 * 1024
 PAYLOAD_BODY_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789 "
 
 
