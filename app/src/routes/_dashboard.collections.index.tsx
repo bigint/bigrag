@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Page } from "@/components/ui/page";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CreateCollectionModal } from "@/features/collections/create-collection-modal";
-import { useCollections, useCollectionsStatus } from "@/hooks/use-collections";
-import { formatBytes, formatNumber, formatRelative } from "@/lib/format";
+import { useCollections } from "@/hooks/use-collections";
+import { formatNumber, formatRelative } from "@/lib/format";
 import type { Collection } from "@/types/bigrag";
 
 type CollectionsSearch = {
@@ -28,7 +28,6 @@ const CollectionsPage = () => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const { data, error, isPending, refetch } = useCollections();
-  const { data: status } = useCollectionsStatus();
   const modalOpen = open || Boolean(create);
   const closeModal = () => {
     setOpen(false);
@@ -138,18 +137,6 @@ const CollectionsPage = () => {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <CollectionStat label="Collections" value={formatNumber(status?.collections_total ?? 0)} />
-        <CollectionStat label="Documents" value={formatNumber(status?.documents_total ?? 0)} />
-        <CollectionStat
-          label="Processing"
-          value={formatNumber(
-            (status?.documents_pending ?? 0) + (status?.documents_processing ?? 0),
-          )}
-        />
-        <CollectionStat label="Storage" value={formatBytes(status?.total_size_bytes ?? 0)} />
-      </section>
-
       <DataTable
         columns={columns}
         data={items}
@@ -183,10 +170,3 @@ const CollectionsPage = () => {
     </Page.Shell>
   );
 };
-
-const CollectionStat = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-border bg-background p-4">
-    <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-    <div className="mt-3 text-2xl font-semibold tabular-nums">{value}</div>
-  </div>
-);

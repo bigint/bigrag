@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
-from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection, Document, QueryLog
-from bigrag.services.health import cache_get, cache_set
 
 _EMBED_RATES_USD_PER_M: dict[str, float] = {
     "text-embedding-3-small": 0.02,
@@ -17,8 +15,6 @@ _EMBED_RATES_USD_PER_M: dict[str, float] = {
     "embed-english-light-v3.0": 0.02,
     "embed-multilingual-light-v3.0": 0.02,
 }
-
-_USAGE_TTL = 5
 
 
 class UsageResponse(BaseModel):
@@ -40,11 +36,6 @@ async def usage_payload(
     *,
     window_days: int,
 ) -> UsageResponse:
-    cache_key = f"usage:{window_days}"
-    cached = await cache_get(cache_key)
-    if cached:
-        return UsageResponse.model_validate(cached)
-
     per_collection = (
         await session.execute(
             sa.select(
@@ -137,7 +128,7 @@ async def usage_payload(
         else 0.0
     )
 
-    response = UsageResponse(
+    return UsageResponse(
         window_days=window_days,
         queries_total=queries_total,
         queries_per_day_avg=round(queries_total / max(1, window_days), 2),
@@ -150,5 +141,3 @@ async def usage_payload(
         timeline=timeline,
         by_collection=by_collection,
     )
-    await cache_set(cache_key, jsonable_encoder(response), ttl=_USAGE_TTL)
-    return response

@@ -6,7 +6,7 @@ description: Lightweight status endpoints for admin UI polling.
 import { Callout } from "fumadocs-ui/components/callout";
 import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 
-Status endpoints return page-specific aggregate numbers for dashboards and operators. They are designed for short-interval polling. Collection aggregate status is uncached; dependency-heavy overview, usage, and access status loaders may use cache windows capped at the admin UI polling interval.
+Status endpoints return page-specific aggregate numbers for dashboards and operators. They are designed for short-interval polling and do not cache stat totals. Readiness and provider health checks may still cache dependency probes because they are not document or traffic stats.
 
 <Callout type="warn">
 Collection-pinned API keys cannot use the cross-collection status endpoints. Use collection-specific document, stats, query, and upload-session endpoints for pinned integrations.

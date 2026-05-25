@@ -80,11 +80,10 @@ The admin UI does not open sockets. Page header numbers use lightweight REST sta
 | Surface | Endpoint | Interval |
 |---------|----------|----------|
 | Overview | `GET /v1/status/overview` | 5 seconds |
-| Collections header | `GET /v1/status/collections` | 5 seconds |
 | Usage | `GET /v1/status/usage?window_days=...` | 5 seconds |
 | Access log header cards | `GET /v1/admin/status/access?window_days=...` | 5 seconds |
 
-Dependency-heavy overview, usage, and access loaders may use short-lived backend caches capped at the polling interval. Collection aggregate status is uncached so reloads and manual refreshes reflect the latest document totals.
+Platform, collection, usage, and access-log stat endpoints are uncached so reloads and manual refreshes reflect the latest totals. Readiness and provider health checks may still cache dependency probes because they are not document or traffic stats.
 
 The collection documents page keeps pagination on REST fetches for initial load, filter changes, loading more rows, and the toolbar refresh button. It does not auto-refresh the document list. Document detail pages may poll the single-document endpoint every 5 seconds while a document is still `pending` or `processing`, then stop once the document is `ready` or `failed`.
 

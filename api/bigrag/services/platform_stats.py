@@ -8,24 +8,13 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bigrag.db.models import Collection, Document, Webhook
-from bigrag.services.health import cache_get, cache_set
 from bigrag.services.jobs.broker import INGESTION_QUEUE, worker_heartbeat_key
-
-PLATFORM_STATS_CACHE_KEY = "stats:platform"
-PLATFORM_STATS_TTL = 5
 
 
 async def platform_stats_payload(
     queue: Any,
     session: AsyncSession,
-    *,
-    use_cache: bool = True,
 ) -> dict[str, object]:
-    if use_cache:
-        cached = await cache_get(PLATFORM_STATS_CACHE_KEY)
-        if cached:
-            return cached
-
     async def db_stats():
         cols = await session.scalar(sa.select(sa.func.count()).select_from(Collection))
         doc_row = (
@@ -108,8 +97,6 @@ async def platform_stats_payload(
         "queue_health": queue_health,
         "workers": worker_data,
     }
-    if use_cache:
-        await cache_set(PLATFORM_STATS_CACHE_KEY, result, ttl=PLATFORM_STATS_TTL)
     return result
 
 
