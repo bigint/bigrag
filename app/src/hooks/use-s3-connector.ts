@@ -1,7 +1,6 @@
-import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -13,6 +12,8 @@ import type {
   S3SyncJobList,
   UpdateS3SourceBody,
 } from "@/types/bigrag";
+
+const connectorPollMs = 2_000;
 
 const updateS3SourcesCache = (
   queryClient: QueryClient,
@@ -35,15 +36,13 @@ const invalidateS3SyncJobs = (queryClient: QueryClient) => {
 
 export const useS3Sources = (collection?: string) => {
   const queryKey = useMemo(() => queryKeys.connectors.s3Sources({ collection }), [collection]);
-  const params = useMemo(() => ({ provider: "s3", collection }), [collection]);
-  return useRealtimeSnapshotQuery<S3SourceList>({
+  return useQuery({
     queryKey,
     queryFn: () =>
       apiClient.get<S3SourceList>("v1/connectors/s3/sources", {
         ...(collection ? { collection } : {}),
       }),
-    topic: "admin.connectors.sources",
-    params,
+    refetchInterval: connectorPollMs,
   });
 };
 
@@ -60,11 +59,7 @@ export const useS3SyncJobs = ({
     () => queryKeys.connectors.s3SyncJobs({ collection, limit, sourceId }),
     [collection, limit, sourceId],
   );
-  const params = useMemo(
-    () => ({ provider: "s3", collection, limit, source_id: sourceId }),
-    [collection, limit, sourceId],
-  );
-  return useRealtimeSnapshotQuery<S3SyncJobList>({
+  return useQuery({
     queryKey,
     queryFn: () =>
       apiClient.get<S3SyncJobList>("v1/connectors/s3/sync-jobs", {
@@ -72,8 +67,7 @@ export const useS3SyncJobs = ({
         ...(collection ? { collection } : {}),
         ...(sourceId ? { source_id: sourceId } : {}),
       }),
-    topic: "admin.connectors.sync_jobs",
-    params,
+    refetchInterval: connectorPollMs,
   });
 };
 

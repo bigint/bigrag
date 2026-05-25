@@ -1,23 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 import math
 import time
 
 from bigrag.logging import get_logger
 from bigrag.services import embedding_cache
 from bigrag.services.embedding import truncate_to_tokens
-from bigrag.services.embedding_rate_limit import (
-    is_rate_limit_error,
-    rate_limit_cooldown_key,
-    rate_limit_delay,
-    record_rate_limit_cooldown,
-    wait_for_rate_limit_cooldown,
-)
 
 logger = get_logger("bigrag.queue")
 
-EMBEDDING_TIMEOUT_SECONDS = 60
 PERMANENT_ERRORS = (ValueError, UnicodeDecodeError, KeyError)
 
 
@@ -55,8 +46,6 @@ async def embed_with_cache(
         provider_idx = list(missing_by_cache_text.values())
         missing_texts = [texts[i] for i in provider_idx]
         missing_cache_texts = [cache_texts[i] for i in provider_idx]
-        cooldown_key = rate_limit_cooldown_key(model, provider, model_name, dimension)
-        await wait_for_rate_limit_cooldown(cooldown_key, provider, model_name)
         t0 = time.monotonic()
         logger.debug(
             "embedding provider request",
@@ -64,15 +53,7 @@ async def embed_with_cache(
             model=model_name,
             inputs=len(missing_texts),
         )
-        try:
-            fresh = await asyncio.wait_for(
-                model.embed(missing_texts, input_type=input_type),
-                timeout=EMBEDDING_TIMEOUT_SECONDS,
-            )
-        except Exception as exc:
-            if is_rate_limit_error(exc):
-                await record_rate_limit_cooldown(cooldown_key, rate_limit_delay(exc, 1.0))
-            raise
+        fresh = await model.embed(missing_texts, input_type=input_type)
         logger.debug(
             "embedding provider response",
             provider=provider,

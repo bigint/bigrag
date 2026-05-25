@@ -11,6 +11,8 @@ GET /v1/usage
 
 Accepts a session cookie or an API key with `audit:read`. Returns the per-collection resource footprint over a trailing window — useful for quota enforcement, billing, and capacity planning.
 
+`GET /v1/status/usage` returns the same response shape for admin UI polling. Collection-pinned API keys cannot use the status variant because it aggregates across collections.
+
 ## Query parameters
 
 | Parameter | Type | Default | Notes |

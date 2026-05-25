@@ -93,7 +93,7 @@ export const DocumentDetail = () => {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: doc, dataUpdatedAt, isPending, streaming } = useDocument(name, docId);
+  const { data: doc, dataUpdatedAt, isFetching, isPending } = useDocument(name, docId);
   const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
   const remove = useDeleteDocument(name);
 
@@ -150,7 +150,7 @@ export const DocumentDetail = () => {
               </div>
               <p className="text-sm text-muted-foreground">{progress.message}</p>
             </div>
-            {streaming ? (
+            {isFetching && doc.status !== "ready" && doc.status !== "failed" ? (
               <Spinner size="sm" className="mt-1 shrink-0" />
             ) : (
               <span className="shrink-0 text-sm font-medium tabular-nums">{progressPct}%</span>

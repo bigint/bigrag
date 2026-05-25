@@ -12,7 +12,7 @@ export const defaultSystemPrompt =
 
 export const defaultChatState: ChatState = {
   hasOpenAIKey: false,
-  model: "gpt-4o-mini",
+  model: "gpt-4.1",
   topK: 5,
   temperature: 0.2,
   searchMode: "semantic",

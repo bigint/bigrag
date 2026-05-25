@@ -13,7 +13,7 @@ import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
 npm install @bigrag/client
 ```
 
-Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes. Browser realtime uses native `WebSocket`; Node realtime uses the SDK's `ws` dependency.
+Works in Node.js 18+, browsers, Deno, Bun, and edge runtimes.
 Published npm releases use CalVer (`YYYY.M.D`), for example `@bigrag/client@2026.5.23`.
 
 Browser applications that only need SDK error classes and shared response types can import the browser-safe subpath:
@@ -106,10 +106,6 @@ client.collections.update(name, {
 client.collections.delete(name)
 client.collections.truncate(name)        // delete all documents, keep the collection
 client.collections.analytics(name)
-client.collections.createRealtimeToken(name)
-client.collections.streamEvents(name, { token? })    // AsyncIterable of collection realtime events
-client.realtime.connect()
-client.realtime.subscribe(topic, params?)
 ```
 
 <Callout type="info">
@@ -293,22 +289,6 @@ client.admin.mcpServers.rotate(serverId)
 client.admin.mcpServers.delete(serverId)
 ```
 
-<Accordions type="multiple">
-
-<Accordion title="Admin realtime WebSocket helpers">
-
-```typescript
-for await (const event of client.admin.realtime.platformReadiness()) {
-  if (event.type === "snapshot") {
-    console.log(event.payload)
-  }
-}
-```
-
-</Accordion>
-
-</Accordions>
-
 <Callout type="info">
   Admin endpoints (`/v1/admin/*` and most of `/v1/auth/*`) are session-only. API keys remain the right fit for read/query/ingest workloads.
 </Callout>
@@ -370,6 +350,10 @@ client.readiness()                       // GET /health/ready
 client.getStats()                        // GET /v1/stats
 client.listEmbeddingModels()             // GET /v1/embeddings/models
 client.getUsage({ windowDays? })          // GET /v1/usage
+client.getOverviewStatus()               // GET /v1/status/overview
+client.getCollectionsStatus()            // GET /v1/status/collections
+client.getUsageStatus({ windowDays? })    // GET /v1/status/usage
+client.getAccessStatus({ windowDays? })   // GET /v1/admin/status/access
 client.collections.analytics(collection) // GET /v1/collections/{name}/analytics
 ```
 

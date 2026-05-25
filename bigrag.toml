@@ -52,7 +52,7 @@
 # allow_private_embedding_base_urls = false
 
 # chat_provider = "openai"         # openai | openai_compatible
-# chat_model = "gpt-4o-mini"
+# chat_model = "gpt-4.1"
 # chat_base_url = ""               # required for openai_compatible endpoints
 # chat_temperature = 0.2
 # chat_max_context_chars = 120000

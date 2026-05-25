@@ -74,11 +74,7 @@ export const S3ConnectorPanel = ({ collection }: { collection: string }) => {
           workerOffline={workerOffline}
         />
         <aside className="flex min-w-0 flex-col gap-4">
-          <SyncMonitor
-            isPending={syncJobs.isPending}
-            job={activeJob}
-            streaming={syncJobs.streaming}
-          />
+          <SyncMonitor isPending={syncJobs.isPending} job={activeJob} />
         </aside>
       </div>
       {addSourceOpen && (

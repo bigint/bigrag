@@ -9,7 +9,10 @@ SEARCH_SPECS: tuple[SettingSpec, ...] = (
         label="Embedding concurrency",
         kind="int",
         default=8,
-        description="Maximum concurrent embedding requests per provider endpoint.",
+        description=(
+            "Global ceiling on concurrent embedding requests per endpoint across all "
+            "workers; the limiter backs off below this on rate limits and recovers toward it."
+        ),
         min=1,
         max=1024,
     ),

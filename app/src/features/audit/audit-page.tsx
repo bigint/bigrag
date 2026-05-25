@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Page } from "@/components/ui/page";
 import { Spinner } from "@/components/ui/spinner";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -50,11 +50,9 @@ export const AuditPage = () => {
     }),
     [action, offset, resourceType],
   );
-  const { data, isPending, error, realtimeUnavailable } = useRealtimeSnapshotQuery<AuditList>({
+  const { data, isPending, error } = useQuery<AuditList>({
     queryKey,
     queryFn: () => apiClient.get<AuditList>("v1/admin/audit", params),
-    topic: "admin.audit",
-    params,
   });
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -186,7 +184,6 @@ export const AuditPage = () => {
                 <div>
                   Showing {formatNumber(firstEntry)}-{formatNumber(lastEntry)} of{" "}
                   {formatNumber(total)} entries
-                  {realtimeUnavailable ? " · realtime unavailable, polling" : ""}
                 </div>
                 <div className="flex items-center gap-3">
                   <span>

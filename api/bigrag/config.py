@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     allow_local_webhooks: bool = False
 
     chat_provider: str = "openai"
-    chat_model: str = "gpt-4o-mini"
+    chat_model: str = "gpt-4.1"
     chat_base_url: str | None = None
     chat_temperature: float = 0.2
     chat_max_context_chars: int = 120_000

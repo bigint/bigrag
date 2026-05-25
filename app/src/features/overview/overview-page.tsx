@@ -17,18 +17,19 @@ import { getWorkerAvailability } from "@/features/workers/worker-status";
 import { useAccessOverview } from "@/hooks/use-access-logs";
 import { useSession } from "@/hooks/use-auth";
 import { useCollections } from "@/hooks/use-collections";
-import { usePlatformStats, useReadiness } from "@/hooks/use-platform";
+import { useOverviewStatus } from "@/hooks/use-platform";
 import { cn } from "@/lib/cn";
 import { formatNumber, formatRelative } from "@/lib/format";
 
 export const OverviewPage = () => {
   const { data: session } = useSession();
-  const { data: stats, isPending: statsPending } = usePlatformStats();
-  const { data: readiness } = useReadiness();
+  const { data: overviewStatus, isPending: statsPending } = useOverviewStatus();
   const { data: collectionsData } = useCollections();
   const canSeeAccess = session?.user.role === "admin";
   const { data: accessOverview, isPending: accessPending } = useAccessOverview(canSeeAccess);
 
+  const stats = overviewStatus?.platform;
+  const readiness = overviewStatus?.readiness;
   const collections = collectionsData?.collections ?? [];
   const firstName = session?.user.display_name?.split(" ")[0] || session?.user.email || "there";
   const docs = stats?.documents;
@@ -68,7 +69,8 @@ export const OverviewPage = () => {
               Good to see you, {firstName}
             </h1>
             <p className="mt-2 max-w-4xl text-pretty text-sm leading-6 text-muted-foreground">
-              Live readout of retrieval coverage, ingestion health, and the systems behind bigRAG.
+              Current readout of retrieval coverage, ingestion health, and the systems behind
+              bigRAG.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

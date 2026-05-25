@@ -1,7 +1,6 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { errorToast } from "@/lib/mutation-toast";
 import { queryKeys } from "@/lib/query-keys";
@@ -9,6 +8,8 @@ import type { Collection, CollectionStats, CreateCollectionBody } from "@/types/
 import type { Paginated } from "@/types/pagination";
 
 type ListResponse = Paginated<"collections", Collection>;
+
+const statusPollMs = 5_000;
 
 const invalidateCollectionData = (queryClient: QueryClient, name: string) => {
   queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
@@ -34,13 +35,12 @@ export const useCollection = (name: string) =>
 
 export const useCollectionStats = (name: string) => {
   const queryKey = useMemo(() => queryKeys.collections.stats({ name }), [name]);
-  return useRealtimeSnapshotQuery<CollectionStats>({
+  return useQuery({
     queryKey,
     queryFn: () =>
       apiClient.get<CollectionStats>(`v1/collections/${encodeURIComponent(name)}/stats`),
     enabled: !!name,
-    topic: "admin.collections.stats",
-    params: { collection: name },
+    refetchInterval: statusPollMs,
   });
 };
 

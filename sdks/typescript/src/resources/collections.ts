@@ -1,14 +1,11 @@
 import type { RequestClient } from "../core.js";
-import { BigRAGRealtimeConnection } from "../realtime.js";
 import type {
   AnalyticsResponse,
   Collection,
   CollectionListOptions,
   CollectionListResponse,
-  CollectionRealtimeTokenResponse,
   CollectionStatsResponse,
   CreateCollectionBody,
-  ProgressEvent,
   StatusResponse,
   UpdateCollectionBody,
 } from "../types/index.js";
@@ -67,31 +64,5 @@ export class CollectionsResource {
 
   analytics(name: string): Promise<AnalyticsResponse> {
     return this._client._request("GET", `/v1/collections/${encodeURIComponent(name)}/analytics`);
-  }
-
-  createRealtimeToken(name: string): Promise<CollectionRealtimeTokenResponse> {
-    return this._client._request(
-      "POST",
-      `/v1/collections/${encodeURIComponent(name)}/realtime-token`,
-    );
-  }
-
-  async *streamEvents(
-    name: string,
-    options: { token?: string } = {},
-  ): AsyncGenerator<ProgressEvent> {
-    const connection = new BigRAGRealtimeConnection(this._client);
-    try {
-      for await (const message of connection.subscribe<ProgressEvent>("collection.events", {
-        collection: name,
-        token: options.token,
-      })) {
-        if (message.type === "event") yield message.payload;
-        if (message.type === "error") throw new Error(message.message);
-        if (message.type === "complete") return;
-      }
-    } finally {
-      await connection.close();
-    }
   }
 }

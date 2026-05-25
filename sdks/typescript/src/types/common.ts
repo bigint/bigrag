@@ -55,3 +55,20 @@ export interface PlatformStatsResponse {
   queue: QueueStatsResponse;
   workers?: WorkerStatsResponse;
 }
+
+export interface OverviewStatusResponse {
+  platform: PlatformStatsResponse;
+  readiness: ReadinessResponse;
+}
+
+export interface CollectionsStatusResponse {
+  collections_total: number;
+  documents_total: number;
+  documents_ready: number;
+  documents_pending: number;
+  documents_processing: number;
+  documents_failed: number;
+  total_chunks: number;
+  total_tokens: number;
+  total_size_bytes: number;
+}

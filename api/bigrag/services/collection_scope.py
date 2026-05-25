@@ -13,6 +13,9 @@ _FORBIDDEN_FOR_SCOPED: tuple[tuple[str, str], ...] = (
     ("GET", "/v1/collections"),
     ("GET", "/v1/usage"),
     ("GET", "/v1/stats"),
+    ("GET", "/v1/status/overview"),
+    ("GET", "/v1/status/collections"),
+    ("GET", "/v1/status/usage"),
     ("GET", "/v1/embeddings/models"),
 )
 

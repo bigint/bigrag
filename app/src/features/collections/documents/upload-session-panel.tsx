@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Spinner } from "@/components/ui/spinner";
 import { FileType } from "@/features/collections/documents/file-type";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
@@ -45,7 +44,6 @@ interface UploadSessionPanelProps {
   readonly onCancel: () => void;
   readonly onDismiss: () => void;
   readonly session: UploadSession;
-  readonly streaming: boolean;
 }
 
 export const UploadSessionPanel = ({
@@ -53,7 +51,6 @@ export const UploadSessionPanel = ({
   onCancel,
   onDismiss,
   session,
-  streaming,
 }: UploadSessionPanelProps) => {
   const progressPct = sessionProgress(session);
   const remaining = Math.max(session.total_files - session.uploaded_files, 0);
@@ -142,7 +139,6 @@ export const UploadSessionPanel = ({
                 </span>
               </div>
             </div>
-            {!terminal && streaming && <Spinner size="sm" className="shrink-0" />}
           </div>
         )}
 

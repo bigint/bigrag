@@ -1,10 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { AccessLogFilters, AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
 
 export type { AccessLogFilters };
+
+const statusPollMs = 5_000;
 
 const compactFilters = (filters: AccessLogFilters & { include_total?: boolean }) =>
   Object.fromEntries(
@@ -13,13 +15,12 @@ const compactFilters = (filters: AccessLogFilters & { include_total?: boolean })
 
 export const useAccessOverview = (enabled: boolean, windowDays = 7) => {
   const queryKey = useMemo(() => queryKeys.access.overview({ windowDays }), [windowDays]);
-  return useRealtimeSnapshotQuery<AccessLogOverview>({
+  return useQuery({
     queryKey,
     queryFn: () =>
-      apiClient.get<AccessLogOverview>("v1/admin/access/overview", { window_days: windowDays }),
+      apiClient.get<AccessLogOverview>("v1/admin/status/access", { window_days: windowDays }),
     enabled,
-    topic: "admin.access.overview",
-    params: { window_days: windowDays },
+    refetchInterval: enabled ? statusPollMs : false,
   });
 };
 
@@ -52,11 +53,9 @@ export const useAccessLogs = (filters: AccessLogFilters, enabled = true) => {
     [action, actor_id, collection, limit, method, offset, pathFilter, status_family, success],
   );
   const queryKey = useMemo(() => queryKeys.access.logs(searchParams), [searchParams]);
-  return useRealtimeSnapshotQuery<AccessLogListResponse>({
+  return useQuery({
     queryKey,
     queryFn: () => apiClient.get<AccessLogListResponse>("v1/admin/access/logs", searchParams),
     enabled,
-    topic: "admin.access.logs",
-    params: searchParams,
   });
 };

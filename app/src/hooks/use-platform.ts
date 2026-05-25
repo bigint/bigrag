@@ -1,23 +1,36 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { apiUrl } from "@/config/runtime";
-import { useRealtimeSnapshotQuery } from "@/hooks/use-realtime-snapshot-query";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { PlatformStats, ReadinessReport } from "@/types/bigrag";
 
+const statusPollMs = 5_000;
+
+export type OverviewStatus = {
+  platform: PlatformStats;
+  readiness: ReadinessReport;
+};
+
+export const useOverviewStatus = () =>
+  useQuery({
+    queryKey: queryKeys.platform.overviewStatus(),
+    queryFn: () => apiClient.get<OverviewStatus>("v1/status/overview"),
+    refetchInterval: statusPollMs,
+  });
+
 export const usePlatformStats = () => {
   const queryKey = useMemo(() => queryKeys.platform.stats(), []);
-  return useRealtimeSnapshotQuery<PlatformStats>({
+  return useQuery({
     queryKey,
     queryFn: () => apiClient.get<PlatformStats>("v1/stats"),
-    topic: "admin.platform.stats",
+    refetchInterval: statusPollMs,
   });
 };
 
 export const useReadiness = () => {
   const queryKey = useMemo(() => queryKeys.platform.readiness(), []);
-  return useRealtimeSnapshotQuery<ReadinessReport>({
+  return useQuery({
     queryKey,
     queryFn: async (): Promise<ReadinessReport> => {
       const res = await fetch(apiUrl("health/ready"), {
@@ -29,7 +42,7 @@ export const useReadiness = () => {
       }
       return (await res.json()) as ReadinessReport;
     },
-    topic: "admin.platform.readiness",
+    refetchInterval: statusPollMs,
   });
 };
 

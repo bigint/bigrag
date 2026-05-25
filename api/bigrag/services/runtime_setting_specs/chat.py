@@ -17,7 +17,7 @@ CHAT_SPECS: tuple[SettingSpec, ...] = (
         group="chat",
         label="Default chat model",
         kind="string",
-        default="gpt-4o-mini",
+        default="gpt-4.1",
         description="Default model for chat answers.",
     ),
     SettingSpec(

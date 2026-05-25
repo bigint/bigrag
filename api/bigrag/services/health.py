@@ -14,7 +14,7 @@ from bigrag.services.runtime_settings import get_values
 logger = get_logger("bigrag.services.health")
 
 _EMBEDDING_HEALTH_TTL = 60
-READINESS_TTL = 10
+READINESS_TTL = 5
 READINESS_CACHE_KEY = "health:readiness"
 READINESS_CHECK_TIMEOUT = 5
 

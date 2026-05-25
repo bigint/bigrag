@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
 from typing import Any
 
 from bigrag._core import BigRAGCore
@@ -14,17 +13,16 @@ from bigrag.resources import (
     DocumentsResource,
     EvaluationsResource,
     QueryResource,
-    RealtimeResource,
     VectorsResource,
     WebhooksResource,
 )
+from bigrag.types.access import AccessLogOverviewResponse
 from bigrag.types.analytics import AnalyticsResponse
-from bigrag.types.collections import (
-    CollectionRealtimeTokenResponse,
-    CollectionStatsResponse,
-)
+from bigrag.types.collections import CollectionStatsResponse
 from bigrag.types.common import (
+    CollectionsStatusResponse,
     HealthResponse,
+    OverviewStatusResponse,
     PlatformStatsResponse,
     ReadinessResponse,
     StatusResponse,
@@ -45,7 +43,6 @@ from bigrag.types.query import (
     QueryBody,
     QueryResponse,
 )
-from bigrag.types.realtime import ProgressEvent
 from bigrag.types.usage import UsageResponse
 
 
@@ -60,7 +57,6 @@ class BigRAG(BigRAGCore):
     auth: AuthResource
     admin: AdminResource
     evaluations: EvaluationsResource
-    realtime: RealtimeResource
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -74,7 +70,6 @@ class BigRAG(BigRAGCore):
         self.auth = AuthResource(self)
         self.admin = AdminResource(self)
         self.evaluations = EvaluationsResource(self)
-        self.realtime = RealtimeResource(self)
 
     async def health(self) -> HealthResponse:
         return await self._request("GET", "/health")
@@ -93,6 +88,26 @@ class BigRAG(BigRAGCore):
         if window_days is not None:
             params["window_days"] = str(window_days)
         return await self._request("GET", "/v1/usage", params=params)
+
+    async def get_overview_status(self) -> OverviewStatusResponse:
+        return await self._request("GET", "/v1/status/overview")
+
+    async def get_collections_status(self) -> CollectionsStatusResponse:
+        return await self._request("GET", "/v1/status/collections")
+
+    async def get_usage_status(self, *, window_days: int | None = None) -> UsageResponse:
+        params: dict[str, str] = {}
+        if window_days is not None:
+            params["window_days"] = str(window_days)
+        return await self._request("GET", "/v1/status/usage", params=params)
+
+    async def get_access_status(
+        self, *, window_days: int | None = None
+    ) -> AccessLogOverviewResponse:
+        params: dict[str, str] = {}
+        if window_days is not None:
+            params["window_days"] = str(window_days)
+        return await self._request("GET", "/v1/admin/status/access", params=params)
 
     def collection(self, name: str) -> CollectionClient:
         return CollectionClient(self, name)
@@ -206,10 +221,3 @@ class CollectionClient:
 
     async def analytics(self) -> AnalyticsResponse:
         return await self._client.collections.analytics(self._name)
-
-    async def stream_events(self) -> AsyncGenerator[ProgressEvent, None]:
-        async for event in self._client.collections.stream_events(self._name):
-            yield event
-
-    async def create_realtime_token(self) -> CollectionRealtimeTokenResponse:
-        return await self._client.collections.create_realtime_token(self._name)

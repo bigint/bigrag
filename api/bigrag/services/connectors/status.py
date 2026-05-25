@@ -5,7 +5,6 @@ from typing import Any
 from bigrag.db.models import ConnectorSource, ConnectorSyncJob
 from bigrag.services.connectors.manifest import apply_counters
 from bigrag.services.connectors.progress import sync_counter_details, update_sync_progress
-from bigrag.services.connectors.realtime import notify_connector_sources
 from bigrag.services.connectors.time import next_sync_at, utcnow
 from bigrag.services.connectors.types import ConnectorSyncCounters
 from bigrag.services.webhook import enqueue_webhook_event
@@ -37,7 +36,6 @@ async def fail_sync(
         phase="failed",
         message=message,
     )
-    notify_connector_sources(job.provider, source.collection_name)
     data = {
         "provider": job.provider,
         "source_id": str(source.id),

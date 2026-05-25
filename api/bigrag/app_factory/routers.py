@@ -27,7 +27,7 @@ def include_all_routers(app: FastAPI) -> None:
     from bigrag.routers.mcp_servers import router as mcp_servers_router
     from bigrag.routers.preferences import router as preferences_router
     from bigrag.routers.query import router as query_router
-    from bigrag.routers.realtime import router as realtime_router
+    from bigrag.routers.status import router as status_router
     from bigrag.routers.upload_sessions import router as upload_sessions_router
     from bigrag.routers.usage import router as usage_router
     from bigrag.routers.vectors import router as vectors_router
@@ -43,7 +43,7 @@ def include_all_routers(app: FastAPI) -> None:
     app.include_router(admin_vector_storage_router)
     app.include_router(mcp_servers_router)
     app.include_router(admin_audit_router)
-    app.include_router(realtime_router)
+    app.include_router(status_router)
     app.include_router(embedding_presets_router)
     app.include_router(collections_router)
     app.include_router(connectors_router)

@@ -5,7 +5,7 @@
     "users",
     "api-keys",
     "audit",
-    "realtime",
+    "status",
     "instance-settings",
     "collections",
     "documents",

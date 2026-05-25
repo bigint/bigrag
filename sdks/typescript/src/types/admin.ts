@@ -1,5 +1,4 @@
 import type { User } from "./auth.js";
-import type { RealtimeMessage } from "./realtime.js";
 
 export type InstanceSettingKind =
   | "bool"
@@ -65,8 +64,6 @@ export interface InstanceSettingsTestResponse {
   checked: string[];
   message: string;
 }
-
-export type AdminRealtimeEvent<T = unknown> = RealtimeMessage<T>;
 
 export interface VectorStorageHealth {
   status: "ok" | "error";

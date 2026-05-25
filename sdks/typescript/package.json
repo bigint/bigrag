@@ -21,9 +21,6 @@
   "engines": {
     "node": ">=18"
   },
-  "dependencies": {
-    "ws": "^8.18.3"
-  },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "pnpm run clean && tsc",

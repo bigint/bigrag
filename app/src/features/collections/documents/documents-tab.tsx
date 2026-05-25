@@ -62,6 +62,7 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
     fetchNextPage,
     hasNextPage,
     isError,
+    isFetching,
     isFetchingNextPage,
     isPending,
     refetch,
@@ -154,7 +155,6 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
           onCancel={() => cancelSession.mutate(activeSessionId)}
           onDismiss={() => clearActiveSessionId(name)}
           session={uploadSession.data}
-          streaming={uploadSession.streaming}
         />
       )}
 
@@ -184,6 +184,10 @@ export const DocumentsTab = ({ filters, name, onFiltersChange }: DocumentsTabPro
         selectedCount={selected.size}
         onClearSelection={clearSelection}
         onBulkDelete={() => setBulkDeleteOpen(true)}
+        onRefresh={() => {
+          void refetch();
+        }}
+        refreshPending={isFetching && !isFetchingNextPage}
       />
 
       {isPending ? (

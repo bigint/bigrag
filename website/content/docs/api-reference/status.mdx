@@ -1,0 +1,115 @@
+---
+title: Status
+description: Lightweight status endpoints for admin UI polling.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Accordions, Accordion } from "fumadocs-ui/components/accordion";
+
+Status endpoints return page-specific aggregate numbers for dashboards and operators. They are designed for short-interval polling and do not cache stat totals. Readiness and provider health checks may still cache dependency probes because they are not document or traffic stats.
+
+<Callout type="warn">
+Collection-pinned API keys cannot use the cross-collection status endpoints. Use collection-specific document, stats, query, and upload-session endpoints for pinned integrations.
+</Callout>
+
+<Accordions type="multiple">
+
+<Accordion title="GET /v1/status/overview — Overview status">
+
+Authenticated overview numbers for platform stats and readiness.
+
+```http
+GET /v1/status/overview
+```
+
+**Response** `200`:
+
+```json
+{
+  "platform": {
+    "collections": 4,
+    "documents": {
+      "total": 124,
+      "ready": 120,
+      "pending": 1,
+      "processing": 2,
+      "failed": 1,
+      "total_chunks": 9200,
+      "total_tokens": 1820432,
+      "total_size_bytes": 52428800
+    },
+    "webhooks": 2,
+    "queue": {},
+    "workers": {
+      "online": true,
+      "heartbeat_at": "2026-05-25T06:00:00Z",
+      "heartbeat_age_seconds": 4
+    }
+  },
+  "readiness": {
+    "status": "ok",
+    "version": "2026.5.23",
+    "postgres": true,
+    "vector_store": true,
+    "redis": true
+  }
+}
+```
+
+Requires a session or an API key with `collection:read`. Collection-pinned API keys are blocked.
+
+</Accordion>
+
+<Accordion title="GET /v1/status/collections — Collections aggregate status">
+
+Authenticated collection and document aggregate numbers.
+
+```http
+GET /v1/status/collections
+```
+
+**Response** `200`:
+
+```json
+{
+  "collections_total": 4,
+  "documents_total": 124,
+  "documents_ready": 120,
+  "documents_pending": 1,
+  "documents_processing": 2,
+  "documents_failed": 1,
+  "total_chunks": 9200,
+  "total_tokens": 1820432,
+  "total_size_bytes": 52428800
+}
+```
+
+Requires a session or an API key with `collection:read`. Collection-pinned API keys are blocked.
+
+</Accordion>
+
+<Accordion title="GET /v1/status/usage — Usage status">
+
+Authenticated usage report for the usage page.
+
+```http
+GET /v1/status/usage?window_days=30
+```
+
+Uses the same response shape as [`GET /v1/usage`](/docs/api-reference/usage). Requires a session or an API key with `audit:read`. Collection-pinned API keys are blocked.
+
+</Accordion>
+
+<Accordion title="GET /v1/admin/status/access — Access-log header status">
+
+Admin-only access-log numbers for the access-log page header cards.
+
+```http
+GET /v1/admin/status/access?window_days=7
+```
+
+Uses the same response shape as `GET /v1/admin/access/overview`. Requires an admin session.
+
+</Accordion>
+
+</Accordions>

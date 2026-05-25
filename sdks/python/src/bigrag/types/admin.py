@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Literal, NotRequired, TypedDict
 
 from bigrag.types.auth import User
-from bigrag.types.realtime import RealtimeMessage
 
 InstanceSettingKind = Literal[
     "bool",
@@ -71,9 +70,6 @@ class InstanceSettingsTestResponse(TypedDict):
     status: Literal["ok"]
     checked: list[str]
     message: str
-
-
-AdminRealtimeEvent = RealtimeMessage
 
 
 class VectorStorageHealth(TypedDict):
