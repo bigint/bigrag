@@ -143,8 +143,27 @@ def _as_float(raw) -> float:
     return float(raw)
 
 
-def reset_embedding_limiters() -> None:
+async def _delete_keys_by_prefix(redis, prefix: str) -> None:
+    batch: list[bytes | str] = []
+    async for key in redis.scan_iter(prefix + "*", count=500):
+        batch.append(key)
+        if len(batch) >= 500:
+            await redis.delete(*batch)
+            batch = []
+    if batch:
+        await redis.delete(*batch)
+
+
+async def reset_embedding_limiters() -> None:
     _local_limiters.clear()
+    redis = redis_cache.get_redis()
+    if redis is None:
+        return
+    try:
+        await _delete_keys_by_prefix(redis, LIMIT_PREFIX)
+        await _delete_keys_by_prefix(redis, LIMIT_DEC_PREFIX)
+    except Exception as exc:
+        logger.debug("embedding gate reset failed", error=repr(exc))
 
 
 async def _acquire(redis, digest: str) -> str:

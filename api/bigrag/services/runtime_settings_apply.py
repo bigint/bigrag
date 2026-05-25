@@ -75,7 +75,7 @@ async def apply_prepared_runtime_settings(app: Any, prepared: PreparedRuntimeSet
             app.state.vector_store = vector_store
             prepared.vector_backend = None
         if "embedding_concurrency" in keyset:
-            reset_embedding_limiters()
+            await reset_embedding_limiters()
     logger.info("runtime settings applied", keys=prepared.keys)
 
 

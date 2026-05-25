@@ -161,12 +161,14 @@ Redis query caches are also encrypted when `BIGRAG_MASTER_KEY` is configured. Th
 
 ## Concurrency & throughput
 
-Embedding requests are guarded by a semaphore (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8):
+Embedding requests are guarded by a Redis-backed adaptive limiter with `embedding_concurrency` as its ceiling (`BIGRAG_EMBEDDING_CONCURRENCY`, default 8):
 
 - Raise it for high-QPS providers.
 - Lower it if your embedding provider throttles requests.
 
 When a provider returns a rate limit with `Retry-After`, `retry-after-ms`, or a message such as `Please try again in 37ms`, ingestion records a short Redis cooldown for that provider/model, waits for the hint, and retries the same batch without consuming the generic transient retry budget. Repeated rate limits are capped per batch, so sustained TPM pressure should be handled by lowering concurrency or batch size.
+
+Changing `embedding_concurrency` in `/settings` resets the local and Redis limiter state so workers use the new ceiling immediately.
 
 Token counting uses `tiktoken` where the provider ships a tokenizer and falls back to a 4-character-per-token heuristic otherwise.
 
