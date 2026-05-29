@@ -102,6 +102,10 @@ async def _process_ingestion_job(payload: str) -> None:
     job = IngestionJob.deserialize(payload.encode())
     logger.debug("ingestion actor received job", job=job.job_id, doc=job.document_id)
     if await is_active():
+        await queue.ingestion_queue.defer_admitted_job(job)
+        enqueue_ingestion_job(job, delay_seconds=10)
+        return
+    if not await queue.ingestion_queue.restore_deferred_admission(job):
         enqueue_ingestion_job(job, delay_seconds=10)
         return
     await queue.ingestion_queue.process_leased_job(current_worker_label(), job)

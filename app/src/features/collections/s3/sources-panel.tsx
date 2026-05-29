@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
+import { QueryError } from "@/components/ui/query-error";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { SourceRow } from "@/features/collections/s3/source-row";
@@ -16,9 +17,12 @@ export const SourcesPanel = ({
   onAddSource,
   onChangeInterval,
   onDelete,
+  onRetrySources,
   onSync,
   onToggleSchedule,
   sources,
+  sourcesError,
+  sourcesIsError,
   sourcesPending,
   syncPending,
   updatePending,
@@ -31,9 +35,12 @@ export const SourcesPanel = ({
   onAddSource: () => void;
   onChangeInterval: (sourceId: string, hours: number) => void;
   onDelete: (sourceId: string) => Promise<void>;
+  onRetrySources: () => void;
   onSync: (sourceId: string) => void;
   onToggleSchedule: (sourceId: string, enabled: boolean) => void;
   sources: S3Source[];
+  sourcesError: unknown;
+  sourcesIsError: boolean;
   sourcesPending: boolean;
   syncPending: boolean;
   updatePending: boolean;
@@ -66,7 +73,14 @@ export const SourcesPanel = ({
             Scheduled syncs wait until bigrag-worker is online.
           </div>
         )}
-        {sources.length ? (
+        {sourcesIsError ? (
+          <QueryError
+            className="m-4"
+            error={sourcesError}
+            onRetry={onRetrySources}
+            title="S3 sources could not load"
+          />
+        ) : sources.length ? (
           <ul className="max-h-[680px] divide-y divide-border overflow-y-auto">
             {sources.map((source) => (
               <SourceRow

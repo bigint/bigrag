@@ -87,7 +87,7 @@ curl http://localhost:4000/v1/collections \
 |-------|-------|
 | `name` | Human-readable label |
 | `prefix` | First 12 chars; safe to display |
-| `scopes` | `["resource:action", …]` — omit / empty = full access |
+| `scopes` | `["resource:action", …]`; omit / empty stores `["*:*"]` for full access |
 | `expires_at` | RFC3339; `null` = never |
 | `active` | Disable without deleting |
 | `last_used_at` | Updated on each successful auth |
@@ -112,7 +112,7 @@ Scopes use `resource:action` with `*` as a wildcard.
 | `vector:write` | Direct raw vector upsert |
 | `vector:delete` | Direct raw vector delete |
 | `audit:read` | Read the API-key-capable usage rollups at `/v1/usage` and `/v1/status/usage` |
-| `*:*` | Full access (equivalent to no `scopes`) |
+| `*:*` | Full access |
 
 A key missing a required scope returns `403` with `{"detail": "API key missing required scope: <scope>"}`.
 

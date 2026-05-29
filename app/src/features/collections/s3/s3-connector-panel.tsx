@@ -63,18 +63,27 @@ export const S3ConnectorPanel = ({ collection }: { collection: string }) => {
           onDelete={async (sourceId) => {
             await deleteSource.mutateAsync(sourceId);
           }}
+          onRetrySources={() => sources.refetch()}
           onSync={(sourceId) => syncSource.mutate(sourceId)}
           onToggleSchedule={(sourceId, enabled) =>
             updateSource.mutate({ body: { schedule_enabled: enabled }, sourceId })
           }
           sources={sources.data?.sources ?? []}
+          sourcesError={sources.error}
+          sourcesIsError={sources.isError}
           sourcesPending={sources.isPending}
           syncPending={syncSource.isPending}
           updatePending={updateSource.isPending}
           workerOffline={workerOffline}
         />
         <aside className="flex min-w-0 flex-col gap-4">
-          <SyncMonitor isPending={syncJobs.isPending} job={activeJob} />
+          <SyncMonitor
+            error={syncJobs.error}
+            isError={syncJobs.isError}
+            isPending={syncJobs.isPending}
+            job={activeJob}
+            onRetry={() => syncJobs.refetch()}
+          />
         </aside>
       </div>
       {addSourceOpen && (

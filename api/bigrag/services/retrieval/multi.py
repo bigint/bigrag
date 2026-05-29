@@ -14,6 +14,7 @@ async def retrieve_multi(
     embedding_models: dict[str, EmbeddingModel],
     top_k: int = 10,
     filters: dict | None = None,
+    filters_by_collection: dict[str, dict | None] | None = None,
     min_score: float | None = None,
     search_mode: str = "semantic",
     reranking_configs: dict[str, dict] | None = None,
@@ -28,12 +29,17 @@ async def retrieve_multi(
     async def search_one(col_name: str) -> list[dict]:
         async with semaphore:
             col_reranking = (reranking_configs or {}).get(col_name)
+            col_filters = (
+                filters_by_collection.get(col_name, filters)
+                if filters_by_collection is not None
+                else filters
+            )
             outcome = await retrieve(
                 collection_name=col_name,
                 query=query,
                 embedding_model=embedding_models[col_name],
                 top_k=top_k,
-                filters=filters,
+                filters=col_filters,
                 min_score=min_score,
                 search_mode=search_mode,
                 reranking_config=col_reranking,

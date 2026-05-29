@@ -92,6 +92,21 @@ class IngestionQueue:
     async def release_job(self) -> None:
         await queue_state.release_inflight(self._redis)
 
+    async def defer_admitted_job(self, job: IngestionJob) -> None:
+        if not job.admission_released:
+            await self.release_job()
+            job.admission_released = True
+
+    async def restore_deferred_admission(self, job: IngestionJob) -> bool:
+        if not job.admission_released:
+            return True
+        try:
+            await self._admit_job()
+        except QueueFullError:
+            return False
+        job.admission_released = False
+        return True
+
     async def enqueue(self, job: IngestionJob) -> None:
         from bigrag.services.jobs.actors import enqueue_ingestion_job
         from bigrag.services.maintenance import MaintenanceActiveError, ensure_writes_allowed
@@ -149,6 +164,11 @@ class IngestionQueue:
         )
 
         stats = await queue_state.queue_stats(self._redis)
+        if stats.get("stale_processing"):
+            recovered = await self._recover_stuck_jobs()
+            if recovered:
+                stats = await queue_state.queue_stats(self._redis)
+                stats["recovered_stale_processing"] = recovered
         stats["pending"] = 0
         stats["retrying"] = 0
         try:

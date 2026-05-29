@@ -1,3 +1,4 @@
+import { match } from "ts-pattern";
 import type { InstanceSettingSpec, InstanceSettingValue } from "@/types/bigrag";
 
 export type DraftValue = boolean | string;
@@ -98,7 +99,26 @@ export const valuesForSubmit = (
     const value = draft[spec.key];
     if (spec.kind === "secret" && !value) continue;
     if (spec.kind !== "secret" && value === draftValue(spec, settingValues[spec.key])) continue;
-    values[spec.key] = value;
+    values[spec.key] = valueForSubmit(spec, value);
   }
   return values;
 };
+
+const valueForSubmit = (spec: InstanceSettingSpec, value: DraftValue): unknown =>
+  match(spec.kind)
+    .with("int", () => (value === "" ? null : Number.parseInt(String(value), 10)))
+    .with("float", () => (value === "" ? null : Number.parseFloat(String(value))))
+    .with("int_list", () =>
+      String(value)
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => Number.parseInt(item, 10)),
+    )
+    .with("string_list", () =>
+      String(value)
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    )
+    .otherwise(() => value);

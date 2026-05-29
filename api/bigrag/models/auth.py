@@ -138,9 +138,9 @@ class CreateApiKeyRequest(BaseModel):
     scopes: list[str] | None = Field(
         default=None,
         description=(
-            "List of 'resource:action' strings. Omit for a "
-            "full-access key. Examples: ['collection:read', "
-            "'document:upload'] — or ['*:*'] for unrestricted."
+            "List of 'resource:action' strings. Omit or pass [] to "
+            "store ['*:*'] for a full-access key. Examples: "
+            "['collection:read', 'document:upload']."
         ),
     )
     collection: str | None = Field(

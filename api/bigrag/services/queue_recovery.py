@@ -18,23 +18,28 @@ async def recover_stuck_jobs(redis) -> int:
 
     jobs = await queue_state.recover_stuck_jobs(redis)
     if jobs:
-        await mark_recovered_jobs_pending(jobs)
-        for job in jobs:
+        recovered_jobs = await mark_recovered_jobs_pending(jobs)
+        for job in recovered_jobs:
             enqueue_ingestion_job(job)
-        await redis.hincrby(queue_state.STATS_KEY, "queued", len(jobs))
-        logger.info("queue requeued stuck jobs", recovered=len(jobs))
-    return len(jobs)
+        await redis.hincrby(queue_state.STATS_KEY, "queued", len(recovered_jobs))
+        logger.info("queue requeued stuck jobs", recovered=len(recovered_jobs))
+        return len(recovered_jobs)
+    return 0
 
 
-async def mark_recovered_jobs_pending(jobs: list[IngestionJob]) -> None:
+async def mark_recovered_jobs_pending(jobs: list[IngestionJob]) -> list[IngestionJob]:
     ids = [uuid.UUID(job.document_id) for job in jobs]
     async with session_factory()() as session:
-        await session.execute(
+        result = await session.scalars(
             sa.update(Document)
             .where(Document.id.in_(ids))
+            .where(Document.status.in_(("pending", "processing")))
             .values(
                 status="pending",
                 error_message="Recovered stale processing lease; requeued.",
             )
+            .returning(Document.id)
         )
+        recovered_ids = {str(document_id) for document_id in result.all()}
         await session.commit()
+    return [job for job in jobs if job.document_id in recovered_ids]

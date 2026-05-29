@@ -24,6 +24,7 @@ from bigrag.routers.documents_uploads import (
 from bigrag.services import audit, collection_cache
 from bigrag.services.document_progress import document_progress, publish_queued_progress
 from bigrag.services.documents import (
+    check_document_tenant,
     content_hash_match,
     document_response,
     get_document_payload,
@@ -168,6 +169,7 @@ async def delete_document(
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    check_document_tenant(user, doc, collection)
 
     await ingestion_queue.cancel_documents([document_id])
 

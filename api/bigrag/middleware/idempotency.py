@@ -16,7 +16,16 @@ _MAX_CACHED_BODY_BYTES = 64 * 1024
 _MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024
 _SENSITIVE_RESPONSE_HEADERS = frozenset({"content-length", "set-cookie"})
 _IN_FLIGHT_SENTINEL = "__in_flight__"
+_COMPLETED_UNREPLAYABLE = "__completed_unreplayable__"
 _IN_FLIGHT_TTL_SECONDS = 60
+_UNCACHEABLE_RESPONSE_ROUTES: tuple[tuple[str, str], ...] = (
+    ("POST", "/v1/admin/api-keys"),
+    ("POST", "/v1/admin/api-keys/"),
+    ("POST", "/v1/admin/mcp-servers"),
+    ("POST", "/v1/admin/mcp-servers/"),
+    ("POST", "/v1/admin/webhooks"),
+    ("POST", "/v1/admin/webhooks/"),
+)
 
 
 def _cache_key(principal: str, idem_key: str, method: str, path: str) -> str:
@@ -53,6 +62,13 @@ def _should_skip_body(scope) -> bool:
         return True
     content_length = _content_length(headers)
     return content_length is not None and content_length > _MAX_CACHED_BODY_BYTES
+
+
+def _should_skip_response_cache(method: str, path: str) -> bool:
+    for route_method, route_prefix in _UNCACHEABLE_RESPONSE_ROUTES:
+        if method == route_method and path.startswith(route_prefix):
+            return True
+    return False
 
 
 async def _read_request_body(receive) -> tuple[bytes, bool, list[dict]]:
@@ -123,6 +139,21 @@ async def _send_in_flight(send) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
+async def _send_unreplayable(send) -> None:
+    body = orjson.dumps({"detail": "Idempotency-Key already completed for a one-time response"})
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 409,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
+
+
 class IdempotencyMiddleware:
     def __init__(self, app, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
         self.app = app
@@ -151,6 +182,7 @@ class IdempotencyMiddleware:
 
         method = scope["method"]
         path = scope.get("path", "")
+        skip_response_cache = _should_skip_response_cache(method, path)
         principal = principal_id(scope)
         cache_key = _cache_key(principal, idem_key, method, path)
         request_body, can_fingerprint, messages = await _read_request_body(receive)
@@ -163,6 +195,9 @@ class IdempotencyMiddleware:
         if cached:
             if cached.get("status") == _IN_FLIGHT_SENTINEL:
                 await _send_in_flight(send)
+                return
+            if cached.get("status") == _COMPLETED_UNREPLAYABLE:
+                await _send_unreplayable(send)
                 return
             if cached.get("request_hash") != fingerprint:
                 await _send_conflict(send)
@@ -186,6 +221,9 @@ class IdempotencyMiddleware:
                 await _send_in_flight(send)
                 return
             if existing:
+                if existing.get("status") == _COMPLETED_UNREPLAYABLE:
+                    await _send_unreplayable(send)
+                    return
                 if existing.get("request_hash") != fingerprint:
                     await _send_conflict(send)
                     return
@@ -220,7 +258,7 @@ class IdempotencyMiddleware:
         cached_response = False
         try:
             await self.app(scope, _replay_receive(messages), send_wrapper)
-            if 200 <= status_code < 300 and cacheable_body:
+            if 200 <= status_code < 300 and cacheable_body and not skip_response_cache:
                 body = b"".join(body_chunks)
                 await redis_cache.set(
                     cache_key,
@@ -233,6 +271,16 @@ class IdempotencyMiddleware:
                             if k.lower() not in _SENSITIVE_RESPONSE_HEADERS
                         ],
                         "body": body.decode("utf-8", errors="replace"),
+                    },
+                    ttl=self.ttl_seconds,
+                )
+                cached_response = True
+            elif 200 <= status_code < 300 and skip_response_cache:
+                await redis_cache.set(
+                    cache_key,
+                    {
+                        "request_hash": fingerprint,
+                        "status": _COMPLETED_UNREPLAYABLE,
                     },
                     ttl=self.ttl_seconds,
                 )

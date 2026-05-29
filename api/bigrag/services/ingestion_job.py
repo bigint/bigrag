@@ -25,6 +25,7 @@ class IngestionJob:
     document_epoch: int = 0
     attempt: int = 0
     max_attempts: int = 3
+    admission_released: bool = False
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
 
     @property
@@ -51,6 +52,7 @@ class IngestionJob:
                 "tenant_field": self.tenant_field,
                 "attempt": self.attempt,
                 "max_attempts": self.max_attempts,
+                "admission_released": self.admission_released,
                 "job_id": self.job_id,
             }
         )

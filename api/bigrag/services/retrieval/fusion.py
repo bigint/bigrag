@@ -32,6 +32,7 @@ def reciprocal_rank_fusion(
 ) -> list[dict]:
     scores: dict[str, float] = {}
     items: dict[str, dict] = {}
+    max_score = len(ranked_lists) / (k + 1) if ranked_lists else 1.0
 
     for ranked_list in ranked_lists:
         for rank, item in enumerate(ranked_list):
@@ -44,7 +45,7 @@ def reciprocal_rank_fusion(
     result = []
     for item_id in sorted_ids:
         item = items[item_id].copy()
-        item["score"] = round(scores[item_id], 6)
+        item["score"] = round(scores[item_id] / max_score, 6)
         result.append(item)
 
     return result

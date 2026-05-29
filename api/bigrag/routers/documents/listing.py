@@ -37,4 +37,5 @@ async def list_documents(
         offset=offset,
         cursor=cursor,
         include_total=include_total,
+        user=user,
     )

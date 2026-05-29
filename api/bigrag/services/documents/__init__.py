@@ -14,13 +14,18 @@ from bigrag.services.documents.queries import (
     list_documents_payload,
 )
 from bigrag.services.documents.serialize import document_response
-from bigrag.services.documents.tenant import check_document_tenant, prepare_document_metadata
+from bigrag.services.documents.tenant import (
+    check_document_tenant,
+    document_tenant_metadata_filter,
+    prepare_document_metadata,
+)
 
 __all__ = [
     "SUPPORTED_EXTENSIONS",
     "UploadBudget",
     "check_document_tenant",
     "content_hash_match",
+    "document_tenant_metadata_filter",
     "document_response",
     "get_document_payload",
     "get_document_with_collection",

@@ -55,7 +55,7 @@ Each bigRAG collection maps to one Turbopuffer namespace. Document chunks are wr
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `query` | string | — | Required query text |
-| `top_k` | integer | Collection default | 1–1,000 |
+| `top_k` | integer | Collection default | 1–200 |
 | `filters` | object | — | Metadata filters — see below |
 | `min_score` | float | Collection default | Drop hits below this score |
 | `search_mode` | string | Collection default | `semantic`, `keyword`, `hybrid` |
@@ -90,9 +90,9 @@ Pass a plain value for exact match, or use operators for more control:
 }
 ```
 
-Multiple filters are combined with AND. When a collection was created with `tenant_field`, bigRAG configures that field for backend filtering and requires it in every query and chat filter. Missing tenant filters return `400`.
+Multiple filters are combined with AND. When a collection was created with `tenant_field`, bigRAG configures that field for backend filtering. Tenant-scoped API keys have their tenant filter applied automatically on query and chat requests. Session admins can pass explicit tenant filters. Unscoped API keys without a tenant cannot access tenant-guarded collections and receive `400`.
 
-Keyword search uses Turbopuffer BM25 over the chunk `text` field. Hybrid search runs Turbopuffer ANN and BM25 queries, then merges the two result sets with reciprocal rank fusion before optional reranking.
+Keyword search uses Turbopuffer BM25 over the chunk `text` field. Hybrid search runs Turbopuffer ANN and BM25 queries, then merges the two result sets with normalized reciprocal rank fusion before optional reranking.
 
 ## Reranking
 

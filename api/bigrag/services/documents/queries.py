@@ -11,7 +11,7 @@ from bigrag.models.document import DocumentListResponse, DocumentResponse
 from bigrag.services.collection_cache import get_or_404 as get_collection_or_404
 from bigrag.services.document_progress import document_progress, document_progress_map
 from bigrag.services.documents.serialize import document_response
-from bigrag.services.documents.tenant import check_document_tenant
+from bigrag.services.documents.tenant import check_document_tenant, document_tenant_metadata_filter
 from bigrag.services.pagination import paginate
 from bigrag.services.tenant_enforcement import tenant_field
 
@@ -37,6 +37,7 @@ async def list_documents_payload(
     offset: int,
     cursor: str | None,
     include_total: bool,
+    user: dict,
 ) -> DocumentListResponse:
     collection = await get_collection_or_404(collection_name)
     sort_column = _DOCUMENT_SORT_COLUMNS.get(sort)
@@ -72,6 +73,10 @@ async def list_documents_payload(
     if status:
         stmt = stmt.where(Document.status == status)
         count_stmt = count_stmt.where(Document.status == status)
+    tenant_filter = document_tenant_metadata_filter(user, collection)
+    if tenant_filter is not None:
+        stmt = stmt.where(Document.meta.contains(tenant_filter))
+        count_stmt = count_stmt.where(Document.meta.contains(tenant_filter))
 
     if cursor and sort != "created_at":
         raise HTTPException(

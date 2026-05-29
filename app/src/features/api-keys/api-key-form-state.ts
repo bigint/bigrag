@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 export const API_KEY_UNSCOPED = "__all__";
 
 export type ApiKeyFormValues = {
@@ -43,14 +45,18 @@ export const apiKeyBodyFromValues = (values: ApiKeyFormValues) => ({
 });
 
 const scopesFromAccessLevel = ({ accessLevel, scopesText }: ApiKeyFormValues) => {
-  if (accessLevel === "full") return null;
-  if (accessLevel === "read") {
-    return ["collection:read", "document:read", "query:read", "chat:read"];
-  }
-  if (accessLevel === "write") {
-    return ["collection:read", "document:read", "document:upload", "query:read", "chat:write"];
-  }
-  return parseScopes(scopesText);
+  return match(accessLevel)
+    .with("full", () => ["*:*"])
+    .with("read", () => ["collection:read", "document:read", "query:read", "chat:read"])
+    .with("write", () => [
+      "collection:read",
+      "document:read",
+      "document:upload",
+      "query:read",
+      "chat:write",
+    ])
+    .with("custom", () => parseScopes(scopesText))
+    .exhaustive();
 };
 
 const parseScopes = (value: string) =>
@@ -60,11 +66,13 @@ const parseScopes = (value: string) =>
     .filter(Boolean);
 
 const expirationFromPreset = ({ customExpiresAt, expiresPreset }: ApiKeyFormValues) => {
-  if (expiresPreset === "never") return null;
-  if (expiresPreset === "custom")
-    return customExpiresAt ? new Date(customExpiresAt).toISOString() : null;
-  const days = Number.parseInt(expiresPreset, 10);
-  const expires = new Date();
-  expires.setDate(expires.getDate() + days);
-  return expires.toISOString();
+  return match(expiresPreset)
+    .with("never", () => null)
+    .with("custom", () => (customExpiresAt ? new Date(customExpiresAt).toISOString() : null))
+    .otherwise((preset) => {
+      const days = Number.parseInt(preset, 10);
+      const expires = new Date();
+      expires.setDate(expires.getDate() + days);
+      return expires.toISOString();
+    });
 };

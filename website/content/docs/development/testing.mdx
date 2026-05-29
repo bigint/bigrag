@@ -5,6 +5,12 @@ description: Current verification workflow for bigRAG changes.
 
 bigRAG no longer carries package-level unit, integration, end-to-end, or coverage suites. Do not add those runners back to feature work unless the project deliberately reintroduces them.
 
+Use the root check before reporting a source change complete:
+
+```bash
+pnpm check
+```
+
 Use the smallest verification set that matches the changed surface:
 
 | Surface | Verification |

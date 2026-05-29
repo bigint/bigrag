@@ -15,7 +15,6 @@ from bigrag.services.queue_embedding.embed import PERMANENT_ERRORS, embed_with_c
 logger = get_logger("bigrag.queue")
 
 BATCH_BACKOFF_BASE = 2
-EMBED_CONCURRENCY = 8
 
 
 async def embed_all_batches(
@@ -90,7 +89,9 @@ async def embed_all_batches(
                     continue
                 raise
 
-    embed_sem = asyncio.Semaphore(EMBED_CONCURRENCY)
+    from bigrag.services.runtime_settings import get_value
+
+    embed_sem = asyncio.Semaphore(int(await get_value("embedding_concurrency")))
 
     async def _embed_batch_bounded(bn, bs, be, bc):
         async with embed_sem:

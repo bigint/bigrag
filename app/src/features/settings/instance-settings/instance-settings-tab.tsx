@@ -1,6 +1,7 @@
 import { useStore } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { QueryError } from "@/components/ui/query-error";
 import { useInstanceSettingsForm } from "@/features/settings/instance-settings/instance-settings-form";
 import { RuntimeSettingsPanel } from "@/features/settings/instance-settings/runtime-settings-panel";
 import {
@@ -40,7 +41,7 @@ export const InstanceSettingsTab = ({
   stacked = false,
 }: InstanceSettingsTabProps) => {
   const targetGroups = useTargetGroups(group, groups);
-  const { data, isPending } = useInstanceSettings();
+  const { data, error, isError, isPending, refetch } = useInstanceSettings();
   const save = useUpdateInstanceSettings();
   const purgeEmbeddingCache = usePurgeEmbeddingCache();
   const form = useInstanceSettingsForm();
@@ -59,6 +60,12 @@ export const InstanceSettingsTab = ({
       <section className="rounded-md border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
         Loading settings...
       </section>
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryError error={error} onRetry={() => refetch()} title="Runtime settings could not load" />
     );
   }
 

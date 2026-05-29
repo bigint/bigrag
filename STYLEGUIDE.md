@@ -2569,22 +2569,20 @@ if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
 }
 ```
 
-### Realtime Streaming
+### Paginated Iteration
 
-Use async generators for WebSocket realtime subscriptions:
+Use async generators for SDK pagination helpers:
 
 ```typescript
-async *streamEvents(name: string): AsyncGenerator<ProgressEvent> {
-  const connection = new BigRAGRealtimeConnection(this._client);
-  try {
-    for await (const message of connection.subscribe<ProgressEvent>("collection.events", {
-      collection: name,
-    })) {
-      if (message.type === "event") yield message.payload;
+async *listAllDocuments(collection: string): AsyncGenerator<Document> {
+  let cursor: string | undefined;
+  do {
+    const page = await this.list(collection, { cursor });
+    for (const document of page.documents) {
+      yield document;
     }
-  } finally {
-    await connection.close();
-  }
+    cursor = page.next_cursor ?? undefined;
+  } while (cursor);
 }
 ```
 

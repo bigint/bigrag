@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
 
 _SENSITIVE_KEYS = frozenset(
     {
@@ -87,6 +88,34 @@ def truncate_log_value(value: str) -> str:
     return f"{value[:_MAX_LOG_VALUE_LENGTH]}..."
 
 
+def safe_url_value(value: str) -> str:
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return truncate_log_value(value)
+    if not parts.scheme or not parts.netloc:
+        return truncate_log_value(value)
+    query = urlencode([(key, "[REDACTED]") for key, _ in parse_qsl(parts.query, True)])
+    fragment = "[REDACTED]" if parts.fragment else ""
+    return truncate_log_value(
+        urlunsplit((parts.scheme, _safe_url_netloc(parts), parts.path, query, fragment))
+    )
+
+
+def _safe_url_netloc(parts: SplitResult) -> str:
+    if not parts.netloc or (parts.username is None and parts.password is None):
+        return parts.netloc
+    hostname = parts.hostname or ""
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    suffix = f":{port}" if port is not None else ""
+    return f"[REDACTED]@{hostname}{suffix}"
+
+
 def log_field_value(value: object) -> str:
     return truncate_log_value(escape_control_characters(str(value)))
 
@@ -114,5 +143,7 @@ def redact_log_value(value: object) -> object:
     if isinstance(value, tuple):
         return tuple(redact_log_value(item) for item in value)
     if isinstance(value, str):
+        if "://" in value:
+            return safe_url_value(value)
         return truncate_log_value(value)
     return value

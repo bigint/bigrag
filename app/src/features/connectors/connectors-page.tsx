@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
+import { QueryError } from "@/components/ui/query-error";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -71,7 +72,21 @@ export const ConnectorsPage = () => {
           </Badge>
         </div>
 
-        {sources.isPending ? (
+        {sources.isError ? (
+          <QueryError
+            className="m-4"
+            error={sources.error}
+            onRetry={() => sources.refetch()}
+            title="Connector sources could not load"
+          />
+        ) : syncJobs.isError ? (
+          <QueryError
+            className="m-4"
+            error={syncJobs.error}
+            onRetry={() => syncJobs.refetch()}
+            title="Connector sync jobs could not load"
+          />
+        ) : sources.isPending ? (
           <div className="flex h-48 items-center justify-center">
             <Spinner />
           </div>
