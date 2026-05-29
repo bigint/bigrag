@@ -18,7 +18,7 @@
 
 # database_url = "postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable"
 # db_pool_min = 5
-# db_pool_max = 10
+# db_pool_max = 20
 # Connection budget: each API/worker process opens its own pool of up to
 # db_pool_max connections. Keep (api_workers * api_replicas + worker_processes)
 # * db_pool_max under Postgres max_connections (default 200), leaving headroom

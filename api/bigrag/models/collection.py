@@ -43,7 +43,7 @@ class CreateCollectionRequest(BaseModel):
     reranking_api_key: str | None = None
     multimodal_enabled: bool = False
     multimodal_enrichment_enabled: bool = False
-    default_top_k: int = Field(default=10, ge=1, le=1000)
+    default_top_k: int = Field(default=10, ge=1, le=200)
     default_min_score: float | None = None
     default_search_mode: str = Field(default="semantic", pattern=r"^(semantic|keyword|hybrid)$")
 
@@ -65,7 +65,7 @@ class UpdateCollectionRequest(BaseModel):
     reranking_api_key: str | None = None
     multimodal_enabled: bool | None = None
     multimodal_enrichment_enabled: bool | None = None
-    default_top_k: int | None = Field(default=None, ge=1, le=1000)
+    default_top_k: int | None = Field(default=None, ge=1, le=200)
     default_min_score: float | None = None
     default_search_mode: str | None = Field(default=None, pattern=r"^(semantic|keyword|hybrid)$")
     chunk_strategy: str | None = Field(default=None, pattern=r"^(paragraph|recursive)$")

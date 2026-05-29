@@ -13,6 +13,7 @@ from bigrag.db.models import AuditLog
 from bigrag.ids import uuid7
 from bigrag.logging import get_logger
 from bigrag.models.auth import AuditLogEntry, AuditLogListResponse
+from bigrag.services.access_log.payload import _safe_metadata
 from bigrag.services.pagination import paginate
 
 logger = get_logger("bigrag.audit")
@@ -256,7 +257,7 @@ def record(
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
-            metadata=metadata or {},
+            metadata=_safe_metadata(metadata or {}),
             ip=ip,
             user_agent=user_agent,
         )

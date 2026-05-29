@@ -174,6 +174,7 @@ async def multi_collection_query(
 
     embedding_models = {}
     reranking_configs = {}
+    filters_by_collection = {}
     resolve_semaphore = asyncio.Semaphore(_FANOUT_LIMIT)
 
     async def _resolve(col_name: str):
@@ -183,10 +184,13 @@ async def multi_collection_query(
     resolved_collections = await asyncio.gather(
         *[_resolve(col_name) for col_name in body.collections]
     )
-    multi_filters = body.filters
     for col_name, collection in zip(body.collections, resolved_collections, strict=True):
         enforce_collection_pin(principal, col_name)
-        multi_filters = enforce_tenant_filters(collection, multi_filters, principal)
+        filters_by_collection[col_name] = enforce_tenant_filters(
+            collection,
+            body.filters,
+            principal,
+        )
         embedding_models[col_name] = resolve_embedding_model(
             collection,
             error_label=f"Collection '{col_name}'",
@@ -202,7 +206,8 @@ async def multi_collection_query(
         query=body.query,
         embedding_models=embedding_models,
         top_k=body.top_k,
-        filters=multi_filters,
+        filters=body.filters,
+        filters_by_collection=filters_by_collection,
         min_score=body.min_score,
         search_mode=body.search_mode,
         reranking_configs=reranking_configs,

@@ -102,9 +102,9 @@ All endpoints require [authentication](/docs/api-reference/authentication) — a
 | `chunk_size` | integer | no | `512` | 64–10,000 |
 | `chunk_overlap` | integer | no | `50` | 0–5,000, must be `< chunk_size` |
 | `chunk_strategy` | string | no | `"paragraph"` | `paragraph` (split on blank lines) or `recursive` (hierarchical) |
-| `tenant_field` | string | no | — | Metadata key required on uploads, raw vector upserts, query filters, and chat filters |
+| `tenant_field` | string | no | — | Metadata key used for tenant isolation on uploads, raw vector upserts, queries, chat, document listing, and document reads |
 | `metadata_schema` | object | no | — | JSON Schema validated on every upload / upsert |
-| `default_top_k` | integer | no | `10` | 1–1,000 |
+| `default_top_k` | integer | no | `10` | 1–200 |
 | `default_min_score` | float | no | `null` | Minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, `hybrid` |
 | `reranking_enabled` | boolean | no | `false` | Re-rank results with Cohere cross-encoder |
@@ -146,7 +146,7 @@ Only the fields below are mutable. Embedding provider / model / dimension, chunk
 | `reranking_api_key` | string | — |
 | `multimodal_enabled` | boolean | Disabling it also disables enrichment for future ingestions |
 | `multimodal_enrichment_enabled` | boolean | Enabling it also enables `multimodal_enabled` |
-| `default_top_k` | integer | 1–1,000 |
+| `default_top_k` | integer | 1–200 |
 | `default_min_score` | float | — |
 | `default_search_mode` | string | `semantic`, `keyword`, `hybrid` |
 

@@ -32,7 +32,7 @@ Run a search against one collection's Turbopuffer namespace. Semantic and hybrid
 | Field | Type | Required | Default | Constraints |
 |-------|------|----------|---------|-------------|
 | `query` | string | yes | — | Natural language or keyword query |
-| `top_k` | integer | no | Collection default | 1–1,000 |
+| `top_k` | integer | no | Collection default | 1–200 |
 | `filters` | object | no | — | Metadata filters — see [operators](/docs/concepts/search#filters) |
 | `min_score` | float | no | Collection default | Drop results below this score |
 | `search_mode` | string | no | Collection default | `semantic`, `keyword`, or `hybrid` |
@@ -127,7 +127,7 @@ Search across multiple collections and merge the results by score.
 |-------|------|----------|-------------|
 | `query` | string | yes | Search query |
 | `collections` | string[] | yes | Collection names to search |
-| `top_k` | integer | no | Max results per collection |
+| `top_k` | integer | no | Max results per collection, 1–200 |
 | `filters` | object | no | Metadata filters |
 | `min_score` | float | no | Minimum score |
 | `search_mode` | string | no | `semantic`, `keyword`, `hybrid` |

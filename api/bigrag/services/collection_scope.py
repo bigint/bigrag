@@ -35,9 +35,7 @@ def _extract_collection_name(path: str) -> str | None:
 
 def assert_collection_matches_pin(pinned: str, target: str) -> None:
     if target != pinned:
-        raise ForbiddenError(
-            f"This API key is pinned to collection {pinned!r}; request targeted {target!r}."
-        )
+        raise ForbiddenError("This API key cannot access the requested collection.")
 
 
 async def enforce_collection_scope(request: Request, pinned: str) -> None:
@@ -46,10 +44,7 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
     stripped = path.rstrip("/")
 
     if (method, stripped) in _FORBIDDEN_FOR_SCOPED_SET:
-        raise ForbiddenError(
-            f"This API key is pinned to collection {pinned!r} and cannot "
-            "use cross-collection endpoints."
-        )
+        raise ForbiddenError("This API key cannot use cross-collection endpoints.")
 
     target = _extract_collection_name(path)
     if target is not None:
@@ -60,7 +55,4 @@ async def enforce_collection_scope(request: Request, pinned: str) -> None:
         len(parts) == 2 and parts[1] == "collections"
     )
     if is_collection_root and method in _FORBIDDEN_METHODS_ON_PINNED_COLLECTION:
-        raise ForbiddenError(
-            f"This API key is pinned to collection {pinned!r}; reconfiguring or "
-            "deleting collections is not allowed."
-        )
+        raise ForbiddenError("This API key cannot reconfigure or delete collections.")

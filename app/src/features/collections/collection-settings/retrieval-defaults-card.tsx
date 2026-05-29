@@ -48,7 +48,7 @@ export const RetrievalDefaultsCard = ({
           label="Default top K"
           type="number"
           min={1}
-          max={100}
+          max={200}
           value={topK}
           onChange={(e) => onTopKChange(Number(e.target.value))}
         />

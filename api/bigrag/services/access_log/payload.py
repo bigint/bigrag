@@ -4,6 +4,8 @@ import hashlib
 from collections.abc import Mapping
 from typing import Any
 
+from bigrag.logging import safe_url_value
+
 _MAX_METADATA_DEPTH = 4
 _MAX_METADATA_ITEMS = 32
 _MAX_STRING_LEN = 300
@@ -26,6 +28,8 @@ def _safe_scalar(value: Any) -> Any:
     if value is None or isinstance(value, bool | int | float):
         return value
     if isinstance(value, str):
+        if "://" in value:
+            return safe_url_value(value)
         if len(value) <= _MAX_STRING_LEN:
             return value
         return f"{value[:_MAX_STRING_LEN]}..."

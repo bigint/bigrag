@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 
 import sqlalchemy as sa
@@ -34,7 +35,7 @@ from bigrag.routers.auth_session import (
     lock_setup,
     set_session_cookie,
 )
-from bigrag.services import audit
+from bigrag.services import audit, redis_cache
 from bigrag.services.auth import (
     DUMMY_PASSWORD_HASH,
     hash_password,
@@ -42,10 +43,49 @@ from bigrag.services.auth import (
     needs_rehash,
     verify_password,
 )
+from bigrag.services.client_ip import client_ip
 
 logger = get_logger("bigrag.routers.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
+_AUTH_THROTTLE_WINDOW_SECONDS = 15 * 60
+_AUTH_THROTTLE_MAX_FAILURES = 10
+
+
+def _auth_throttle_key(request: Request, action: str, identity: str) -> str:
+    source = client_ip(request) or "unknown"
+    digest = hashlib.sha256(f"{action}|{source}|{identity}".encode()).hexdigest()
+    return f"bigrag:auth:throttle:{digest}"
+
+
+async def _raise_if_auth_limited(request: Request, action: str, identity: str) -> None:
+    redis = redis_cache.get_redis()
+    if redis is None:
+        return
+    raw = await redis.get(_auth_throttle_key(request, action, identity))
+    try:
+        attempts = int(raw or 0)
+    except (TypeError, ValueError):
+        attempts = 0
+    if attempts >= _AUTH_THROTTLE_MAX_FAILURES:
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+
+async def _record_auth_failure(request: Request, action: str, identity: str) -> None:
+    redis = redis_cache.get_redis()
+    if redis is None:
+        return
+    key = _auth_throttle_key(request, action, identity)
+    attempts = await redis.incr(key)
+    if attempts == 1:
+        await redis.expire(key, _AUTH_THROTTLE_WINDOW_SECONDS)
+
+
+async def _clear_auth_failures(request: Request, action: str, identity: str) -> None:
+    redis = redis_cache.get_redis()
+    if redis is None:
+        return
+    await redis.delete(_auth_throttle_key(request, action, identity))
 
 
 @router.get("/setup-status", response_model=SetupStatusResponse)
@@ -63,14 +103,17 @@ async def setup(
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
+    email = body.email.lower()
+    await _raise_if_auth_limited(request, "setup", email)
     await lock_setup(session)
     existing = await session.scalar(sa.select(sa.func.count()).select_from(User))
     if existing > 0:
+        await _record_auth_failure(request, "setup", email)
         raise HTTPException(status_code=409, detail="Setup has already been completed")
 
     user = User(
         id=uuid7(),
-        email=body.email.lower(),
+        email=email,
         password_hash=await asyncio.to_thread(hash_password, body.password),
         display_name=body.display_name,
         role="admin",
@@ -83,7 +126,8 @@ async def setup(
     await session.refresh(user)
 
     await set_session_cookie(response, token)
-    logger.info("first admin created", email=body.email)
+    await _clear_auth_failures(request, "setup", email)
+    logger.info("first admin created", email=email)
     audit.record(
         request,
         user={"id": str(user.id), "email": user.email},
@@ -103,6 +147,7 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> SessionResponse:
     email = body.email.lower()
+    await _raise_if_auth_limited(request, "login", email)
     user = await session.scalar(sa.select(User).where(User.email == email))
     if user is None:
         await asyncio.to_thread(verify_password, body.password, DUMMY_PASSWORD_HASH)
@@ -110,6 +155,7 @@ async def login(
     else:
         password_ok = await asyncio.to_thread(verify_password, body.password, user.password_hash)
     if user is None or not password_ok:
+        await _record_auth_failure(request, "login", email)
         audit.record(
             request,
             user={"id": None, "email": email},
@@ -128,6 +174,7 @@ async def login(
     await session.commit()
     await session.refresh(user)
     await set_session_cookie(response, token)
+    await _clear_auth_failures(request, "login", email)
     audit.record(
         request,
         user={"id": str(user.id), "email": user.email},

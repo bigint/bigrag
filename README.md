@@ -51,20 +51,35 @@ This starts the bigRAG API, worker, admin UI, Postgres, and Redis. Open **[local
 > [!IMPORTANT]
 > Configure Turbopuffer from onboarding before ingesting or querying collections.
 
-Once Turbopuffer is configured, you can drive everything over HTTP:
+Once Turbopuffer is configured, create the first admin and mint an API key for HTTP clients:
 
 ```bash
+export BASE="http://localhost:4000"
+
+curl -X POST "$BASE/v1/auth/setup" \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email": "admin@example.com", "password": "a-strong-password", "display_name": "Admin"}'
+
+export BIGRAG_API_KEY=$(curl -s -X POST "$BASE/v1/admin/api-keys" \
+  -b cookies.txt \
+  -H "Content-Type: application/json" \
+  -d '{"name": "local-dev", "scopes": ["*:*"]}' | jq -r .key)
+
 # Create a collection
-curl -X POST http://localhost:4000/v1/collections \
+curl -X POST "$BASE/v1/collections" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "docs", "embedding_api_key": "sk-..."}'
 
 # Upload a document
-curl -X POST http://localhost:4000/v1/collections/docs/documents \
+curl -X POST "$BASE/v1/collections/docs/documents" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -F "file=@paper.pdf"
 
 # Query
-curl -X POST http://localhost:4000/v1/collections/docs/query \
+curl -X POST "$BASE/v1/collections/docs/query" \
+  -H "Authorization: Bearer $BIGRAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main findings?"}'
 ```
@@ -78,11 +93,11 @@ curl -X POST http://localhost:4000/v1/collections/docs/query \
 ### Docker Images
 
 ```bash
-docker pull yoginth/bigrag-api:2026.4.30
-docker pull yoginth/bigrag-ui:2026.4.30
+docker pull yoginth/bigrag-api:latest
+docker pull yoginth/bigrag-ui:latest
 ```
 
-Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest`; the Python and TypeScript SDKs publish dated PyPI and npm releases.
+Release artifacts use CalVer (`YYYY.M.D`). Docker publishes `latest` for quick starts; pin a dated tag from the release you deploy in production.
 
 ## Architecture
 
@@ -148,8 +163,6 @@ graph TD
 | `DELETE` | `/v1/collections/{name}` | Delete collection |
 | `GET` | `/v1/collections/{name}/stats` | Collection stats |
 | `POST` | `/v1/collections/{name}/truncate` | Delete all documents, keep the collection |
-| `POST` | `/v1/collections/{name}/realtime-token` | Create a short-lived collection realtime token |
-| `WS` | `/v1/realtime` | Subscribe to realtime snapshots and collection events |
 | **Documents** | | |
 | `POST` | `/v1/collections/{name}/documents` | Upload document |
 | `GET` | `/v1/collections/{name}/documents` | List documents |
@@ -321,7 +334,7 @@ Bootstrap settings use the `BIGRAG_` prefix as environment variables, or configu
 |----------|-------------|---------|
 | `BIGRAG_DATABASE_URL` | Postgres URL (`postgres:5432` inside docker-compose, `localhost:5432` for bare-metal dev) | `postgres://bigrag:bigrag@localhost:5432/bigrag?sslmode=disable` |
 | `BIGRAG_DB_POOL_MIN` | Min Postgres pool size | `5` |
-| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `10` |
+| `BIGRAG_DB_POOL_MAX` | Max Postgres pool size | `20` |
 | `BIGRAG_MIGRATION_TIMEOUT_SECONDS` | Startup migration check timeout (`0` disables the timeout) | `60` |
 | `BIGRAG_REDIS_URL` | Redis URL | `redis://localhost:6379/0` |
 

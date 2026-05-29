@@ -51,7 +51,7 @@ Collections-per-tenant is simple but creates operational overhead as tenant coun
 
 ## Pattern B — shared collection with tenant filters
 
-One collection, tenant isolation via a required metadata filter. Setting `tenant_field` tells bigRAG to configure that field for backend filtering and reject uploads, raw vector upserts, queries, and chat calls that omit the tenant field.
+One collection, tenant isolation via a required metadata field. Setting `tenant_field` tells bigRAG to configure that field for backend filtering, reject writes that omit the tenant field, and apply the tenant filter automatically for tenant-scoped API keys.
 
 ```python
 await client.collections.create({
@@ -73,7 +73,7 @@ results = await client.queries.query("shared_tenants", {
 
 For tenant-guarded collections, the tenant filter must identify one tenant. `{"tenant_id": {"$eq": "acme"}}` and `{"tenant_id": {"$in": ["acme"]}}` are valid; multi-value `$in` filters are rejected because they cross tenant boundaries.
 
-You still need to pass the tenant filter on every tenant-scoped query and chat request. bigRAG rejects missing filters, but your application still owns mapping the authenticated tenant to the exact allowed tenant value.
+For session admins, pass the tenant filter on query and chat requests when you want a single tenant. For tenant-scoped API keys, bigRAG injects the tenant filter server-side, so your application owns mapping each authenticated tenant to the key or backend principal that carries the exact allowed tenant value.
 
 ## Per-tenant usage + billing
 

@@ -27,23 +27,26 @@ async def get_document_elements(
     enforce_collection_pin(user, collection_name)
     collection = await get_collection_or_404(collection_name)
     doc_id = uuid_or_404(document_id, "Document")
-    exists = await session.scalar(
-        sa.select(Document.id)
+    doc = await session.scalar(
+        sa.select(Document)
         .where(Document.id == doc_id)
         .where(Document.collection_id == collection["id"])
     )
-    if exists is None:
+    if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+    check_document_tenant(user, doc, collection)
 
     total = await session.scalar(
         sa.select(sa.func.count())
         .select_from(DocumentElement)
         .where(DocumentElement.document_id == doc_id)
+        .where(DocumentElement.collection_id == collection["id"])
     )
     rows = (
         await session.scalars(
             sa.select(DocumentElement)
             .where(DocumentElement.document_id == doc_id)
+            .where(DocumentElement.collection_id == collection["id"])
             .order_by(DocumentElement.element_index.asc())
             .limit(limit)
             .offset(offset)

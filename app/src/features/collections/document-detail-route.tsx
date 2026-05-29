@@ -2,6 +2,7 @@ import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { match, P } from "ts-pattern";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Empty } from "@/components/ui/empty";
 import { Page } from "@/components/ui/page";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { QueryError } from "@/components/ui/query-error";
 import { Spinner } from "@/components/ui/spinner";
 import { decodeCollectionName } from "@/features/collections/use-collection-name";
 import { useChunks, useDeleteDocument, useDocument } from "@/hooks/use-documents";
@@ -93,13 +95,33 @@ export const DocumentDetail = () => {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: doc, dataUpdatedAt, isFetching, isPending } = useDocument(name, docId);
-  const { data: chunks, refetch: refetchChunks } = useChunks(name, docId);
+  const document = useDocument(name, docId);
+  const chunksQuery = useChunks(name, docId);
   const remove = useDeleteDocument(name);
+  const doc = document.data;
+  const chunks = chunksQuery.data;
+  const dataUpdatedAt = document.dataUpdatedAt;
 
-  useRefreshChunksWhenReady(doc?.status, refetchChunks);
+  useRefreshChunksWhenReady(doc?.status, chunksQuery.refetch);
 
-  if (isPending || !doc) {
+  const detailState = match(document)
+    .with({ isError: true }, () => "error" as const)
+    .with({ isPending: true }, () => "loading" as const)
+    .with({ data: P.nullish }, () => "loading" as const)
+    .otherwise(() => "ready" as const);
+
+  if (detailState === "error") {
+    return (
+      <QueryError
+        className="my-10"
+        error={document.error}
+        onRetry={() => document.refetch()}
+        title="Document could not load"
+      />
+    );
+  }
+
+  if (detailState === "loading" || !doc) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -150,7 +172,7 @@ export const DocumentDetail = () => {
               </div>
               <p className="text-sm text-muted-foreground">{progress.message}</p>
             </div>
-            {isFetching && doc.status !== "ready" && doc.status !== "failed" ? (
+            {document.isFetching && doc.status !== "ready" && doc.status !== "failed" ? (
               <Spinner size="sm" className="mt-1 shrink-0" />
             ) : (
               <span className="shrink-0 text-sm font-medium tabular-nums">{progressPct}%</span>
@@ -188,7 +210,13 @@ export const DocumentDetail = () => {
             </span>
           )}
         </div>
-        {chunks ? (
+        {chunksQuery.isError ? (
+          <QueryError
+            error={chunksQuery.error}
+            onRetry={() => chunksQuery.refetch()}
+            title="Chunks could not load"
+          />
+        ) : chunks ? (
           chunks.chunks.length === 0 ? (
             <Empty title="No chunks yet" description="Ingestion may still be in progress." />
           ) : (

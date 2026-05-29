@@ -52,7 +52,7 @@ If you need to automate any of these, proxy through a trusted service that holds
 
 ## Scopes on API keys
 
-Scopes are `resource:action` pairs. A key without `scopes` has full access; a key **with** `scopes` is restricted to the union of those patterns. `*` is a wildcard.
+Scopes are `resource:action` pairs. Full-access keys are stored with `["*:*"]`; legacy keys without `scopes` are also treated as full access. Any narrower scope list is restricted to the union of those patterns. `*` is a wildcard.
 
 ```
 collection:read          # GET /v1/collections, GET /v1/collections/{name}, stats
@@ -67,14 +67,14 @@ chat:write               # POST /v1/chat, POST /v1/chat/question-suggestions
 vector:write             # POST /v1/collections/{name}/vectors/upsert
 vector:delete            # POST /v1/collections/{name}/vectors/delete
 audit:read               # GET /v1/usage
-*:*                      # equivalent to no scopes
+*:*                      # full access
 ```
 
 Missing-scope calls return `403` with `{"detail": "API key missing required scope: <scope>"}`.
 
 Collection-pinned keys apply that pin consistently, including the global document-read helpers under `/v1/documents/{id}`.
 
-Collections created with `tenant_field` require that field in upload metadata, raw vector metadata, query filters, and chat filters. Missing tenant constraints return `400` before retrieval.
+Collections created with `tenant_field` require that field in upload metadata and raw vector metadata. Tenant-scoped API keys get tenant filters applied automatically on query, chat, document listing, and document reads. Session admins can use explicit tenant filters. Unscoped API keys without a tenant are denied with `400` before tenant-guarded retrieval.
 
 ## Audit log
 

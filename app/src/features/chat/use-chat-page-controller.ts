@@ -9,14 +9,21 @@ import { useChatQuestionSuggestions, useGenerateChatQuestions } from "@/hooks/us
 import { useCollections } from "@/hooks/use-collections";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 
-const useSelectFirstCollection = (
+const useSelectAvailableCollection = (
   collections: { name: string }[],
   current: string,
-  selectFirstCollection: (collections: readonly { name: string }[]) => void,
+  selectCollection: (collection: string) => void,
 ) => {
   useEffect(() => {
-    if (!current) selectFirstCollection(collections);
-  }, [collections, current, selectFirstCollection]);
+    const first = collections[0]?.name ?? "";
+    if (!current && first) {
+      selectCollection(first);
+      return;
+    }
+    if (current && !collections.some((item) => item.name === current)) {
+      selectCollection(first);
+    }
+  }, [collections, current, selectCollection]);
 };
 
 export const useChatPageController = () => {
@@ -32,7 +39,6 @@ export const useChatPageController = () => {
     isStreaming,
     messages,
     selectCollection,
-    selectFirstCollection,
     setMessages,
     setStreaming,
     updateMessage,
@@ -44,14 +50,13 @@ export const useChatPageController = () => {
       isStreaming: state.isStreaming,
       messages: state.messages,
       selectCollection: state.selectCollection,
-      selectFirstCollection: state.selectFirstCollection,
       setMessages: state.setMessages,
       setStreaming: state.setStreaming,
       updateMessage: state.updateMessage,
     })),
   );
 
-  useSelectFirstCollection(collections, collection, selectFirstCollection);
+  useSelectAvailableCollection(collections, collection, selectCollection);
 
   const state: ChatState = useMemo(() => {
     const chat = prefsQuery.data?.data.chat ?? {};

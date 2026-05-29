@@ -26,7 +26,7 @@ The repo follows aggressive package-style splits. If a single file grows past ~3
 - `api/bigrag/app_factory/` (lifespan, exception_handlers, routers)
 - `api/bigrag/mcp/` (tools, unscoped, scoped, cli)
 - `api/bigrag/services/{embedding,retrieval,webhook,vector_store,storage,url_security,access_log,event_bus,queue_conversion,queue_embedding,chat,runtime_setting_specs}/` packages
-- `sdks/python/src/bigrag/resources/admin/` and `sdks/typescript/src/resources/admin/` (settings, backups, realtime, users, api_keys, access, audit, connectors, embedding_presets, mcp_servers)
+- `sdks/python/src/bigrag/resources/admin/` and `sdks/typescript/src/resources/admin/` (settings, users, api_keys, access, audit, connectors, embedding_presets, mcp_servers, vector_storage)
 
 When adding new code, prefer the smallest meaningful module instead of dropping it into the nearest catch-all.
 
@@ -94,7 +94,7 @@ Use lint, typecheck, build, compile, and runtime smoke checks for current verifi
 - Tenant scoping: route handlers call `enforce_collection_pin(user, collection_name)` from `routers/__init__.py` to honor pinned API keys. Connector accounts/sources carry an optional `tenant_id` column.
 - Background workers: Dramatiq actors live in `services/jobs/`. The ingestion queue (`services/queue.py`) drains via `bigrag-worker`.
 - MCP server: `api/bigrag/mcp/` package (`tools`, `unscoped`, `scoped`, `cli`); entry point `bigrag-mcp = "bigrag.mcp:cli"`.
-- SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, `client.admin.users.list()` etc. The `admin` resource is itself a package — sub-resources live in `resources/admin/{settings,backups,realtime,users,api_keys,access,audit,connectors,embedding_presets,mcp_servers}.py`.
+- SDK uses resource namespaces: `client.collections.list()`, `client.documents.upload()`, `client.admin.users.list()` etc. The `admin` resource is itself a package — sub-resources live in `resources/admin/{settings,users,api_keys,access,audit,connectors,embedding_presets,mcp_servers,vector_storage}.py`.
 - SDK reliability: both Python and TypeScript SDKs send `Idempotency-Key: <uuid4>` on POST/PUT/PATCH/DELETE and only retry mutating calls when an idempotency key is present. Both expose typed error subclasses (`BadRequestError`, `ConflictError`, `PayloadTooLargeError`, `UnprocessableEntityError`, `BadGatewayError`, `ServiceUnavailableError`, etc.).
 
 ## Code conventions

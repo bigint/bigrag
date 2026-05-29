@@ -2,6 +2,7 @@ import { RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Empty } from "@/components/ui/empty";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { QueryError } from "@/components/ui/query-error";
 import { Spinner } from "@/components/ui/spinner";
 import {
   clampSyncProgress,
@@ -12,17 +13,30 @@ import {
 import type { S3SyncJob } from "@/types/bigrag";
 
 export const SyncMonitor = ({
+  error,
+  isError,
   isPending,
   job,
+  onRetry,
 }: {
+  error: unknown;
+  isError: boolean;
   isPending: boolean;
   job: S3SyncJob | undefined;
+  onRetry: () => void;
 }) => (
   <section className="min-w-0 overflow-hidden rounded-sm border border-border bg-card">
     <div className="flex items-center justify-between border-border border-b px-4 py-3">
       <h3 className="text-sm font-semibold">Sync monitor</h3>
     </div>
-    {isPending ? (
+    {isError ? (
+      <QueryError
+        className="m-4"
+        error={error}
+        onRetry={onRetry}
+        title="Sync jobs could not load"
+      />
+    ) : isPending ? (
       <div className="flex h-32 items-center justify-center">
         <Spinner />
       </div>

@@ -83,17 +83,10 @@ bigrag/
 ### Verifying Changes
 
 ```bash
-# Website build check
-pnpm --filter @bigrag/docs build
-
-# SDK and app build checks
-pnpm --filter @bigrag/client build
-pnpm --filter @bigrag/app build
-
-# Lint everything
-pnpm lint          # TypeScript (Biome)
-cd api && uv run ruff check . && uv run ruff format --check .  # Python
+pnpm check
 ```
+
+`pnpm check` runs Biome, Ruff, workspace typechecks, app / SDK / docs builds, and a Python backend compile pass. Use targeted package commands while iterating, then run the root check before opening a PR.
 
 ### Commit Messages
 
@@ -124,7 +117,7 @@ When cutting a coordinated platform release, keep the API package, SDK packages,
 
 ### PR Requirements
 
-- All CI checks must pass (lint, biome, sdk-typecheck, website-build, app-build)
+- All CI checks must pass, including the root `pnpm check` job
 - At least one maintainer approval
 - No merge conflicts with `main`
 

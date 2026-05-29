@@ -59,6 +59,10 @@ def _validate_scopes(scopes: list[str] | None) -> None:
         validate_scope_string(s)
 
 
+def _stored_scopes(scopes: list[str] | None) -> list[str]:
+    return scopes or ["*:*"]
+
+
 @router.get("", response_model=ApiKeyListResponse)
 async def list_api_keys(
     limit: int = Query(default=50, ge=1, le=200),
@@ -105,8 +109,8 @@ async def create_api_key(
 
     collection = await validate_collection_name(session, body.collection)
     permissions: dict = {}
-    if body.scopes:
-        permissions["scopes"] = body.scopes
+    scopes = _stored_scopes(body.scopes)
+    permissions["scopes"] = scopes
     if collection:
         permissions["collection"] = collection
     plaintext, prefix, key_hash = generate_api_key()
@@ -132,7 +136,7 @@ async def create_api_key(
         resource_id=str(key.id),
         metadata={
             "name": body.name,
-            "scopes": body.scopes or [],
+            "scopes": scopes,
             "collection": collection,
         },
     )
@@ -173,10 +177,7 @@ async def update_api_key(
             raise HTTPException(
                 status_code=400, detail=safe_error_detail(e, "Invalid scopes.")
             ) from e
-        if body.scopes:
-            existing["scopes"] = body.scopes
-        else:
-            existing.pop("scopes", None)
+        existing["scopes"] = _stored_scopes(body.scopes)
         fields.append("scopes")
     if body.collection is not None:
         collection = await validate_collection_name(session, body.collection)

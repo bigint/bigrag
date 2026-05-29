@@ -37,11 +37,11 @@ Turbopuffer is configured from the admin UI after setup and provides the managed
 Pre-built images are published to Docker Hub:
 
 ```bash
-docker pull yoginth/bigrag-api:2026.4.30
-docker pull yoginth/bigrag-ui:2026.4.30
+docker pull yoginth/bigrag-api:latest
+docker pull yoginth/bigrag-ui:latest
 ```
 
-Release artifacts use CalVer (`YYYY.M.D`). Docker also publishes `latest` for convenience, but production deployments should pin the dated tag.
+Release artifacts use CalVer (`YYYY.M.D`). Docker publishes `latest` for convenience, but production deployments should pin the dated tag from the release they deploy.
 
 </Tab>
 <Tab value="From Source">
@@ -101,7 +101,7 @@ If the admin UI shows `bigrag-worker is offline`, check the terminal for the col
 
 ```bash
 curl http://localhost:4000/health
-# → {"status": "ok", "version": "2026.4.30"}
+# → {"status": "ok", "version": "2026.x.y"}
 ```
 
 <Callout type="info">

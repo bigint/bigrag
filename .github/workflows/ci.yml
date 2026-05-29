@@ -38,6 +38,25 @@ jobs:
       - name: Biome check
         run: pnpm exec biome check .
 
+  repo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: Install API dependencies
+        run: uv sync --dev
+        working-directory: api
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run root check
+        run: pnpm check
+
   sdk-typecheck:
     runs-on: ubuntu-latest
     steps:

@@ -42,7 +42,7 @@ When the guard trips, it logs every violation before exiting so you can fix the 
 ```yaml
 services:
   bigrag-api:
-    image: yoginth/bigrag-api:2026.4.30
+    image: yoginth/bigrag-api:<release-tag>
     ports:
       - "4000:4000"
     volumes:
@@ -80,7 +80,7 @@ services:
       retries: 3
 
   bigrag-worker:
-    image: yoginth/bigrag-api:2026.4.30
+    image: yoginth/bigrag-api:<release-tag>
     command: ["bigrag-worker", "--processes", "1", "--threads", "8"]
     volumes:
       - bigrag_data:/data
@@ -116,7 +116,7 @@ services:
       start_period: 60s
 
   bigrag-ui:
-    image: yoginth/bigrag-ui:2026.4.30
+    image: yoginth/bigrag-ui:<release-tag>
     ports:
       - "3000:3000"
     environment:

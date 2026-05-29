@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from urllib.parse import SplitResult, parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl
 
 import structlog
 from starlette.datastructures import MutableHeaders
@@ -12,6 +12,7 @@ from bigrag.logging import (
     REQUEST_ID_HEADER,
     get_logger,
     is_sensitive_log_key,
+    safe_url_value,
     truncate_log_value,
 )
 
@@ -31,34 +32,7 @@ def _request_id_from_scope(scope: Scope) -> str:
 
 
 def _safe_url(value: str) -> str:
-    try:
-        parts = urlsplit(value)
-    except ValueError:
-        return truncate_log_value(value)
-    query = urlencode(
-        [
-            (key, "[REDACTED]" if is_sensitive_log_key(key) else truncate_log_value(param_value))
-            for key, param_value in parse_qsl(parts.query, keep_blank_values=True)
-        ]
-    )
-    fragment = "[REDACTED]" if parts.fragment else ""
-    return truncate_log_value(
-        urlunsplit((parts.scheme, _safe_netloc(parts), parts.path, query, fragment))
-    )
-
-
-def _safe_netloc(parts: SplitResult) -> str:
-    if not parts.netloc or (parts.username is None and parts.password is None):
-        return parts.netloc
-    hostname = parts.hostname or ""
-    if ":" in hostname and not hostname.startswith("["):
-        hostname = f"[{hostname}]"
-    try:
-        port = parts.port
-    except ValueError:
-        port = None
-    suffix = f":{port}" if port is not None else ""
-    return f"[REDACTED]@{hostname}{suffix}"
+    return safe_url_value(value)
 
 
 def _safe_value(key: str, value: str) -> str:

@@ -8,6 +8,7 @@ import structlog
 from bigrag.logging_redaction import (
     is_sensitive_log_key,
     redact_secrets,
+    safe_url_value,
     truncate_log_value,
 )
 from bigrag.logging_rendering import console_renderer
@@ -29,6 +30,7 @@ __all__ = [
     "current_worker_label",
     "get_logger",
     "is_sensitive_log_key",
+    "safe_url_value",
     "truncate_log_value",
 ]
 

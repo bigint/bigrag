@@ -61,7 +61,7 @@ POST /v1/admin/api-keys
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `name` | string | yes | Human label |
-| `scopes` | string[] | no | Omit / empty = full access. See [scopes](/docs/api-reference/authentication#scopes) |
+| `scopes` | string[] | no | Omit / empty stores `["*:*"]` for full access. See [scopes](/docs/api-reference/authentication#scopes) |
 | `expires_at` | string (RFC3339) | no | `null` = never |
 | `collection` | string \| null | no | Pin this key to one collection |
 
@@ -99,7 +99,7 @@ PATCH /v1/admin/api-keys/{key_id}
 { "name": "ingest-prod", "active": false, "scopes": ["query:read"] }
 ```
 
-Any combination of `name`, `active`, `expires_at`, `scopes`, and `collection` is permitted. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
+Any combination of `name`, `active`, `expires_at`, `scopes`, and `collection` is permitted. Updating `scopes` to `[]` stores `["*:*"]` for full access. Deactivating (`active: false`) is the non-destructive way to freeze a leaked key while you investigate; the audit log still references it.
 
 **Response** `200`: updated key (without `key`).
 

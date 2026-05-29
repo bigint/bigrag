@@ -50,7 +50,7 @@ curl -X POST http://localhost:4000/v1/collections \
 | `dimension` | integer | no | Server default | Embedding vector dimension |
 | `chunk_size` | integer | no | `512` | 64–10,000 characters per chunk |
 | `chunk_overlap` | integer | no | `50` | 0–5,000, must be less than `chunk_size` |
-| `default_top_k` | integer | no | `10` | Default number of results (1–1,000) |
+| `default_top_k` | integer | no | `10` | Default number of results (1–200) |
 | `default_min_score` | float | no | `null` | Default minimum similarity score |
 | `default_search_mode` | string | no | `"semantic"` | `semantic`, `keyword`, or `hybrid` |
 | `reranking_enabled` | boolean | no | `false` | Enable reranking for this collection |
@@ -91,7 +91,7 @@ curl -X POST http://localhost:4000/v1/collections \
   }'
 ```
 
-When querying, if `top_k`, `min_score`, or `search_mode` are omitted, the collection's defaults are used.
+When querying, if `top_k`, `min_score`, or `search_mode` are omitted, the collection's defaults are used. Hybrid scores are normalized after reciprocal rank fusion, so a `default_min_score` such as `0.3` can be used consistently across semantic and hybrid search.
 
 ## Reranking
 
@@ -149,7 +149,7 @@ curl -X PUT http://localhost:4000/v1/collections/research_papers \
 | `reranking_api_key` | string | Cohere API key |
 | `multimodal_enabled` | boolean | Enable/disable element extraction for future ingestions |
 | `multimodal_enrichment_enabled` | boolean | Enable/disable asynchronous LLM element summaries |
-| `default_top_k` | integer | Default number of results (1–1,000) |
+| `default_top_k` | integer | Default number of results (1–200) |
 | `default_min_score` | float | Default minimum similarity score |
 | `default_search_mode` | string | `semantic`, `keyword`, or `hybrid` |
 
