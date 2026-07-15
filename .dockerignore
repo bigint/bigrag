@@ -11,4 +11,4 @@ data/
 .gitignore
 .env*
 docker-compose*.yml
-sdks/
+sdks/python/
