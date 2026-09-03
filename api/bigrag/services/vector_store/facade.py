@@ -208,28 +208,5 @@ class VectorStore:
         async with self._backend() as backend:
             return await backend.upsert(collection, ids, embeddings, texts, metadata)
 
-    async def export_collection_points(
-        self,
-        collection: str,
-        *,
-        with_vectors: bool = True,
-    ) -> list[dict]:
-        async with self._backend() as backend:
-            return await backend.export_collection_points(collection, with_vectors=with_vectors)
-
-    async def iter_collection_points(
-        self,
-        collection: str,
-        *,
-        with_vectors: bool = True,
-        **_: Any,
-    ):
-        async with self._backend() as backend:
-            async for point in backend.iter_collection_points(
-                collection,
-                with_vectors=with_vectors,
-            ):
-                yield point
-
 
 vector_store = VectorStore()

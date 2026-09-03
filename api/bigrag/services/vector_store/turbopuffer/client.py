@@ -18,7 +18,6 @@ from bigrag.services.vector_store.dimensions import (
 logger = get_logger("bigrag.vector_store")
 
 _PUBLIC_ID_FIELD = "bigrag_id"
-_EXPORT_PAGE_SIZE = 10000
 _DELETE_DOCUMENT_FILTER_SIZE = 1000
 
 

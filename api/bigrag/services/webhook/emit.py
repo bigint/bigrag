@@ -22,21 +22,3 @@ async def enqueue_webhook_event(
             error=repr(exc),
         )
         return 0
-
-
-async def enqueue_webhook_events(
-    event: str,
-    *,
-    collection: str | None = None,
-    data: list[dict] | None = None,
-) -> int:
-    try:
-        return await webhook_dispatcher.enqueue_events(event, collection=collection, data=data)
-    except Exception as exc:
-        logger.warning(
-            "webhook events enqueue failed",
-            webhook_event=event,
-            collection=collection,
-            error=repr(exc),
-        )
-        return 0

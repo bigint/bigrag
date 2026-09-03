@@ -4,8 +4,6 @@ import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { AccessLogFilters, AccessLogListResponse, AccessLogOverview } from "@/types/bigrag";
 
-export type { AccessLogFilters };
-
 const statusPollMs = 5_000;
 
 const compactFilters = (filters: AccessLogFilters & { include_total?: boolean }) =>

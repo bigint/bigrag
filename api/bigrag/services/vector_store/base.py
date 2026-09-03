@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
 from typing import Protocol
 
 from bigrag.services._retrieval_filters import FilterExpression
@@ -76,20 +75,6 @@ class VectorStoreBackend(Protocol):
         texts: list[str],
         metadata: list[dict] | None = None,
     ) -> int: ...
-
-    async def export_collection_points(
-        self,
-        collection: str,
-        *,
-        with_vectors: bool = True,
-    ) -> list[dict]: ...
-
-    def iter_collection_points(
-        self,
-        collection: str,
-        *,
-        with_vectors: bool = True,
-    ) -> AsyncIterator[dict]: ...
 
 
 def _backend_name(prefix: str, name: str) -> str:

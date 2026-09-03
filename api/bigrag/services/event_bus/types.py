@@ -8,7 +8,6 @@ CHANNEL_PREFIX = "bigrag:events:"
 INGESTION_EVENTS_KEY = "__ingestion__"
 LATEST_PREFIX = "bigrag:progress:"
 LATEST_TTL_SECONDS = 7 * 24 * 60 * 60
-SUBSCRIBER_QUEUE_SIZE = 256
 COMPLETED_MAX_ENTRIES = 10000
 
 _COMPLETE_MARKER = b'{"_complete":true}'

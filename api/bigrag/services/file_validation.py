@@ -23,7 +23,6 @@ _ZIP_EXTS = frozenset({".docx", ".pptx", ".xlsx", ".epub"})
 _OOXML_EXTS = frozenset({".docx", ".pptx", ".xlsx"})
 
 MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
-_MAGIC_HEAD_BYTES = 16
 
 
 class InvalidFileContentError(Exception):

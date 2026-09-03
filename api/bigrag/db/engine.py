@@ -67,12 +67,6 @@ async def configure(database_url: str, pool_min: int = 5, pool_max: int = 50) ->
     logger.info("sqlalchemy engine ready", pool_min=pool_min, pool_max=pool_max)
 
 
-def engine() -> AsyncEngine:
-    if _engine is None:
-        raise RuntimeError("db.engine not configured — call configure() first")
-    return _engine
-
-
 def session_factory() -> async_sessionmaker[AsyncSession]:
     if _session_factory is None:
         raise RuntimeError("db.session_factory not configured — call configure() first")
