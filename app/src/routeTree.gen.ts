@@ -5,101 +5,66 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
-import { Route as OnboardingRouteImport } from "./routes/onboarding";
-import { Route as DashboardRouteImport } from "./routes/_dashboard";
-import { Route as AuthRouteImport } from "./routes/_auth";
 import { Route as IndexRouteImport } from "./routes/index";
-import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webhooks";
-import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
-import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
-import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
-import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
-import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
-import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
-import { Route as DashboardConnectorsRouteImport } from "./routes/_dashboard.connectors";
-import { Route as DashboardChatRouteImport } from "./routes/_dashboard.chat";
-import { Route as DashboardAuditRouteImport } from "./routes/_dashboard.audit";
-import { Route as DashboardApiKeysRouteImport } from "./routes/_dashboard.api-keys";
-import { Route as DashboardAccessLogsRouteImport } from "./routes/_dashboard.access-logs";
-import { Route as AuthSetupRouteImport } from "./routes/_auth.setup";
+import { Route as AuthRouteImport } from "./routes/_auth";
+import { Route as DashboardRouteImport } from "./routes/_dashboard";
+import { Route as OnboardingRouteImport } from "./routes/onboarding";
 import { Route as AuthLoginRouteImport } from "./routes/_auth.login";
+import { Route as AuthSetupRouteImport } from "./routes/_auth.setup";
+import { Route as DashboardAccessLogsRouteImport } from "./routes/_dashboard.access-logs";
+import { Route as DashboardApiKeysRouteImport } from "./routes/_dashboard.api-keys";
+import { Route as DashboardAuditRouteImport } from "./routes/_dashboard.audit";
+import { Route as DashboardChatRouteImport } from "./routes/_dashboard.chat";
+import { Route as DashboardConnectorsRouteImport } from "./routes/_dashboard.connectors";
+import { Route as DashboardEvalsRouteImport } from "./routes/_dashboard.evals";
+import { Route as DashboardMcpRouteImport } from "./routes/_dashboard.mcp";
+import { Route as DashboardModelsRouteImport } from "./routes/_dashboard.models";
+import { Route as DashboardOverviewRouteImport } from "./routes/_dashboard.overview";
+import { Route as DashboardSettingsRouteImport } from "./routes/_dashboard.settings";
+import { Route as DashboardUsageRouteImport } from "./routes/_dashboard.usage";
+import { Route as DashboardWebhooksRouteImport } from "./routes/_dashboard.webhooks";
 import { Route as DashboardCollectionsIndexRouteImport } from "./routes/_dashboard.collections.index";
 import { Route as DashboardCollectionsNameRouteImport } from "./routes/_dashboard.collections.$name";
 import { Route as DashboardCollectionsNameIndexRouteImport } from "./routes/_dashboard.collections.$name.index";
-import { Route as DashboardCollectionsNameSettingsRouteImport } from "./routes/_dashboard.collections.$name.settings";
-import { Route as DashboardCollectionsNameSearchRouteImport } from "./routes/_dashboard.collections.$name.search";
 import { Route as DashboardCollectionsNameConnectorsRouteImport } from "./routes/_dashboard.collections.$name.connectors";
-import { Route as DashboardCollectionsNameDocumentsIndexRouteImport } from "./routes/_dashboard.collections.$name.documents.index";
+import { Route as DashboardCollectionsNameSearchRouteImport } from "./routes/_dashboard.collections.$name.search";
+import { Route as DashboardCollectionsNameSettingsRouteImport } from "./routes/_dashboard.collections.$name.settings";
 import { Route as DashboardCollectionsNameConnectorsIndexRouteImport } from "./routes/_dashboard.collections.$name.connectors.index";
-import { Route as DashboardCollectionsNameDocumentsDocIdRouteImport } from "./routes/_dashboard.collections.$name.documents.$docId";
 import { Route as DashboardCollectionsNameConnectorsS3RouteImport } from "./routes/_dashboard.collections.$name.connectors.s3";
+import { Route as DashboardCollectionsNameDocumentsIndexRouteImport } from "./routes/_dashboard.collections.$name.documents.index";
+import { Route as DashboardCollectionsNameDocumentsDocIdRouteImport } from "./routes/_dashboard.collections.$name.documents.$docId";
 
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: "/onboarding",
-  path: "/onboarding",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const DashboardRoute = DashboardRouteImport.update({
-  id: "/_dashboard",
+const IndexRoute = IndexRouteImport.update({
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any);
 const AuthRoute = AuthRouteImport.update({
   id: "/_auth",
   getParentRoute: () => rootRouteImport,
 } as any);
-const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+const DashboardRoute = DashboardRouteImport.update({
+  id: "/_dashboard",
   getParentRoute: () => rootRouteImport,
 } as any);
-const DashboardWebhooksRoute = DashboardWebhooksRouteImport.update({
-  id: "/webhooks",
-  path: "/webhooks",
-  getParentRoute: () => DashboardRoute,
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: "/onboarding",
+  path: "/onboarding",
+  getParentRoute: () => rootRouteImport,
 } as any);
-const DashboardUsageRoute = DashboardUsageRouteImport.update({
-  id: "/usage",
-  path: "/usage",
-  getParentRoute: () => DashboardRoute,
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: "/login",
+  path: "/login",
+  getParentRoute: () => AuthRoute,
 } as any);
-const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
-  getParentRoute: () => DashboardRoute,
+const AuthSetupRoute = AuthSetupRouteImport.update({
+  id: "/setup",
+  path: "/setup",
+  getParentRoute: () => AuthRoute,
 } as any);
-const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
-  id: "/overview",
-  path: "/overview",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardModelsRoute = DashboardModelsRouteImport.update({
-  id: "/models",
-  path: "/models",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardMcpRoute = DashboardMcpRouteImport.update({
-  id: "/mcp",
-  path: "/mcp",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardEvalsRoute = DashboardEvalsRouteImport.update({
-  id: "/evals",
-  path: "/evals",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
-  id: "/connectors",
-  path: "/connectors",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardChatRoute = DashboardChatRouteImport.update({
-  id: "/chat",
-  path: "/chat",
-  getParentRoute: () => DashboardRoute,
-} as any);
-const DashboardAuditRoute = DashboardAuditRouteImport.update({
-  id: "/audit",
-  path: "/audit",
+const DashboardAccessLogsRoute = DashboardAccessLogsRouteImport.update({
+  id: "/access-logs",
+  path: "/access-logs",
   getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardApiKeysRoute = DashboardApiKeysRouteImport.update({
@@ -107,20 +72,55 @@ const DashboardApiKeysRoute = DashboardApiKeysRouteImport.update({
   path: "/api-keys",
   getParentRoute: () => DashboardRoute,
 } as any);
-const DashboardAccessLogsRoute = DashboardAccessLogsRouteImport.update({
-  id: "/access-logs",
-  path: "/access-logs",
+const DashboardAuditRoute = DashboardAuditRouteImport.update({
+  id: "/audit",
+  path: "/audit",
   getParentRoute: () => DashboardRoute,
 } as any);
-const AuthSetupRoute = AuthSetupRouteImport.update({
-  id: "/setup",
-  path: "/setup",
-  getParentRoute: () => AuthRoute,
+const DashboardChatRoute = DashboardChatRouteImport.update({
+  id: "/chat",
+  path: "/chat",
+  getParentRoute: () => DashboardRoute,
 } as any);
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: "/login",
-  path: "/login",
-  getParentRoute: () => AuthRoute,
+const DashboardConnectorsRoute = DashboardConnectorsRouteImport.update({
+  id: "/connectors",
+  path: "/connectors",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardEvalsRoute = DashboardEvalsRouteImport.update({
+  id: "/evals",
+  path: "/evals",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardMcpRoute = DashboardMcpRouteImport.update({
+  id: "/mcp",
+  path: "/mcp",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardModelsRoute = DashboardModelsRouteImport.update({
+  id: "/models",
+  path: "/models",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
+  id: "/overview",
+  path: "/overview",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: "/settings",
+  path: "/settings",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardUsageRoute = DashboardUsageRouteImport.update({
+  id: "/usage",
+  path: "/usage",
+  getParentRoute: () => DashboardRoute,
+} as any);
+const DashboardWebhooksRoute = DashboardWebhooksRouteImport.update({
+  id: "/webhooks",
+  path: "/webhooks",
+  getParentRoute: () => DashboardRoute,
 } as any);
 const DashboardCollectionsIndexRoute =
   DashboardCollectionsIndexRouteImport.update({
@@ -140,10 +140,10 @@ const DashboardCollectionsNameIndexRoute =
     path: "/",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
-const DashboardCollectionsNameSettingsRoute =
-  DashboardCollectionsNameSettingsRouteImport.update({
-    id: "/settings",
-    path: "/settings",
+const DashboardCollectionsNameConnectorsRoute =
+  DashboardCollectionsNameConnectorsRouteImport.update({
+    id: "/connectors",
+    path: "/connectors",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
 const DashboardCollectionsNameSearchRoute =
@@ -152,16 +152,10 @@ const DashboardCollectionsNameSearchRoute =
     path: "/search",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
-const DashboardCollectionsNameConnectorsRoute =
-  DashboardCollectionsNameConnectorsRouteImport.update({
-    id: "/connectors",
-    path: "/connectors",
-    getParentRoute: () => DashboardCollectionsNameRoute,
-  } as any);
-const DashboardCollectionsNameDocumentsIndexRoute =
-  DashboardCollectionsNameDocumentsIndexRouteImport.update({
-    id: "/documents/",
-    path: "/documents/",
+const DashboardCollectionsNameSettingsRoute =
+  DashboardCollectionsNameSettingsRouteImport.update({
+    id: "/settings",
+    path: "/settings",
     getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
 const DashboardCollectionsNameConnectorsIndexRoute =
@@ -170,17 +164,23 @@ const DashboardCollectionsNameConnectorsIndexRoute =
     path: "/",
     getParentRoute: () => DashboardCollectionsNameConnectorsRoute,
   } as any);
-const DashboardCollectionsNameDocumentsDocIdRoute =
-  DashboardCollectionsNameDocumentsDocIdRouteImport.update({
-    id: "/documents/$docId",
-    path: "/documents/$docId",
-    getParentRoute: () => DashboardCollectionsNameRoute,
-  } as any);
 const DashboardCollectionsNameConnectorsS3Route =
   DashboardCollectionsNameConnectorsS3RouteImport.update({
     id: "/s3",
     path: "/s3",
     getParentRoute: () => DashboardCollectionsNameConnectorsRoute,
+  } as any);
+const DashboardCollectionsNameDocumentsIndexRoute =
+  DashboardCollectionsNameDocumentsIndexRouteImport.update({
+    id: "/documents/",
+    path: "/documents/",
+    getParentRoute: () => DashboardCollectionsNameRoute,
+  } as any);
+const DashboardCollectionsNameDocumentsDocIdRoute =
+  DashboardCollectionsNameDocumentsDocIdRouteImport.update({
+    id: "/documents/$docId",
+    path: "/documents/$docId",
+    getParentRoute: () => DashboardCollectionsNameRoute,
   } as any);
 
 export interface FileRoutesByFullPath {
@@ -364,18 +364,11 @@ export interface RootRouteChildren {
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    "/onboarding": {
-      id: "/onboarding";
-      path: "/onboarding";
-      fullPath: "/onboarding";
-      preLoaderRoute: typeof OnboardingRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_dashboard": {
-      id: "/_dashboard";
-      path: "";
+    "/": {
+      id: "/";
+      path: "/";
       fullPath: "/";
-      preLoaderRoute: typeof DashboardRouteImport;
+      preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/_auth": {
@@ -385,81 +378,39 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/": {
-      id: "/";
-      path: "/";
+    "/_dashboard": {
+      id: "/_dashboard";
+      path: "";
       fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
+      preLoaderRoute: typeof DashboardRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/_dashboard/webhooks": {
-      id: "/_dashboard/webhooks";
-      path: "/webhooks";
-      fullPath: "/webhooks";
-      preLoaderRoute: typeof DashboardWebhooksRouteImport;
-      parentRoute: typeof DashboardRoute;
+    "/onboarding": {
+      id: "/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof OnboardingRouteImport;
+      parentRoute: typeof rootRouteImport;
     };
-    "/_dashboard/usage": {
-      id: "/_dashboard/usage";
-      path: "/usage";
-      fullPath: "/usage";
-      preLoaderRoute: typeof DashboardUsageRouteImport;
-      parentRoute: typeof DashboardRoute;
+    "/_auth/login": {
+      id: "/_auth/login";
+      path: "/login";
+      fullPath: "/login";
+      preLoaderRoute: typeof AuthLoginRouteImport;
+      parentRoute: typeof AuthRoute;
     };
-    "/_dashboard/settings": {
-      id: "/_dashboard/settings";
-      path: "/settings";
-      fullPath: "/settings";
-      preLoaderRoute: typeof DashboardSettingsRouteImport;
-      parentRoute: typeof DashboardRoute;
+    "/_auth/setup": {
+      id: "/_auth/setup";
+      path: "/setup";
+      fullPath: "/setup";
+      preLoaderRoute: typeof AuthSetupRouteImport;
+      parentRoute: typeof AuthRoute;
     };
-    "/_dashboard/overview": {
-      id: "/_dashboard/overview";
-      path: "/overview";
-      fullPath: "/overview";
-      preLoaderRoute: typeof DashboardOverviewRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/models": {
-      id: "/_dashboard/models";
-      path: "/models";
-      fullPath: "/models";
-      preLoaderRoute: typeof DashboardModelsRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/mcp": {
-      id: "/_dashboard/mcp";
-      path: "/mcp";
-      fullPath: "/mcp";
-      preLoaderRoute: typeof DashboardMcpRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/evals": {
-      id: "/_dashboard/evals";
-      path: "/evals";
-      fullPath: "/evals";
-      preLoaderRoute: typeof DashboardEvalsRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/connectors": {
-      id: "/_dashboard/connectors";
-      path: "/connectors";
-      fullPath: "/connectors";
-      preLoaderRoute: typeof DashboardConnectorsRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/chat": {
-      id: "/_dashboard/chat";
-      path: "/chat";
-      fullPath: "/chat";
-      preLoaderRoute: typeof DashboardChatRouteImport;
-      parentRoute: typeof DashboardRoute;
-    };
-    "/_dashboard/audit": {
-      id: "/_dashboard/audit";
-      path: "/audit";
-      fullPath: "/audit";
-      preLoaderRoute: typeof DashboardAuditRouteImport;
+    "/_dashboard/access-logs": {
+      id: "/_dashboard/access-logs";
+      path: "/access-logs";
+      fullPath: "/access-logs";
+      preLoaderRoute: typeof DashboardAccessLogsRouteImport;
       parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/api-keys": {
@@ -469,26 +420,75 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardApiKeysRouteImport;
       parentRoute: typeof DashboardRoute;
     };
-    "/_dashboard/access-logs": {
-      id: "/_dashboard/access-logs";
-      path: "/access-logs";
-      fullPath: "/access-logs";
-      preLoaderRoute: typeof DashboardAccessLogsRouteImport;
+    "/_dashboard/audit": {
+      id: "/_dashboard/audit";
+      path: "/audit";
+      fullPath: "/audit";
+      preLoaderRoute: typeof DashboardAuditRouteImport;
       parentRoute: typeof DashboardRoute;
     };
-    "/_auth/setup": {
-      id: "/_auth/setup";
-      path: "/setup";
-      fullPath: "/setup";
-      preLoaderRoute: typeof AuthSetupRouteImport;
-      parentRoute: typeof AuthRoute;
+    "/_dashboard/chat": {
+      id: "/_dashboard/chat";
+      path: "/chat";
+      fullPath: "/chat";
+      preLoaderRoute: typeof DashboardChatRouteImport;
+      parentRoute: typeof DashboardRoute;
     };
-    "/_auth/login": {
-      id: "/_auth/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof AuthLoginRouteImport;
-      parentRoute: typeof AuthRoute;
+    "/_dashboard/connectors": {
+      id: "/_dashboard/connectors";
+      path: "/connectors";
+      fullPath: "/connectors";
+      preLoaderRoute: typeof DashboardConnectorsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/evals": {
+      id: "/_dashboard/evals";
+      path: "/evals";
+      fullPath: "/evals";
+      preLoaderRoute: typeof DashboardEvalsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/mcp": {
+      id: "/_dashboard/mcp";
+      path: "/mcp";
+      fullPath: "/mcp";
+      preLoaderRoute: typeof DashboardMcpRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/models": {
+      id: "/_dashboard/models";
+      path: "/models";
+      fullPath: "/models";
+      preLoaderRoute: typeof DashboardModelsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/overview": {
+      id: "/_dashboard/overview";
+      path: "/overview";
+      fullPath: "/overview";
+      preLoaderRoute: typeof DashboardOverviewRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/settings": {
+      id: "/_dashboard/settings";
+      path: "/settings";
+      fullPath: "/settings";
+      preLoaderRoute: typeof DashboardSettingsRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/usage": {
+      id: "/_dashboard/usage";
+      path: "/usage";
+      fullPath: "/usage";
+      preLoaderRoute: typeof DashboardUsageRouteImport;
+      parentRoute: typeof DashboardRoute;
+    };
+    "/_dashboard/webhooks": {
+      id: "/_dashboard/webhooks";
+      path: "/webhooks";
+      fullPath: "/webhooks";
+      preLoaderRoute: typeof DashboardWebhooksRouteImport;
+      parentRoute: typeof DashboardRoute;
     };
     "/_dashboard/collections/": {
       id: "/_dashboard/collections/";
@@ -511,11 +511,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardCollectionsNameIndexRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
-    "/_dashboard/collections/$name/settings": {
-      id: "/_dashboard/collections/$name/settings";
-      path: "/settings";
-      fullPath: "/collections/$name/settings";
-      preLoaderRoute: typeof DashboardCollectionsNameSettingsRouteImport;
+    "/_dashboard/collections/$name/connectors": {
+      id: "/_dashboard/collections/$name/connectors";
+      path: "/connectors";
+      fullPath: "/collections/$name/connectors";
+      preLoaderRoute: typeof DashboardCollectionsNameConnectorsRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
     "/_dashboard/collections/$name/search": {
@@ -525,18 +525,11 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardCollectionsNameSearchRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
-    "/_dashboard/collections/$name/connectors": {
-      id: "/_dashboard/collections/$name/connectors";
-      path: "/connectors";
-      fullPath: "/collections/$name/connectors";
-      preLoaderRoute: typeof DashboardCollectionsNameConnectorsRouteImport;
-      parentRoute: typeof DashboardCollectionsNameRoute;
-    };
-    "/_dashboard/collections/$name/documents/": {
-      id: "/_dashboard/collections/$name/documents/";
-      path: "/documents";
-      fullPath: "/collections/$name/documents/";
-      preLoaderRoute: typeof DashboardCollectionsNameDocumentsIndexRouteImport;
+    "/_dashboard/collections/$name/settings": {
+      id: "/_dashboard/collections/$name/settings";
+      path: "/settings";
+      fullPath: "/collections/$name/settings";
+      preLoaderRoute: typeof DashboardCollectionsNameSettingsRouteImport;
       parentRoute: typeof DashboardCollectionsNameRoute;
     };
     "/_dashboard/collections/$name/connectors/": {
@@ -546,19 +539,26 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DashboardCollectionsNameConnectorsIndexRouteImport;
       parentRoute: typeof DashboardCollectionsNameConnectorsRoute;
     };
-    "/_dashboard/collections/$name/documents/$docId": {
-      id: "/_dashboard/collections/$name/documents/$docId";
-      path: "/documents/$docId";
-      fullPath: "/collections/$name/documents/$docId";
-      preLoaderRoute: typeof DashboardCollectionsNameDocumentsDocIdRouteImport;
-      parentRoute: typeof DashboardCollectionsNameRoute;
-    };
     "/_dashboard/collections/$name/connectors/s3": {
       id: "/_dashboard/collections/$name/connectors/s3";
       path: "/s3";
       fullPath: "/collections/$name/connectors/s3";
       preLoaderRoute: typeof DashboardCollectionsNameConnectorsS3RouteImport;
       parentRoute: typeof DashboardCollectionsNameConnectorsRoute;
+    };
+    "/_dashboard/collections/$name/documents/": {
+      id: "/_dashboard/collections/$name/documents/";
+      path: "/documents";
+      fullPath: "/collections/$name/documents/";
+      preLoaderRoute: typeof DashboardCollectionsNameDocumentsIndexRouteImport;
+      parentRoute: typeof DashboardCollectionsNameRoute;
+    };
+    "/_dashboard/collections/$name/documents/$docId": {
+      id: "/_dashboard/collections/$name/documents/$docId";
+      path: "/documents/$docId";
+      fullPath: "/collections/$name/documents/$docId";
+      preLoaderRoute: typeof DashboardCollectionsNameDocumentsDocIdRouteImport;
+      parentRoute: typeof DashboardCollectionsNameRoute;
     };
   }
 }
