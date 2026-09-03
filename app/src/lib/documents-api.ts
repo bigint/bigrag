@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api";
-import type { BatchStatusResponse, DocListResponse } from "@/lib/document-cache";
+import type { DocListResponse } from "@/lib/document-cache";
 import type { DocumentListOrder, DocumentListSort } from "@/types/bigrag";
 
 export type DocumentListQuery = {
@@ -31,9 +31,3 @@ export const fetchDocumentList = (
     },
     signal,
   });
-
-export const fetchBatchStatus = (collection: string, ids: string[]) =>
-  apiClient.post<BatchStatusResponse>(
-    `v1/collections/${encodeURIComponent(collection)}/documents/batch/status`,
-    { document_ids: ids },
-  );

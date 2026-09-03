@@ -8,13 +8,3 @@ export type DocumentPageParam = {
   offset: number;
   mode: "cursor" | "offset";
 };
-
-export type DocumentStatusUpdate = Pick<
-  Document,
-  "chunk_count" | "error_message" | "id" | "multimodal_element_count" | "progress" | "status"
->;
-
-export type BatchStatusResponse = {
-  documents: DocumentStatusUpdate[];
-  total: number;
-};

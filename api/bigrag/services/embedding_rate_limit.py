@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import random
 import re
 import time
@@ -86,19 +85,6 @@ def rate_limit_delay(exc: Exception, fallback: float) -> float:
     retry_after = retry_after_seconds(exc)
     delay = fallback if retry_after is None else retry_after
     return min(max(delay, 0.0), MAX_RATE_LIMIT_DELAY_SECONDS)
-
-
-def rate_limit_cooldown_key(
-    target,
-    provider: str,
-    model_name: str,
-    dimension: int,
-) -> str:
-    identity = (
-        getattr(target, "cache_identity", None) or target or f"{provider}:{model_name}:{dimension}"
-    )
-    digest = hashlib.sha256(str(identity).encode()).hexdigest()[:24]
-    return f"{RATE_LIMIT_COOLDOWN_KEY_PREFIX}{digest}"
 
 
 async def cooldown_delay(key: str) -> float:

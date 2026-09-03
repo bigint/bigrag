@@ -8,15 +8,6 @@ import { AdminSettingsResource } from "./settings.js";
 import { AdminUsersResource } from "./users.js";
 import { AdminVectorStorageResource } from "./vector_storage.js";
 
-export { AdminAccessResource } from "./access.js";
-export { AdminApiKeysResource } from "./api_keys.js";
-export { AdminAuditResource } from "./audit.js";
-export { AdminEmbeddingPresetsResource } from "./embedding_presets.js";
-export { AdminMcpServersResource } from "./mcp_servers.js";
-export { AdminSettingsResource } from "./settings.js";
-export { AdminUsersResource } from "./users.js";
-export { AdminVectorStorageResource } from "./vector_storage.js";
-
 export class AdminResource {
   readonly users: AdminUsersResource;
   readonly apiKeys: AdminApiKeysResource;

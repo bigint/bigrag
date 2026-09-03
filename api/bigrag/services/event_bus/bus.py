@@ -13,7 +13,6 @@ from bigrag.services.event_bus.types import (
     INGESTION_EVENTS_KEY,
     LATEST_PREFIX,
     LATEST_TTL_SECONDS,
-    SUBSCRIBER_QUEUE_SIZE,
     IngestionEvent,
 )
 
@@ -27,7 +26,6 @@ class EventBus:
         self._redis: aioredis.Redis | None = None
         self._pubsub: aioredis.client.PubSub | None = None
         self._listener: asyncio.Task | None = None
-        self._subs: dict[str, list[asyncio.Queue[IngestionEvent | None]]] = {}
         self._latest: dict[str, IngestionEvent] = {}
         self._completed: OrderedDict[str, None] = OrderedDict()
         self._pending: set[asyncio.Task] = set()
@@ -85,12 +83,9 @@ class EventBus:
                             if key in self._completed:
                                 continue
                             self._mark_completed(key)
-                            for q in list(self._subs.get(key, [])):
-                                self._offer(q, None)
                             continue
                         event = IngestionEvent.deserialize(message["data"])
                         self._latest[event.document_id] = event
-                        self._dispatch(key, event)
                     except asyncio.CancelledError:
                         raise
                     except Exception as e:
@@ -116,24 +111,6 @@ class EventBus:
                         error=str(reconnect_error),
                     )
                     await asyncio.sleep(1)
-
-    def _dispatch(self, channel_key: str, event: IngestionEvent) -> None:
-        for q in list(self._subs.get(channel_key, [])):
-            self._offer(q, event)
-        for q in list(self._subs.get("*", [])):
-            self._offer(q, event)
-
-    def subscribe(self, key: str) -> asyncio.Queue[IngestionEvent | None]:
-        q: asyncio.Queue[IngestionEvent | None] = asyncio.Queue(maxsize=SUBSCRIBER_QUEUE_SIZE)
-        self._subs.setdefault(key, []).append(q)
-        return q
-
-    def unsubscribe(self, key: str, q: asyncio.Queue) -> None:
-        subs = self._subs.get(key, [])
-        if q in subs:
-            subs.remove(q)
-        if not subs:
-            self._subs.pop(key, None)
 
     def publish(self, event: IngestionEvent) -> None:
         self._latest[event.document_id] = event
@@ -165,35 +142,10 @@ class EventBus:
 
         self._spawn(_safe_publish())
 
-    def notify(self, key: str) -> None:
-        event = IngestionEvent(
-            document_id=key,
-            step="refresh",
-            status="updated",
-            message="Refresh",
-        )
-        if not self._redis:
-            self._dispatch(key, event)
-            return
-
-        async def _safe_publish() -> None:
-            try:
-                await self._redis.publish(f"{CHANNEL_PREFIX}{key}", event.serialize())
-            except Exception as e:
-                logger.warning(
-                    "event bus: notify failed",
-                    key=key,
-                    error=str(e),
-                )
-
-        self._spawn(_safe_publish())
-
     def complete(self, document_id: str) -> None:
         if document_id in self._completed:
             return
         self._mark_completed(document_id)
-        for q in list(self._subs.get(document_id, [])):
-            self._offer(q, None)
         if not self._redis:
             return
 
@@ -208,20 +160,6 @@ class EventBus:
                 )
 
         self._spawn(_safe_publish())
-
-    def _offer(self, q: asyncio.Queue[IngestionEvent | None], item: IngestionEvent | None) -> None:
-        if item is None:
-            try:
-                q.put_nowait(None)
-            except asyncio.QueueFull:
-                pass
-            return
-        if q.full():
-            try:
-                q.get_nowait()
-            except asyncio.QueueEmpty:
-                pass
-        q.put_nowait(item)
 
     async def latest(self, document_id: str) -> IngestionEvent | None:
         if self._redis:
