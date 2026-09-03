@@ -1,6 +1,6 @@
 ---
 title: Dependency Updates
-description: Dependency update policy for JavaScript workspace packages.
+description: Dependency update policy for JavaScript and Python packages.
 ---
 
 ## JavaScript packages
@@ -11,4 +11,10 @@ The pnpm workspace delays dependency resolution until a release is at least 7 da
 minimumReleaseAge: 10080
 ```
 
-pnpm measures this value in minutes. The rule applies when installing or updating direct and transitive npm dependencies in the workspace.
+pnpm measures this value in minutes. The rule applies when installing or updating direct and transitive npm dependencies in the workspace. If a needed package is younger than 7 days, add `name@version` to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`.
+
+Upgrade workspace packages with `pnpm update --latest -r`.
+
+## Python packages
+
+The API (`api/`) and Python SDK (`sdks/python/`) pin ranges in `pyproject.toml` and lock with uv. Upgrade each project with `uv lock --upgrade` and `uv sync`.

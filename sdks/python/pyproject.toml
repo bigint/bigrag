@@ -21,7 +21,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "httpx>=0.28.0",
+    "httpx>=0.28.1",
 ]
 
 [project.urls]
