@@ -16,6 +16,6 @@
     "check": "pnpm lint && pnpm lint:api && pnpm typecheck && pnpm build:app && pnpm build:sdk && pnpm build:website && cd api && uv run python -m compileall -q bigrag"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11"
+    "@biomejs/biome": "^2.5.12"
   }
 }

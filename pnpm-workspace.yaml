@@ -6,6 +6,33 @@ packages:
 minimumReleaseAge: 10080
 
 minimumReleaseAgeExclude:
+  - "@base-ui/react@1.8.0"
+  - "@base-ui/utils@0.4.0"
+  - "@biomejs/biome@2.5.12"
+  - "@biomejs/cli-darwin-arm64@2.5.12"
+  - "@biomejs/cli-darwin-x64@2.5.12"
+  - "@biomejs/cli-linux-arm64@2.5.12"
+  - "@biomejs/cli-linux-arm64-musl@2.5.12"
+  - "@biomejs/cli-linux-x64@2.5.12"
+  - "@biomejs/cli-linux-x64-musl@2.5.12"
+  - "@biomejs/cli-win32-arm64@2.5.12"
+  - "@biomejs/cli-win32-x64@2.5.12"
+  - "@next/env@16.3.4"
+  - "@next/swc-darwin-arm64@16.3.4"
+  - "@next/swc-darwin-x64@16.3.4"
+  - "@next/swc-linux-arm64-gnu@16.3.4"
+  - "@next/swc-linux-arm64-musl@16.3.4"
+  - "@next/swc-linux-x64-gnu@16.3.4"
+  - "@next/swc-linux-x64-musl@16.3.4"
+  - "@next/swc-win32-arm64-msvc@16.3.4"
+  - "@next/swc-win32-x64-msvc@16.3.4"
+  - "@types/node@26.4.1"
+  - "@types/react-dom@19.2.7"
+  - cn@0.2.4
+  - fumadocs-core@16.15.7
+  - fumadocs-ui@16.15.7
+  - lucide-react@1.41.0
+  - next@16.3.4
   - postcss@8.5.28
 
 allowBuilds:

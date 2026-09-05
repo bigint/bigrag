@@ -15,6 +15,8 @@ minimumReleaseAge: 10080
 
 pnpm measures this value in minutes. The rule applies when installing or updating direct and transitive npm dependencies in the workspace. If a needed package is younger than 7 days, add `name@version` to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`.
 
+Keep approved exceptions scoped to exact package versions, including any matching platform binaries required by that release. The September 2026 refresh includes approved exceptions for Base UI, Biome, Node.js and React DOM types, Fumadocs, Lucide, Next.js, and PostCSS; the seven-day delay still applies to other releases.
+
 Upgrade workspace packages and their transitive dependencies with `pnpm update --latest -r --depth Infinity`. Review the root `packageManager` pin and the `overrides` in `pnpm-workspace.yaml` separately; overrides can keep packages below their latest release.
 
 pnpm 11 reads workspace settings from `pnpm-workspace.yaml`, including dependency overrides and the `allowBuilds` map. The workspace permits the esbuild installation script. Keep build permissions explicit when adding dependencies with installation scripts.
