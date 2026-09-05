@@ -4,7 +4,7 @@ import contextvars
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
@@ -53,8 +53,8 @@ def _client() -> httpx.AsyncClient:
     )
 
 
-def _build_server() -> FastMCP:
-    mcp = FastMCP(
+def _build_server() -> MCPServer:
+    mcp = MCPServer(
         name="bigrag",
         instructions=(
             "bigRAG retrieval tools. Use `query` to pull top-k chunks from a "
@@ -63,12 +63,6 @@ def _build_server() -> FastMCP:
             "target is unknown. If the configured API key is pinned to a "
             "single collection, cross-collection tools return 403."
         ),
-        stateless_http=True,
-        json_response=True,
-        streamable_http_path="/",
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=False,
-        ),
     )
     register(mcp, _client)
     return mcp
@@ -76,7 +70,14 @@ def _build_server() -> FastMCP:
 
 def build_mcp_http_app(parent_app: FastAPI) -> tuple[ASGIApp, Any]:
     mcp = _build_server()
-    http_app = mcp.streamable_http_app()
+    http_app = mcp.streamable_http_app(
+        stateless_http=True,
+        json_response=True,
+        streamable_http_path="/",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        ),
+    )
 
     class _ParentAppBinding(BaseHTTPMiddleware):
         async def dispatch(self, request: StarletteRequest, call_next):

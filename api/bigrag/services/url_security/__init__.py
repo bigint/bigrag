@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bigrag.services.url_security.openai_transport import pinned_openai_client
 from bigrag.services.url_security.pin import (
     PinnedOutbound,
     pin_chat_base_url,
@@ -25,6 +26,7 @@ __all__ = [
     "pin_chat_base_url",
     "pin_embedding_base_url",
     "pinned_async_client",
+    "pinned_openai_client",
     "resolve_and_pin",
     "resolve_and_pin_sync",
     "validate_chat_base_url",

@@ -4,7 +4,7 @@ description: Install pnpm, Node.js, and run pnpm install --frozen-lockfile.
 inputs:
   node-version:
     description: Node.js version
-    default: "22"
+    default: "24"
 
 runs:
   using: composite

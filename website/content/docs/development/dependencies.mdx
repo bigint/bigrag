@@ -5,6 +5,8 @@ description: Dependency update policy for JavaScript and Python packages.
 
 ## JavaScript packages
 
+Use Node.js 24 LTS for development, matching CI and the admin UI build image. The root `package.json` pins pnpm 11.25.0. After changing pnpm major versions, run `pnpm install` to recreate local dependencies in the matching package store.
+
 The pnpm workspace delays dependency resolution until a release is at least 7 days old:
 
 ```yaml
@@ -13,8 +15,18 @@ minimumReleaseAge: 10080
 
 pnpm measures this value in minutes. The rule applies when installing or updating direct and transitive npm dependencies in the workspace. If a needed package is younger than 7 days, add `name@version` to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`.
 
-Upgrade workspace packages with `pnpm update --latest -r`.
+Upgrade workspace packages and their transitive dependencies with `pnpm update --latest -r --depth Infinity`. Review the root `packageManager` pin and the `overrides` in `pnpm-workspace.yaml` separately; overrides can keep packages below their latest release.
+
+pnpm 11 reads workspace settings from `pnpm-workspace.yaml`, including dependency overrides and the `allowBuilds` map. The workspace permits the esbuild installation script. Keep build permissions explicit when adding dependencies with installation scripts.
 
 ## Python packages
 
-The API (`api/`) and Python SDK (`sdks/python/`) pin ranges in `pyproject.toml` and lock with uv. Upgrade each project with `uv lock --upgrade` and `uv sync`.
+The API (`api/`) and Python SDK (`sdks/python/`) pin ranges in `pyproject.toml` and lock with uv. Review direct dependency bounds and build-system requirements before running `uv lock --upgrade` in each project, then install with `uv sync --locked`. A lockfile refresh respects existing upper bounds, so major upgrades need an explicit compatibility review.
+
+The backend uses OpenAI Python SDK 3 with a dedicated HTTPX2 client that preserves DNS pinning, TLS hostname verification, request timeouts, and redirect refusal for provider requests. Other integrations and the Python SDK continue to use HTTPX. The MCP Python SDK 2 configures HTTP transport options when building or running the server.
+
+## Build images and verification
+
+The admin UI builds on Node.js 24 LTS and serves through nginx 1.31. PostgreSQL 17 and Redis 7 remain on their supported deployment lines; database major upgrades require a separate data migration.
+
+After updates, verify reproducible installs with `pnpm install --frozen-lockfile` and `uv sync --locked` in both Python projects. Run `pnpm check` and the Python SDK checks listed in [Testing](/docs/development/testing), then smoke-check integrations affected by major dependency changes.

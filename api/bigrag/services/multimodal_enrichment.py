@@ -14,7 +14,7 @@ from bigrag.services.runtime_settings import get_value, get_values
 from bigrag.services.url_security import (
     UnsafeOutboundUrlError,
     pin_chat_base_url,
-    pinned_async_client,
+    pinned_openai_client,
 )
 
 MAX_ELEMENTS_PER_RUN = 25
@@ -48,7 +48,7 @@ async def enrich_document_elements(document_id: str | uuid.UUID) -> int:
         api_key=api_key,
         base_url=OPENAI_BASE_URL,
         timeout=MODEL_TIMEOUT_SECONDS,
-        http_client=pinned_async_client(pinned, timeout=MODEL_TIMEOUT_SECONDS),
+        http_client=pinned_openai_client(pinned, timeout=MODEL_TIMEOUT_SECONDS),
     )
     try:
         return await _enrich_with_client(

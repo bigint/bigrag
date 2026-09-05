@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /workspace
 
@@ -19,7 +19,7 @@ COPY sdks/typescript sdks/typescript
 RUN pnpm --filter @bigrag/client build
 RUN pnpm --filter @bigrag/app build
 
-FROM nginx:1.29-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 COPY app/nginx.conf /etc/nginx/conf.d/default.conf
 COPY app/docker-entrypoint.sh /docker-entrypoint.d/40-bigrag-config.sh

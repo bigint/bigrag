@@ -6,7 +6,7 @@ import hashlib
 from bigrag.services.embedding.base import EmbeddingModel, logger, truncate_to_tokens
 from bigrag.services.embedding_gate import embedding_gate
 from bigrag.services.url_security import (
-    pinned_async_client,
+    pinned_openai_client,
     resolve_and_pin_sync,
     validate_embedding_base_url_sync,
 )
@@ -51,7 +51,7 @@ class OpenAIEmbedding(EmbeddingModel):
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-required",
             base_url=self._base_url,
-            http_client=pinned_async_client(pinned, timeout=60.0),
+            http_client=pinned_openai_client(pinned, timeout=60.0),
         )
         logger.info(
             "initialized openai-compatible embedding",

@@ -5,7 +5,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Annotated, Any, Literal
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from pydantic import Field
 
 from .tools import (
@@ -32,14 +32,14 @@ def shared_client_provider(client: httpx.AsyncClient) -> ClientProvider:
     return provider
 
 
-def register(mcp: FastMCP, client: ClientProvider, pinned: str | None = None) -> None:
+def register(mcp: MCPServer, client: ClientProvider, pinned: str | None = None) -> None:
     if pinned is None:
         _register_unscoped(mcp, client)
     else:
         _register_scoped(mcp, client, pinned)
 
 
-def _register_unscoped(mcp: FastMCP, client: ClientProvider) -> None:
+def _register_unscoped(mcp: MCPServer, client: ClientProvider) -> None:
     @mcp.tool()
     async def list_collections(
         limit: Annotated[int, Field(ge=1, le=100, description="Max collections to return")] = 50,
@@ -135,7 +135,7 @@ def _register_unscoped(mcp: FastMCP, client: ClientProvider) -> None:
             return await call_get_document_chunks(c, collection, document_id, limit, offset)
 
 
-def _register_scoped(mcp: FastMCP, client: ClientProvider, pinned: str) -> None:
+def _register_scoped(mcp: MCPServer, client: ClientProvider, pinned: str) -> None:
     @mcp.tool()
     async def get_collection() -> dict[str, Any]:
         async with client() as c:

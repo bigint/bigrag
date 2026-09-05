@@ -7,7 +7,7 @@ Thank you for your interest in contributing to bigRAG. This guide will help you 
 ### Prerequisites
 
 - **Python 3.12+** with [uv](https://docs.astral.sh/uv/)
-- **Node.js 20+** with [pnpm](https://pnpm.io/) (via corepack)
+- **Node.js 24 LTS** with the [pnpm](https://pnpm.io/) version pinned in `package.json` (via corepack)
 - **Docker** and **Docker Compose** — for Postgres and Redis
 
 ### Development Setup

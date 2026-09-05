@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from .register import register, shared_client_provider
 from .tools import (
@@ -20,12 +20,10 @@ def create_server(
     base_url: str,
     api_key: str | None,
     collection: str | None = None,
-    port: int = 6101,
-) -> FastMCP:
-    mcp = FastMCP(
+) -> MCPServer:
+    mcp = MCPServer(
         name=f"bigrag-{collection}" if collection else "bigrag",
         instructions=scoped_instructions(collection) if collection else unscoped_instructions(),
-        port=port,
     )
     client = make_client(base_url, api_key)
     register(mcp, shared_client_provider(client), collection)
@@ -83,11 +81,11 @@ def cli() -> None:
             sys.stderr.write(f"bigrag-mcp: {e}\n")
             sys.exit(1)
 
-    server = create_server(args.base_url, args.api_key, collection, port=args.port)
+    server = create_server(args.base_url, args.api_key, collection)
     if args.transport == "stdio":
         server.run()
     else:
-        server.run(transport="streamable-http")
+        server.run(transport="streamable-http", port=args.port)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from bigrag.logging import get_logger
 from bigrag.services.url_security import (
     UnsafeOutboundUrlError,
     pin_chat_base_url,
-    pinned_async_client,
+    pinned_openai_client,
 )
 
 from .formatting import _safe_chat_error
@@ -152,7 +152,7 @@ async def _openai_client(openai_module, prepared: PreparedChatTurn, credential: 
             "api_key": credential.api_key,
             "timeout": _MODEL_TIMEOUT_SECONDS,
             "base_url": base_url,
-            "http_client": pinned_async_client(pinned, timeout=_MODEL_TIMEOUT_SECONDS),
+            "http_client": pinned_openai_client(pinned, timeout=_MODEL_TIMEOUT_SECONDS),
         }
         client = openai_module.AsyncOpenAI(**kwargs)
         _chat_clients[cache_key] = (client, time.monotonic())
